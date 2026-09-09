@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>dev.relism</groupId>
+    <artifactId>glossa</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Glossa</name>
+    <description>Agent-native translation management system built on Flash.</description>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!--
+          Flash dependency version — for local dev this tracks the SNAPSHOT built and
+          `mvn install`-ed from ../Flash5 into the LOCAL repo (~/.m2/repository). Maven always
+          resolves from the local repo before any remote one, so changes made in ../Flash5 show
+          up here as soon as you re-run `mvn install` there — no publish step needed.
+
+          The `docker` profile below overrides this to a specific `2.1.0-<short-sha>` build
+          published by ../Flash5's .gitea/workflows/publish-maven.yml to Gitea's Maven registry:
+          Docker builds can't reach your local ~/.m2, and Gitea's registry refuses to overwrite
+          an existing `2.1.0-SNAPSHOT`, so each Flash push publishes an immutable,
+          uniquely-versioned build instead. Bump that override by hand to pick up newer Flash
+          changes in the image. Same arrangement ../Pathway uses — see its pom.xml.
+        -->
+        <flash.version>2.1.0-SNAPSHOT</flash.version>
+
+        <slf4j.version>2.0.16</slf4j.version>
+        <junit.version>5.11.0</junit.version>
+
+        <!--
+          hibernate-core itself comes transitively from flash-ext-data-hibernate below —
+          don't redeclare it here, or it can drift from what ../Flash5 pins in
+          flash-extensions/pom.xml and put two Hibernate versions on the classpath.
+          HikariCP's version is copied from that same dependencyManagement block.
+        -->
+        <hikaricp.version>6.3.0</hikaricp.version>
+        <postgresql.version>42.7.4</postgresql.version>
+        <flyway.version>13.0.0</flyway.version>
+
+        <!-- Same version ../Flash5 pins — Flash's own code (and flash-ext-data-hibernate) already uses Lombok. -->
+        <lombok.version>1.18.44</lombok.version>
+
+        <!-- Same version ../Flash5 pins (flash-extensions/pom.xml) for its own Postgres-backed tests. -->
+        <testcontainers.version>1.21.3</testcontainers.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!--
+          Postgres is the only persistent datastore (docs/REQUIREMENTS.md §2). This is Flash's
+          own Hibernate repository layer, wired into the same @Transactional/Tx/TxManager
+          system as the rest of the extension graph — see ../Flash5's flash-ext-data-hibernate
+          and flash-ext-data-core.
+        -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-data-hibernate</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+
+        <!-- JSON marshalling for the admin API and the public delivery API (§10). -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-jackson</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <!-- OpenAPI spec + Swagger UI — the delivery API is a public integration surface (§10). -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-openapi</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <!-- Request validation (jakarta constraints, compiled once per type) for the write API. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-validation</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <!-- §10: "The public delivery API must be rate-limited". -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-limiter</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <!--
+          §9: LibreTranslate suggestions must never block a user action, so they run as
+          background jobs. Also the home for translation-memory/staleness sweeps (§6, §7).
+        -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-scheduler</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <!-- §10: delivery responses must be "efficiently cacheable" with conditional re-fetching. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-cache-caffeine</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <!-- §11: human users authenticate via OIDC SSO. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-oidc</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <!--
+          §12: the MCP interface is a core product capability, not an add-on. McpExtension
+          auto-detects OidcMiddleware and locks /mcp down per RFC 8707/RFC 9728 with no extra
+          config — see ../Flash5/flash-extensions/flash-ext-mcp/docs/security.md.
+        -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-mcp</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <!-- §13: serves and (in dev) orchestrates the React SPA under web/. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-web-bundler</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+
+        <!--
+          flyway-core pulls Jackson 3 (tools.jackson.core:jackson-databind), whose own POM
+          notes annotations "remain at Jackson 2.x group id" and requires
+          com.fasterxml.jackson.core:jackson-annotations 2.21+. flash-ext-jackson's
+          jackson-databind transitively pulls a 2.17.x jackson-annotations, which Maven picks
+          by default (nearer in the tree) — too old for Jackson 3's databind, causing a
+          NoClassDefFoundError at Flyway boot. jackson-annotations is additive/backward
+          compatible across minor versions, so pinning it up here satisfies both. Same fix
+          ../Pathway carries for the same flyway+flash-ext-jackson pairing.
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.21</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${hikaricp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        </dependency>
+
+        <!-- flyway-database-postgresql is discovered via classpath service-loading; no direct code reference needed. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>${flyway.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Boots the real app on an ephemeral port and asserts against real responses. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-testing</artifactId>
+            <version>${flash.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Real Postgres in a container — no mocking a real DB's behavior. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!--
+      Only actually consulted by the `docker` profile below, which overrides flash.version to a
+      concrete published build — plain `mvn package` resolves dev.relism:flash from the local
+      repo first (see flash.version's comment) and never reaches this entry. Gitea publishes
+      packages per-owner, not per-repo, so this one URL serves both Relism/Flash5 (flash,
+      flash-ext-*) and Relism/FastPathRouter (fpr-core, its own dependency) — public repos owned
+      by a public Gitea user, so this resolves anonymously, no settings.xml/credentials needed.
+    -->
+    <repositories>
+        <repository>
+            <id>gitea-flash</id>
+            <name>Gitea Maven Registry (Relism)</name>
+            <url>https://git.pixel-services.com/api/packages/Relism/maven</url>
+        </repository>
+    </repositories>
+
+    <build>
+        <finalName>glossa</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals><goal>shade</goal></goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>dev.relism.glossa.Main</mainClass>
+                                </transformer>
+                                <!-- Without this, only one dependency's META-INF/services/* file per
+                                     interface survives shading instead of all of them being merged —
+                                     silently breaks Flyway's own database-type ServiceLoader lookup
+                                     (flyway-database-postgresql). -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!--
+      Only active for the Docker image build (`mvn -Pdocker package`, see Dockerfile) — never
+      touches a plain local `mvn package`/`mvn test`, which would otherwise fail whenever
+      web/dist hasn't been built. Wires the frontend's already-built web/dist into the shaded
+      jar as classpath resources, matching Main#webBundlerConfig()'s prod branch
+      (.assetsFromClasspath("web/dist")): copy web/dist into target/classes/web/dist, then run
+      WebBundlerBuild against it to generate the asset-manifest.json ClasspathAssetsSource
+      requires — both before maven-shade-plugin's `package`-phase execution above picks
+      target/classes up. See ../Flash5/flash-extensions/flash-ext-web-bundler/docs/build-time.md.
+    -->
+    <profiles>
+        <profile>
+            <id>docker</id>
+            <properties>
+                <!--
+                  Published by ../Flash5's .gitea/workflows/publish-maven.yml — bump this by hand
+                  (to whatever new "2.1.0-<short-sha>" that workflow publishes) to pick up newer
+                  Flash changes in the Docker image; see the flash.version comment above.
+                -->
+                <flash.version>2.1.0-3d743b3</flash.version>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>copy-web-dist</id>
+                                <phase>process-resources</phase>
+                                <goals><goal>copy-resources</goal></goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.outputDirectory}/web/dist</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.basedir}/web/dist</directory>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>web-bundler-manifest</id>
+                                <phase>process-classes</phase>
+                                <goals><goal>java</goal></goals>
+                                <configuration>
+                                    <mainClass>dev.relism.flash.ext.webbundler.WebBundlerBuild</mainClass>
+                                    <arguments>
+                                        <argument>${project.build.outputDirectory}/web/dist</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>
