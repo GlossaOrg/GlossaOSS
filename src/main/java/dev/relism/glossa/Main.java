@@ -31,7 +31,7 @@ public final class Main {
         // §11 makes SSO mandatory in a real deployment, but a fresh clone has no identity
         // provider — and OidcExtension fetches the issuer's discovery document at boot, so
         // installing it against a placeholder issuer fails the whole app. Install order matters:
-        // this must precede GlossaApp's McpExtension, which auto-detects OidcMiddleware and
+        // this must precede GlossaApp's McpExtension, which auto-detects OidcCredentialSource and
         // derives its RFC 8707/RFC 9728 OAuth2 configuration from it.
         if (Env.OIDC_ISSUER == null) {
             log.warn("OIDC_ISSUER is unset — starting with authentication disabled. "

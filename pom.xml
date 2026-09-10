@@ -119,12 +119,12 @@
         <!-- §11: human users authenticate via OIDC SSO. -->
         <dependency>
             <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-oidc</artifactId>
+            <artifactId>flash-ext-auth-oidc</artifactId>
             <version>${flash.version}</version>
         </dependency>
         <!--
           §12: the MCP interface is a core product capability, not an add-on. McpExtension
-          auto-detects OidcMiddleware and locks /mcp down per RFC 8707/RFC 9728 with no extra
+          auto-detects OidcCredentialSource and locks /mcp down per RFC 8707/RFC 9728 with no extra
           config — see ../Flash5/flash-extensions/flash-ext-mcp/docs/security.md.
         -->
         <dependency>
