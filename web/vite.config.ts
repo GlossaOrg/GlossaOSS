@@ -24,7 +24,11 @@ export default defineConfig({
     proxy: {
       '^/': {
         target: 'http://localhost:8080',
-        ws: true,
+        // No `ws: true`. It would make this catch-all context swallow *every* WebSocket upgrade
+        // on `/` — including Vite's own HMR socket, which lives on that same path and would then
+        // be forwarded to a backend that does not speak `vite-hmr`: HTTP keeps working while HMR
+        // hangs and the client eventually reports "failed to connect to websocket".
+        // Flash has no WebSocket endpoint; give one its own path here when it does.
         // `/@…`, `/src/…`, `/node_modules/…` are Vite's own module graph, and `public/` is
         // served from the root. Past those, an HTML request is a client-side route that falls
         // through to index.html — unless the backend owns the path outright, which for /auth
