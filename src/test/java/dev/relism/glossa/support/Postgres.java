@@ -3,6 +3,10 @@ package dev.relism.glossa.support;
 import dev.relism.glossa.persistence.Database;
 import org.testcontainers.containers.PostgreSQLContainer;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
 /**
  * One throwaway Postgres shared by every test class in the JVM.
  *
@@ -26,7 +30,22 @@ public final class Postgres {
 
     private Postgres() {}
 
-    public static Database.Bootstrap bootstrap() {
-        return Database.bootstrap(CONTAINER.getJdbcUrl(), CONTAINER.getUsername(), CONTAINER.getPassword());
+    public static Database.Bootstrap bootstrap(Database.Layer... layers) {
+        return Database.bootstrap(CONTAINER.getJdbcUrl(), CONTAINER.getUsername(), CONTAINER.getPassword(), layers);
+    }
+
+    /** A database of its own in the shared container, for a test that needs to start from no rows at all. */
+    public static Database.Bootstrap fresh(String name) {
+        try (Connection connection = connection()) {
+            connection.createStatement().execute("create database " + name);
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+        return Database.bootstrap(CONTAINER.getJdbcUrl().replace("/" + CONTAINER.getDatabaseName(), "/" + name), CONTAINER.getUsername(), CONTAINER.getPassword());
+    }
+
+    /** For asserting on what a migration actually did — the schema, not the app's view of it. */
+    public static Connection connection() throws SQLException {
+        return DriverManager.getConnection(CONTAINER.getJdbcUrl(), CONTAINER.getUsername(), CONTAINER.getPassword());
     }
 }
