@@ -30,5 +30,5 @@ EXPOSE 8080
 # Temurin is container-aware (cgroup limits visible to the JVM since JDK 10+), but only if a
 # limit is actually declared on the container. JDK_JAVA_OPTIONS is the standard java launcher
 # env var (JDK 9+, not Temurin-specific) — override it per-deployment without rebuilding.
-ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=75.0"
+ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=75.0 -Dorg.jboss.logging.provider=slf4j -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"
 ENTRYPOINT ["java", "-jar", "glossa.jar"]

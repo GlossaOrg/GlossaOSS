@@ -1,0 +1,64 @@
+{
+  "realm": "glossa",
+  "enabled": true,
+  "displayName": "Glossa (dev)",
+  "sslRequired": "none",
+  "loginTheme": "keycloak",
+  "roles": {
+    "realm": [
+      {
+        "name": "translator",
+        "description": "Proposes changes to a locale's value (REQUIREMENTS §7)."
+      },
+      {
+        "name": "reviewer",
+        "description": "Approves or rejects proposals; direct edits go live (§7)."
+      },
+      {
+        "name": "manager",
+        "description": "Project-wide administrative role, not locale-scoped (§7)."
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "glossa",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://localhost:8080"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "dev",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev@example.com",
+      "firstName": "Dev",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "translator",
+        "reviewer",
+        "manager"
+      ]
+    }
+  ]
+}
