@@ -9,7 +9,7 @@ import dev.relism.glossa.GlossaApp;
 
 /**
  * Connectivity and version check — the MCP counterpart of
- * {@link dev.relism.glossa.api.HealthHandler}, so an agent can confirm which build it is talking
+ * {@link dev.relism.glossa.api.MetaHandlers.Health}, so an agent can confirm which build it is talking
  * to before issuing real calls. The §12 tools (listing untranslated content, reviewing
  * suggestions, approving proposals, searching for inconsistencies, creating schemas and keys)
  * land alongside it in this package as the domain arrives.

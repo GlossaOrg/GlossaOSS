@@ -13,7 +13,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 class GlossaBootTest {
 
     @RegisterExtension
-    static final FlashTest app = FlashTest.of(new GlossaApp(Postgres.bootstrap()));
+    static final FlashTest app = FlashTest.of(new GlossaApp(Postgres.bootstrap(), true, true));
 
     /** Also covers the scanned-handler path and Jackson's automatic JSON marshalling. */
     @Test
@@ -22,6 +22,12 @@ class GlossaBootTest {
                 .expectStatus(200)
                 .expectBodyContains("glossa")
                 .expectBodyContains("ok");
+    }
+
+    /** Authentication is never absent: password sign-in guards the route when no identity provider is configured. */
+    @Test
+    void meIsRefusedWithoutASession() {
+        app.request().header("Accept", "application/json").get("/api/me").expectStatus(401);
     }
 
     @Test

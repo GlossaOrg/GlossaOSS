@@ -12,7 +12,7 @@ The differentiating idea versus existing TMS products (Crowdin, Lokalise, Weblat
 
 - Distributed as a Docker image.
 - Intended to run via Docker Compose alongside two other containers: a PostgreSQL database (the system's only persistent datastore) and a LibreTranslate instance (used for automatic translation suggestions).
-- Both a self-hosted / open-source edition and a hosted SaaS edition are planned. The product must be architected from the start so that supporting multiple customer organizations in the SaaS edition does not require reworking the core data and permission model later. In the self-hosted edition there will simply always be exactly one organization.
+- Both a self-hosted / open-source edition and a hosted SaaS edition are planned. The open-source edition has no concept of an organization at all: a project is the widest scope anything is grouped under, and permissions are granted per project. Multiple customer organizations are a hosted-edition addition, layered over the same project model without changing it — a user of either edition sees the same screens and the same separation between their projects.
 
 ## 3. Content model philosophy — extensible, not hardcoded
 
@@ -78,8 +78,9 @@ If the source-locale content of a key is edited after a given locale's translati
 
 ## 11. Authentication
 
-- Human users (translators, reviewers, project managers, administrators) authenticate via SSO using OpenID Connect (OIDC).
-- External services that consume the public delivery API authenticate separately, via API tokens intended for machine-to-machine access rather than SSO login.
+- Human users (translators, reviewers, project managers, administrators) authenticate either via SSO using OpenID Connect (OIDC), or with an account held by the system itself. A self-hosted install must not be forced to stand up an identity provider before it can be used; the hosted edition uses SSO exclusively.
+- External services and agents that call the system authenticate with API keys the system issues itself and a project manager administers from the web interface — not with SSO tokens. A key is issued for one project, with one role, and cannot exceed it.
+- Whichever of the above authenticated a caller, what that caller is allowed to do is read from this system's own data (§8), never from an identity provider's claims. Changing the authentication strategy therefore cannot change anybody's permissions.
 
 ## 12. Agent-native operations (MCP)
 

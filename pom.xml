@@ -18,12 +18,12 @@
 
         <!--
           Flash dependency version — for local dev this tracks the SNAPSHOT built and
-          `mvn install`-ed from ../Flash5 into the LOCAL repo (~/.m2/repository). Maven always
-          resolves from the local repo before any remote one, so changes made in ../Flash5 show
+          `mvn install`-ed from ../../Flash5 into the LOCAL repo (~/.m2/repository). Maven always
+          resolves from the local repo before any remote one, so changes made in ../../Flash5 show
           up here as soon as you re-run `mvn install` there — no publish step needed.
 
           The `docker` profile below overrides this to a specific `2.1.0-<short-sha>` build
-          published by ../Flash5's .gitea/workflows/publish-maven.yml to Gitea's Maven registry:
+          published by ../../Flash5's .gitea/workflows/publish-maven.yml to Gitea's Maven registry:
           Docker builds can't reach your local ~/.m2, and Gitea's registry refuses to overwrite
           an existing `2.1.0-SNAPSHOT`, so each Flash push publishes an immutable,
           uniquely-versioned build instead. Bump that override by hand to pick up newer Flash
@@ -36,7 +36,7 @@
 
         <!--
           hibernate-core itself comes transitively from flash-ext-data-hibernate below —
-          don't redeclare it here, or it can drift from what ../Flash5 pins in
+          don't redeclare it here, or it can drift from what ../../Flash5 pins in
           flash-extensions/pom.xml and put two Hibernate versions on the classpath.
           HikariCP's version is copied from that same dependencyManagement block.
         -->
@@ -44,10 +44,10 @@
         <postgresql.version>42.7.4</postgresql.version>
         <flyway.version>13.0.0</flyway.version>
 
-        <!-- Same version ../Flash5 pins — Flash's own code (and flash-ext-data-hibernate) already uses Lombok. -->
+        <!-- Same version ../../Flash5 pins — Flash's own code (and flash-ext-data-hibernate) already uses Lombok. -->
         <lombok.version>1.18.44</lombok.version>
 
-        <!-- Same version ../Flash5 pins (flash-extensions/pom.xml) for its own Postgres-backed tests. -->
+        <!-- Same version ../../Flash5 pins (flash-extensions/pom.xml) for its own Postgres-backed tests. -->
         <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 
@@ -68,7 +68,7 @@
         <!--
           Postgres is the only persistent datastore (docs/REQUIREMENTS.md §2). This is Flash's
           own Hibernate repository layer, wired into the same @Transactional/Tx/TxManager
-          system as the rest of the extension graph — see ../Flash5's flash-ext-data-hibernate
+          system as the rest of the extension graph — see ../../Flash5's flash-ext-data-hibernate
           and flash-ext-data-core.
         -->
         <dependency>
@@ -116,17 +116,23 @@
             <artifactId>flash-ext-cache-caffeine</artifactId>
             <version>${flash.version}</version>
         </dependency>
-        <!-- §11: human users authenticate via OIDC SSO. -->
+        <!-- §11: SSO, password sign-in and API keys, each optional, all on one security chain. -->
         <dependency>
             <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-auth-oidc</artifactId>
+            <artifactId>flash-ext-security-oidc</artifactId>
             <version>${flash.version}</version>
         </dependency>
-        <!--
-          §12: the MCP interface is a core product capability, not an add-on. McpExtension
-          auto-detects OidcCredentialSource and locks /mcp down per RFC 8707/RFC 9728 with no extra
-          config — see ../Flash5/flash-extensions/flash-ext-mcp/docs/security.md.
-        -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-security-form</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-security-apikey</artifactId>
+            <version>${flash.version}</version>
+        </dependency>
+        <!-- §12: MCP is a core capability, authenticated by the same chain as every route. -->
         <dependency>
             <groupId>dev.relism</groupId>
             <artifactId>flash-ext-mcp</artifactId>
@@ -205,6 +211,12 @@
             <version>${flash.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-security-test</artifactId>
+            <version>${flash.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- Real Postgres in a container — no mocking a real DB's behavior. -->
         <dependency>
@@ -258,6 +270,53 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+                <configuration>
+                    <!-- Same two settings the dev run and the Dockerfile pass, so test output
+                         reads like production output. Both must be set at JVM start, hence
+                         argLine rather than systemPropertyVariables. -->
+                    <argLine>-Dorg.jboss.logging.provider=slf4j -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</argLine>
+                </configuration>
+            </plugin>
+            <!--
+              The dev loop: `mvn compile exec:exec@dev` runs Main off target/classes, skipping the
+              shade that `package` would otherwise redo on every edit. `exec` and not `java`: the
+              latter runs Main inside Maven's own JVM under an isolated classloader, where SLF4J
+              finds no provider (all logging silently vanishes) and the web bundler never brings
+              the Vite dev server up. This forks a real JVM instead, identical to `java -jar`.
+              The config sits in a phase-less <execution> rather than on the plugin, so it cannot
+              leak into the docker profile's web-bundler-manifest execution below; exec:exec has
+              no default phase binding, so declaring the goal here does not attach it to a build.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>dev</id>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <executable>java</executable>
+                            <arguments>
+                                <argument>-Dflash.env=dev</argument>
+                                <!-- Hibernate logs through JBoss Logging, which picks JUL over
+                                     SLF4J unless told otherwise — without this its output is the
+                                     odd two-line JUL format among everyone else's SLF4J lines.
+                                     The Dockerfile sets the same property for the image. -->
+                                <argument>-Dorg.jboss.logging.provider=slf4j</argument>
+                                <!-- No LANG is set in a bare shell or container, so stdout
+                                     defaults to ASCII and every non-ASCII character in a log
+                                     line (or a translated string — this is a translation tool)
+                                     prints as `?`. -->
+                                <argument>-Dstdout.encoding=UTF-8</argument>
+                                <argument>-Dstderr.encoding=UTF-8</argument>
+                                <argument>-classpath</argument>
+                                <classpath/>
+                                <argument>dev.relism.glossa.Main</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -293,18 +352,18 @@
       (.assetsFromClasspath("web/dist")): copy web/dist into target/classes/web/dist, then run
       WebBundlerBuild against it to generate the asset-manifest.json ClasspathAssetsSource
       requires — both before maven-shade-plugin's `package`-phase execution above picks
-      target/classes up. See ../Flash5/flash-extensions/flash-ext-web-bundler/docs/build-time.md.
+      target/classes up. See ../../Flash5/flash-extensions/flash-ext-web-bundler/docs/build-time.md.
     -->
     <profiles>
         <profile>
             <id>docker</id>
             <properties>
                 <!--
-                  Published by ../Flash5's .gitea/workflows/publish-maven.yml — bump this by hand
+                  Published by ../../Flash5's .gitea/workflows/publish-maven.yml — bump this by hand
                   (to whatever new "2.1.0-<short-sha>" that workflow publishes) to pick up newer
                   Flash changes in the Docker image; see the flash.version comment above.
                 -->
-                <flash.version>2.1.0-3d743b3</flash.version>
+                <flash.version>2.1.0-9892ad4</flash.version>
             </properties>
             <build>
                 <plugins>
