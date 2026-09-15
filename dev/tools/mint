@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Rebuild the disposable local database, migrate it through the app, then load dev fixtures.
+set -euo pipefail
+
+cd "$(dirname "$0")/../.."
+
+compose=(docker compose -f dev/compose.yaml)
+volume=glossa_postgres-data
+log=$(mktemp)
+app=
+
+stop_app() {
+  if [ -n "$app" ] && kill -0 "$app" 2>/dev/null; then
+    kill "$app"
+    wait "$app" 2>/dev/null || true
+  fi
+  rm -f "$log"
+}
+trap stop_app EXIT INT TERM
+
+"${compose[@]}" stop postgres >/dev/null 2>&1 || true
+"${compose[@]}" rm -f postgres >/dev/null 2>&1 || true
+if docker volume inspect "$volume" >/dev/null 2>&1; then
+  docker volume rm "$volume" >/dev/null
+fi
+"${compose[@]}" up -d --wait --build
+
+./mvnw compile exec:exec@dev >"$log" 2>&1 &
+app=$!
+for _ in {1..60}; do
+  if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/me || true)" = 401 ]; then
+    "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U glossa -d glossa < dev/tools/seed.sql
+    exit
+  fi
+  if ! kill -0 "$app" 2>/dev/null; then
+    cat "$log"
+    exit 1
+  fi
+  sleep 1
+done
+
+cat "$log"
+exit 1
