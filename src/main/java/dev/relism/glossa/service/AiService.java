@@ -117,8 +117,10 @@ public final class AiService {
             throw new HttpException(502, "The AI provider's answer could not be read.");
         }
         if (!content.isTextual() || content.asText().isBlank()) throw new HttpException(502, "The AI provider answered nothing.");
-        // Models wrap code in fences however plainly they are told not to.
-        return new Completion(content.asText().strip().replaceAll("^```[a-zA-Z]*\\s*|\\s*```$", ""), endpoint.model());
+        // Models wrap code in fences however plainly they are told not to. Only the fences and the
+        // newlines around the answer go: a message's own spaces and tabs are part of its value.
+        String text = content.asText().replaceAll("^\\s*```[a-zA-Z]*\\n|\\n```\\s*$", "").replaceAll("^[\\r\\n]+|[\\r\\n]+$", "");
+        return new Completion(text, endpoint.model());
     }
 
     private Endpoint configured() {
