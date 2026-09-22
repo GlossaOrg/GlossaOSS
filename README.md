@@ -101,7 +101,9 @@ content (see `dev/README.md`).
 
 Off until an administrator turns them on in Settings and names an OpenAI-compatible provider
 (REQUIREMENTS §9): a base URL such as `https://openrouter.ai/api/v1`, a model, and an API key. The
-key is sealed in the database with `ENCRYPTION_KEY`, so generate that first and keep it:
+key is sealed in the database with `ENCRYPTION_KEY`. `dev.sh` exports a well-known one, so local work
+needs nothing; a deployment generates its own and keeps it, since rotating it means entering every
+stored key again:
 
 ```bash
 head -c 32 /dev/urandom | base64
