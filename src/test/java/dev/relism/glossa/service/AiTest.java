@@ -80,19 +80,23 @@ class AiTest {
     @Test
     @Order(1)
     void theProviderIsAnAdministratorsToSetAndItsKeyNeverComesBack() throws Exception {
-        // Off until it is turned on, whoever asks.
+        // Off until it is turned on, whoever asks. A translator may read that, and nothing more.
         translate("{\"payload\":{\"pattern\":\"Hello\"}}").expectStatus(403).expectBodyContains("off");
-        app.request().with(as(translator)).get("/api/ai").expectStatus(403);
-        app.request().with(as(translator)).json("{\"enabled\":true}").put("/api/ai").expectStatus(403);
+        app.request().with(as(translator)).get("/api/ai").expectStatus(200).expectBody("{\"available\":false}");
+        app.request().with(as(translator)).get("/api/ai/provider").expectStatus(403);
+        app.request().with(as(translator)).json("{\"enabled\":true}").put("/api/ai/provider").expectStatus(403);
 
         // Enabling it without a provider is refused rather than half-saved.
-        put(admin, "/api/ai", "{\"enabled\":true}").expectStatus(400).expectBodyContains("Fill in");
+        put(admin, "/api/ai/provider", "{\"enabled\":true}").expectStatus(400).expectBodyContains("Fill in");
 
-        put(admin, "/api/ai", "{\"enabled\":true,\"baseUrl\":\"" + providerUrl + "\",\"model\":\"stand-in\",\"apiKey\":\"sk-secret\"}")
+        put(admin, "/api/ai/provider", "{\"enabled\":true,\"baseUrl\":\"" + providerUrl + "\",\"model\":\"stand-in\",\"apiKey\":\"sk-secret\"}")
                 .expectStatus(200).expectBodyContains("\"configured\":true");
-        app.request().with(as(admin)).get("/api/ai").expectStatus(200)
+        app.request().with(as(admin)).get("/api/ai/provider").expectStatus(200)
                 .expectBodyContains("\"model\":\"stand-in\"").expectBodyContains("\"configured\":true");
-        assertFalse(app.request().with(as(admin)).get("/api/ai").body().contains("sk-secret"));
+        assertFalse(app.request().with(as(admin)).get("/api/ai/provider").body().contains("sk-secret"));
+
+        // Configured and on, so a translator is told to expect AI.
+        app.request().with(as(translator)).get("/api/ai").expectStatus(200).expectBody("{\"available\":true}");
 
         // Sealed at rest: the column holds neither the key nor anything resembling it.
         String stored = text("select api_key from ai_settings");
