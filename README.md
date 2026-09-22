@@ -31,7 +31,7 @@ Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual
 
 `data-hibernate` (Postgres), `jackson`, `openapi`, `validation`, `scheduler` (§9 background
 LibreTranslate jobs), `limiter` (§10 rate limiting), `oidc`
-(§11 SSO), `web-bundler` (§12).
+(§11 SSO), `vite` (§12: Vite beside the app in DEV, the built SPA from the jar otherwise).
 
 ## Local development
 
@@ -114,16 +114,17 @@ that fails first when a dependency, a migration or an extension install order br
   unreleased Flash changes, `mvn install` a Flash checkout and build with
   `-Dflash.version=2.1.0-SNAPSHOT`.
 - **Everything else on the JVM side** is Maven Central, pinned in `pom.xml`.
-- **The frontend** is a pnpm project in `web/`, locked by `web/pnpm-lock.yaml`.
+- **The frontend** is a pnpm project in `web/`, locked by `web/pnpm-lock.yaml`. Packaging builds it,
+  so Node and pnpm are needed for `./mvnw package`, not for `./mvnw test`.
 
 ## Development flow
 
-`main` is protected: every change is a pull request, and CI (`.github/workflows/ci.yml`: the Maven
-build with every test, then the frontend build) must be green before it merges. Run the same thing
-locally first:
+`main` is protected: every change is a pull request, and CI (`.github/workflows/ci.yml`: `./mvnw
+verify`, every test and the packaged jar with its frontend) must be green before it merges. Run the
+same thing locally first:
 
 ```bash
-./mvnw verify && pnpm -C web build
+./mvnw verify
 ```
 
 Commits follow `type(scope): summary` (see `AGENTS.md`).
@@ -137,12 +138,12 @@ Publishing a GitHub release tagged `vX.Y.Z` builds the image and pushes it to Do
 ## Build
 
 ```bash
-cd web && pnpm build && cd ..     # produces web/dist
-./mvnw -Pdocker package              # embeds web/dist into target/glossa.jar
+./mvnw package                    # target/glossa.jar, frontend included: java -jar runs it all
+./mvnw package -Dflash.vite.skip  # the backend alone, without Node
 ```
 
-The `docker` profile is what the Dockerfile runs; a plain `./mvnw package` skips the frontend
-embedding, so it does not require `web/dist` to exist.
+`flash-ext-vite-maven-plugin` builds `web/` at `prepare-package`, so `./mvnw test` never needs
+Node and every packaged jar serves its own frontend. The Dockerfile runs the same command.
 
 ```bash
 docker compose -f deploy/docker-compose.yml up            # the released image

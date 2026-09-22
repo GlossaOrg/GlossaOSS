@@ -1,6 +1,6 @@
 /**
  * Same-origin by design: in dev the Vite proxy forwards these paths to the Flash app, and in
- * prod Flash serves this bundle itself (see vite.config.ts and Main#webBundlerConfig). So no
+ * prod Flash serves this bundle itself (see vite.config.ts and flash-ext-vite). So no
  * base URL, no VITE_API_URL, no CORS on either side.
  */
 /** Headers sent with every call: whatever the whole session is scoped to, which no caller should have to pass. */

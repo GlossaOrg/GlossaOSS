@@ -21,7 +21,7 @@ import dev.relism.glossa.persistence.entities.AppUser;
  * boot the exact same wiring. See {@code flash-testing}'s {@code FlashTest.of(...)}.
  *
  * <p>Two things are deliberately <em>not</em> here and live in {@link Main} instead, because both
- * need an external resource that no test has: the web bundler needs a built {@code web/dist}, and
+ * need an external resource that no test has: Vite in DEV, or the built frontend otherwise, and
  * {@code OidcExtension} fetches its issuer's discovery document at boot. Everything a test needs
  * to exercise the API is in this class.
  */
