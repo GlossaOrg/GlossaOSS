@@ -186,6 +186,11 @@
   50% { transform: translateY(-3px); }
 }
 
+/* §9's waiting state: the line over the blurred message catches the light. */
+@keyframes sheen {
+  to { background-position: -200% 0; }
+}
+
 @utility page {
   /* The one width every screen's content shares, so edges do not jump between screens. The cap
      only bites on very wide monitors, where lines would otherwise run too long to read. */

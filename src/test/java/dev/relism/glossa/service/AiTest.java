@@ -109,10 +109,10 @@ class AiTest {
     void aSuggestionIsCheckedAgainstTheSourcesContractAndNeverStored() throws Exception {
         ANSWERS.clear();
         ANSWERS.add("{count, plural, one{# articolo} other{# articoli}}");
-        translate("{\"payload\":{\"pattern\":\"{count, plural, one{# item} other{# items}}\"},\"context\":\"Basket heading\"}")
-                .expectStatus(200)
-                .expectBodyContains("articoli")
-                .expectBodyContains("\"model\":\"stand-in\"");
+        String suggestion = translate("{\"payload\":{\"pattern\":\"{count, plural, one{# item} other{# items}}\"},\"context\":\"Basket heading\"}")
+                .expectStatus(200).expectBodyContains("articoli").body();
+        // Which model answered is the administrator's business: a translator is never told.
+        assertFalse(suggestion.contains("stand-in"), suggestion);
 
         // Nothing was written: no revision, no variant, no event.
         assertEquals(0, sql("select count(*) from content_revision"));
