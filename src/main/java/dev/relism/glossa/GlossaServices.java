@@ -9,7 +9,9 @@ import dev.relism.flash.extension.FlashRegistrar;
 import dev.relism.glossa.auth.ApiKeys;
 import dev.relism.glossa.auth.Users;
 import dev.relism.glossa.persistence.entities.AppUser;
+import dev.relism.glossa.service.AiService;
 import dev.relism.glossa.service.ApiKeyService;
+import dev.relism.glossa.service.GlossaryService;
 import dev.relism.glossa.service.LocalizationService;
 import dev.relism.glossa.service.ProjectService;
 import dev.relism.glossa.service.SetupService;
@@ -33,15 +35,20 @@ public final class GlossaServices implements FlashExtension {
     private final UserService accounts;
     private final Users users;
     private final ApiKeys keys;
+    private final AiService.Access ai;
 
-    /** @param others resolves the principals of mechanisms installed beside Glossa's own */
-    public GlossaServices(Data data, boolean localLogin, boolean selfAdministered, UserResolver<AppUser> others) {
+    /**
+     * @param others resolves the principals of mechanisms installed beside Glossa's own
+     * @param ai     where AI calls may go, or null to use this installation's own settings (§9)
+     */
+    public GlossaServices(Data data, boolean localLogin, boolean selfAdministered, UserResolver<AppUser> others, AiService.Access ai) {
         this.data = data;
         this.localLogin = localLogin;
         this.selfAdministered = selfAdministered;
         this.accounts = new UserService(data);
         this.users = new Users(data, selfAdministered, accounts, others);
         this.keys = new ApiKeys(data);
+        this.ai = ai;
     }
 
     public Users users() {
@@ -58,6 +65,9 @@ public final class GlossaServices implements FlashExtension {
         ctx.provide(ApiKeyService.class, new ApiKeyService(data, keys));
         ctx.provide(ProjectService.class, new ProjectService(data));
         ctx.provide(SetupService.class, new SetupService(data, localLogin, selfAdministered));
-        ctx.supply(LocalizationService.class, Json.class, json -> new LocalizationService(data, json.mapper()));
+        ctx.provide(GlossaryService.class, new GlossaryService(data));
+        ctx.supply(AiService.class, Json.class, json -> new AiService(data, json.mapper(), ai));
+        ctx.supply(LocalizationService.class, c -> new LocalizationService(data, c.require(Json.class).mapper(),
+                c.require(AiService.class), c.require(GlossaryService.class)), Json.class, AiService.class, GlossaryService.class);
     }
 }

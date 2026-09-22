@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { CheckIcon, Columns2Icon, CopyIcon, LayoutTemplateIcon, PlusIcon, Redo2Icon, SearchIcon, SquareIcon, Undo2Icon } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { CheckIcon, Columns2Icon, CopyIcon, LayoutTemplateIcon, PlusIcon, Redo2Icon, SearchIcon, SparklesIcon, SquareIcon, Undo2Icon } from 'lucide-react'
 import { cn } from 'cn'
 import { Language } from '@/components/locale'
 import { Button } from '@/components/ui/button'
@@ -8,6 +9,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useAi } from '@/lib/ai'
 import { counting, lex, typeTint, type Contract, type Kind, type Locale } from '@/lib/content'
 import { library } from '@/lib/templates'
 
@@ -83,7 +85,7 @@ function snippets(locale: Locale): { title: string; items: Snippet[] }[] {
  * checks it as it is typed, and anything with syntax to it can be inserted or started from a
  * template rather than remembered.
  */
-export function IcuEditor({ role, value, onChange, locale, variables, problem, missing, checking, error, templates, reference }: {
+export function IcuEditor({ role, value, onChange, locale, variables, problem, missing, checking, error, templates, reference, suggest }: {
   role: 'Source' | 'Translation'
   value: string
   onChange: (value: string) => void
@@ -98,6 +100,8 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
   templates?: boolean
   /** A translation's source, laid beside it rather than above, so the two read line against line. */
   reference?: { locale: Locale; pattern: string }
+  /** §9: asks for a suggestion, or null once it has reported why it could not. Absent on a source. */
+  suggest?: () => Promise<string | null>
 }) {
   const field = useRef<HTMLTextAreaElement>(null)
   // The menu keeps focus until it has fully closed, so an insertion waits for that moment.
@@ -105,6 +109,9 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
   const [open, setOpen] = useState(true)
   const pane = templates || reference
   const [copied, setCopied] = useState(false)
+  const [writing, setWriting] = useState(false)
+  const [landed, setLanded] = useState(false)
+  const ai = useAi().data?.available
   // Escape then Tab leaves the field, the way code editors do, so the keyboard is never trapped here.
   const escaped = useRef(false)
 
@@ -152,6 +159,17 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
     else el.setSelectionRange(start, start + next.length)
   }
 
+  async function ask() {
+    setWriting(true)
+    const pattern = await suggest!()
+    setWriting(false)
+    if (!pattern) return
+    // Through write(), so one Ctrl-Z takes the whole suggestion back out again.
+    write(pattern, undefined, true)
+    setLanded(true)
+    setTimeout(() => setLanded(false), 900)
+  }
+
   const blank = !value.trim()
   const status = blank ? null : checking ? 'Checking' : problem ? 'Error' : 'Valid'
 
@@ -183,6 +201,19 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
             <span className={cn('size-1.5 rounded-full bg-current', status === 'Checking' && 'motion-safe:animate-pulse')} />
             {status}
           </span>
+          {suggest && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-brand"
+              disabled={!ai || writing}
+              title={ai ? undefined : 'AI features are off.'}
+              onClick={ask}
+            >
+              <SparklesIcon className="transition-transform duration-300 motion-safe:group-hover/button:scale-110" />
+              Suggest
+            </Button>
+          )}
           <span className="bg-border mx-1 h-4 w-px" />
           <Button variant="ghost" size="icon-sm" aria-label="Undo" onClick={() => run('undo')}>
             <Undo2Icon />
@@ -273,7 +304,36 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
 
         {/* The textarea does the editing and stays transparent; the coloured copy beneath it sets
             the height, so the two can never scroll apart. Both must wrap identically. */}
-        <div className="relative min-h-44 flex-1 font-mono text-[13.5px] leading-[1.75]">
+        <div
+          className={cn(
+            'relative min-h-44 flex-1 font-mono text-[13.5px] leading-[1.75] transition-shadow duration-500',
+            landed && 'ring-brand/45 ring-2 ring-inset',
+          )}
+        >
+          <AnimatePresence>
+            {writing && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="bg-background/30 absolute inset-0 z-10 grid place-items-center backdrop-blur-[3px]"
+              >
+                <motion.p
+                  initial={{ y: 8, scale: 0.96 }}
+                  animate={{ y: 0, scale: 1 }}
+                  exit={{ y: -4 }}
+                  transition={{ duration: 0.3, ease: [0.2, 0, 0, 1] }}
+                  className="flex items-center gap-2 font-sans text-sm font-medium"
+                >
+                  <SparklesIcon className="text-brand size-4 motion-safe:animate-[float_1.8s_ease-in-out_infinite]" />
+                  <span className="bg-[linear-gradient(110deg,var(--muted-foreground)_35%,var(--foreground)_50%,var(--muted-foreground)_65%)] bg-[length:200%_100%] bg-clip-text text-transparent motion-safe:animate-[sheen_1.6s_linear_infinite]">
+                    Writing a suggestion
+                  </span>
+                </motion.p>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <pre aria-hidden dir={locale.rtl ? 'rtl' : undefined} className="m-0 p-4 break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
             <Highlight source={value} error={error} />
             {'\n'}
