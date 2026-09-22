@@ -1,7 +1,8 @@
 import type { Me } from '@/lib/me'
 import { useState } from 'react'
-import { SettingsIcon, UsersIcon } from 'lucide-react'
+import { SettingsIcon, SparklesIcon, UsersIcon } from 'lucide-react'
 import { NavMain } from '@/components/nav-main'
+import { AiFeatures } from '@/components/ai'
 import { SettingsDialog } from '@/components/settings'
 import { Users } from '@/components/users'
 import { plugin } from '@/plugin'
@@ -54,8 +55,11 @@ export function AppSidebar({
       {user.admin && (
         <SettingsDialog
           title="Settings"
-          description="Who can sign in to this server."
-          tabs={[{ id: 'users', title: 'Users', icon: UsersIcon, element: <Users /> }]}
+          description="Accounts and AI for this server."
+          tabs={[
+            { id: 'users', title: 'Users', icon: UsersIcon, element: <Users /> },
+            { id: 'ai', title: 'AI', icon: SparklesIcon, element: <AiFeatures /> },
+          ]}
           open={settings}
           onOpenChange={setSettings}
         />
