@@ -36,7 +36,7 @@ MANAGER="Authorization: Bearer …" TRANSLATOR="Cookie: …" REVIEWER="Cookie: �
 ```
 
 Fills one project through the API with whatever credentials it is given, a whole header per role;
-the translator and reviewer hold their role on Italian. `../GlossaCloud`'s mint runs it too.
+the translator and reviewer hold their role on Italian.
 
 - **Locales:** English source; Italian, German, French and Arabic falling back to English; Canadian
   French falling back to French.

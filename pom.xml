@@ -17,26 +17,18 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!--
-          Flash dependency version — for local dev this tracks the SNAPSHOT built and
-          `mvn install`-ed from ../../Flash5 into the LOCAL repo (~/.m2/repository). Maven always
-          resolves from the local repo before any remote one, so changes made in ../../Flash5 show
-          up here as soon as you re-run `mvn install` there — no publish step needed.
-
-          The `docker` profile below overrides this to a specific `2.1.0-<short-sha>` build
-          published by ../../Flash5's .gitea/workflows/publish-maven.yml to Gitea's Maven registry:
-          Docker builds can't reach your local ~/.m2, and Gitea's registry refuses to overwrite
-          an existing `2.1.0-SNAPSHOT`, so each Flash push publishes an immutable,
-          uniquely-versioned build instead. Bump that override by hand to pick up newer Flash
-          changes in the image. Same arrangement ../Pathway uses — see its pom.xml.
+          A build published by Flash's CI (https://git.pixel-services.com/Relism/Flash5, one
+          `2.1.0-<short-sha>` per push to master) from the registry below. To try unreleased Flash
+          changes, `mvn install` a Flash checkout and build with -Dflash.version=2.1.0-SNAPSHOT.
         -->
-        <flash.version>2.1.0-SNAPSHOT</flash.version>
+        <flash.version>2.1.0-6d44f9e</flash.version>
 
         <slf4j.version>2.0.16</slf4j.version>
         <junit.version>5.11.0</junit.version>
 
         <!--
           hibernate-core itself comes transitively from flash-ext-data-hibernate below —
-          don't redeclare it here, or it can drift from what ../../Flash5 pins in
+          don't redeclare it here, or it can drift from what Flash pins in
           flash-extensions/pom.xml and put two Hibernate versions on the classpath.
           HikariCP's version is copied from that same dependencyManagement block.
         -->
@@ -44,10 +36,10 @@
         <postgresql.version>42.7.4</postgresql.version>
         <flyway.version>13.0.0</flyway.version>
 
-        <!-- Same version ../../Flash5 pins — Flash's own code (and flash-ext-data-hibernate) already uses Lombok. -->
+        <!-- Same version Flash pins — Flash's own code (and flash-ext-data-hibernate) already uses Lombok. -->
         <lombok.version>1.18.44</lombok.version>
 
-        <!-- Same version ../../Flash5 pins (flash-extensions/pom.xml) for its own Postgres-backed tests. -->
+        <!-- Same version Flash pins (flash-extensions/pom.xml) for its own Postgres-backed tests. -->
         <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 
@@ -74,7 +66,7 @@
         <!--
           Postgres is the only persistent datastore (docs/REQUIREMENTS.md §2). This is Flash's
           own Hibernate repository layer, wired into the same @Transactional/Tx/TxManager
-          system as the rest of the extension graph — see ../../Flash5's flash-ext-data-hibernate
+          system as the rest of the extension graph — see Flash's flash-ext-data-hibernate
           and flash-ext-data-core.
         -->
         <dependency>
@@ -227,14 +219,7 @@
         </dependency>
     </dependencies>
 
-    <!--
-      Only actually consulted by the `docker` profile below, which overrides flash.version to a
-      concrete published build — plain `mvn package` resolves dev.relism:flash from the local
-      repo first (see flash.version's comment) and never reaches this entry. Gitea publishes
-      packages per-owner, not per-repo, so this one URL serves both Relism/Flash5 (flash,
-      flash-ext-*) and Relism/FastPathRouter (fpr-core, its own dependency) — public repos owned
-      by a public Gitea user, so this resolves anonymously, no settings.xml/credentials needed.
-    -->
+    <!-- Flash and its own dependencies, public and anonymous: no settings.xml, no credentials. -->
     <repositories>
         <repository>
             <id>gitea-flash</id>
@@ -346,19 +331,11 @@
       (.assetsFromClasspath("web/dist")): copy web/dist into target/classes/web/dist, then run
       WebBundlerBuild against it to generate the asset-manifest.json ClasspathAssetsSource
       requires — both before maven-shade-plugin's `package`-phase execution above picks
-      target/classes up. See ../../Flash5/flash-extensions/flash-ext-web-bundler/docs/build-time.md.
+      target/classes up. See Flash/flash-extensions/flash-ext-web-bundler/docs/build-time.md.
     -->
     <profiles>
         <profile>
             <id>docker</id>
-            <properties>
-                <!--
-                  Published by ../../Flash5's .gitea/workflows/publish-maven.yml — bump this by hand
-                  (to whatever new "2.1.0-<short-sha>" that workflow publishes) to pick up newer
-                  Flash changes in the Docker image; see the flash.version comment above.
-                -->
-                <flash.version>2.1.0-9892ad4</flash.version>
-            </properties>
             <build>
                 <plugins>
                     <plugin>

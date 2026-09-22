@@ -17,7 +17,7 @@ Everything is written in English — code, comments, docs, commit messages inclu
 Before writing anything, climb the ladder and stop at the first rung that holds:
 
 1. Does this need to exist at all? (YAGNI — a speculative need doesn't get written.)
-2. Does it already exist in this repo, or in Flash (`../../Flash5`)?
+2. Does it already exist in this repo, or in Flash?
 3. Does the JDK do it (`java.net.http`, `java.time`, records, sealed types included)?
 4. Does an already-installed dependency do it?
 5. Do a few direct lines suffice instead of a new abstraction?
@@ -31,8 +31,8 @@ point; nothing else gets one by analogy.
 
 ## Flash first
 
-Glossa is a Flash application. Flash lives at `../../Flash5`, resolved from your local `~/.m2` —
-read its source and its `flash-extensions/*/docs/` before writing infrastructure. Rate
+Glossa is a Flash application, pinned to a published build (`flash.version` in `pom.xml`; source at
+`../../Flash5` when checked out beside this one). Read its source and its `flash-extensions/*/docs/` before writing infrastructure. Rate
 limiting, background jobs, validation, OIDC and the SPA bundler are already installed extensions
 (see `pom.xml`, each with the § it satisfies), and a cache is `flash-ext-cache-caffeine` the day a
 profile asks for one. Use them; don't hand-roll a second mechanism next to one.

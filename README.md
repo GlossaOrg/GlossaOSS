@@ -5,7 +5,7 @@ languages with a translator/reviewer workflow, and serve finished translations t
 applications over an API — see [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) for the full
 functional spec.
 
-Built on [Flash](../../Flash5) (Java 21, virtual threads) with a React SPA frontend.
+Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual threads) with a React SPA frontend.
 
 > **Status: scaffold.** The build, the test harness and the frontend toolchain are wired and
 > green. The domain — content schemas, keys, locales, proposals, the delivery API — is not built
@@ -36,13 +36,8 @@ LibreTranslate jobs), `limiter` (§10 rate limiting), `oidc`
 
 ## Local development
 
-Flash is resolved from your local `~/.m2`, so build it first:
-
-```bash
-cd ../../Flash5 && mvn install -DskipTests
-```
-
-Then, from this repository:
+Flash comes from its public Maven registry (`flash.version` in `pom.xml`), so a clean clone builds
+as is:
 
 ```bash
 cp .env.example .env
