@@ -2,5 +2,4 @@
 **/node_modules
 **/target
 web/dist
-web/.flash-web-bundler
 .git
