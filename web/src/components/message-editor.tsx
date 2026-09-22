@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router'
 import { ArrowLeftIcon, CheckIcon, PlayIcon, Trash2Icon, UndoIcon, XIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Highlight, IcuEditor } from '@/components/icu-editor'
+import { toast } from '@/components/ui/sonner'
 import { Flag } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -126,6 +127,21 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
       api(`${variant}/revert`, { method: 'POST', json: { revisionId, expectedHeadRevisionId: resource.headRevisionId ?? 0, sourceRevisionId: resource.sourceRevisionId } }),
     onSuccess: settled,
   })
+  // §9: the server stores nothing, so the answer is the caller's to keep or drop. It reports its own
+  // refusals, which are the only ones worth reading: off, out of actions, or a provider that failed.
+  const suggest = async () => {
+    try {
+      const answer = await api<{ pattern: string }>(`/api/projects/${project.id}/messages/${target}/translate`, {
+        method: 'POST',
+        json: { payload: sourceRevision.payload, contract: sourceRevision.contract, context: resource.context },
+      })
+      return answer.pattern
+    } catch (error) {
+      toast.error((error as { detail?: string }).detail ?? 'Could not reach the AI provider.')
+      return null
+    }
+  }
+
   const archive = useMutation({
     mutationFn: (archived: boolean) => api(`/api/projects/${project.id}/resources/${resource.id}/archive`, { method: 'PUT', json: { archived } }),
     onSuccess: settled,
@@ -156,6 +172,7 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
       <IcuEditor
         role={origin ? 'Source' : 'Translation'}
         reference={origin ? undefined : { locale: source, pattern: sourceRevision.payload.pattern }}
+        suggest={origin ? undefined : suggest}
         value={pattern}
         onChange={setPattern}
         locale={locale}
