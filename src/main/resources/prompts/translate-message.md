@@ -423,6 +423,16 @@ Do not translate terminology in isolation when the surrounding context changes i
 
 Do not invent a different product concept merely to make the wording sound natural.
 
+The project's glossary is authoritative for the terms it lists, and overrides your own preference:
+
+{{glossary}}
+
+A term listed as untranslated MUST appear in the target exactly as written, whatever the surrounding
+grammar. A term listed with a translation MUST use that translation, adapted only as the target
+language's grammar requires, such as for case, gender, number or definiteness.
+
+The glossary governs terminology only. It never overrides an ICU invariant.
+
 
 # WHITESPACE AND INDENTATION
 

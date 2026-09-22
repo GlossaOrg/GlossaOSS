@@ -120,6 +120,13 @@ class AiTest {
         // The target's plural categories are named, and English's are there as the source's.
         assertTrue(SENT.contains("one, other"), SENT);
 
+        // §6's glossary reaches the prompt, both kinds of entry.
+        put(admin, "/api/projects/" + project + "/glossary", "{\"term\":\"Glossa\"}").expectStatus(200);
+        put(admin, "/api/projects/" + project + "/glossary", "{\"term\":\"cart\",\"locale\":\"it\",\"translation\":\"carrello\"}").expectStatus(200);
+        translate("{\"payload\":{\"pattern\":\"{count, plural, one{# item} other{# items}}\"}}").expectStatus(200);
+        assertTrue(SENT.contains("untranslated"), SENT);
+        assertTrue(SENT.contains("carrello"), SENT);
+
         // The source locale is not a translation target.
         app.request().with(as(admin)).json("{\"payload\":{\"pattern\":\"Hello\"}}")
                 .post("/api/projects/" + project + "/messages/en/translate").expectStatus(400).expectBodyContains("source locale");

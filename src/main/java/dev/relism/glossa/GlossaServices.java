@@ -11,6 +11,7 @@ import dev.relism.glossa.auth.Users;
 import dev.relism.glossa.persistence.entities.AppUser;
 import dev.relism.glossa.service.AiService;
 import dev.relism.glossa.service.ApiKeyService;
+import dev.relism.glossa.service.GlossaryService;
 import dev.relism.glossa.service.LocalizationService;
 import dev.relism.glossa.service.ProjectService;
 import dev.relism.glossa.service.SetupService;
@@ -64,8 +65,9 @@ public final class GlossaServices implements FlashExtension {
         ctx.provide(ApiKeyService.class, new ApiKeyService(data, keys));
         ctx.provide(ProjectService.class, new ProjectService(data));
         ctx.provide(SetupService.class, new SetupService(data, localLogin, selfAdministered));
+        ctx.provide(GlossaryService.class, new GlossaryService(data));
         ctx.supply(AiService.class, Json.class, json -> new AiService(data, json.mapper(), ai));
-        ctx.supply(LocalizationService.class, c -> new LocalizationService(data, c.require(Json.class).mapper(), c.require(AiService.class)),
-                Json.class, AiService.class);
+        ctx.supply(LocalizationService.class, c -> new LocalizationService(data, c.require(Json.class).mapper(),
+                c.require(AiService.class), c.require(GlossaryService.class)), Json.class, AiService.class, GlossaryService.class);
     }
 }
