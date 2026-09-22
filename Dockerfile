@@ -2,7 +2,7 @@
 
 # ---- frontend (web/, served from the classpath in prod — see Main#webBundlerConfig() and the
 #      `docker` Maven profile in pom.xml, which embeds this dist/ into the jar) ----
-FROM node:22-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /web
 COPY web/package.json web/pnpm-lock.yaml ./
 RUN corepack enable && corepack prepare pnpm@11.15.1 --activate \
@@ -11,7 +11,7 @@ COPY web/ ./
 RUN pnpm build
 
 # ---- backend ----
-FROM maven:3.9-eclipse-temurin-21 AS backend
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-21 AS backend
 WORKDIR /build
 COPY pom.xml ./
 COPY src ./src
