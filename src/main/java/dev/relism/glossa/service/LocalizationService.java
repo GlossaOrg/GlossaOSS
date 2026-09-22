@@ -100,14 +100,16 @@ public final class LocalizationService {
     private final Data data;
     private final ObjectMapper json;
     private final AiService ai;
+    private final GlossaryService glossary;
     private final MessageType messages = new MessageType();
     /** §3's registry: the field types a resource may name. */
     private final Map<String, FieldType> types = Map.of(messages.name(), messages);
 
-    public LocalizationService(Data data, ObjectMapper json, AiService ai) {
+    public LocalizationService(Data data, ObjectMapper json, AiService ai, GlossaryService glossary) {
         this.data = data;
         this.json = json;
         this.ai = ai;
+        this.glossary = glossary;
     }
 
     /** Every locale path or argument must match an enabled locale exactly, so the role check and the data agree on it. */
@@ -165,6 +167,7 @@ public final class LocalizationService {
             mutate("delete from ContentVariant where projectId = :project and locale = :locale", project, locale);
             mutate("delete from CatalogRelease where projectId = :project and locale = :locale", project, locale);
             mutate("update ProjectLocale set fallbackLocale = null where projectId = :project and fallbackLocale = :locale", project, locale);
+            mutate("delete from GlossaryTerm where projectId = :project and locale = :locale", project, locale);
             mutate("delete from ProjectLocale where projectId = :project and locale = :locale", project, locale);
             return null;
         });
@@ -343,6 +346,7 @@ public final class LocalizationService {
                 Map.entry("target_plural_categories", categories(locale, false)),
                 Map.entry("target_ordinal_categories", categories(locale, true)),
                 Map.entry("context", context),
+                Map.entry("glossary", glossary.forPrompt(project, locale)),
                 Map.entry("content", String.valueOf(request.payload().get("pattern")))));
         String ask = "Translate the source message into " + localeName(locale) + ". Return the ICU message only.";
         // ponytail: one retry, handing back the parser's own complaint. A model that misses twice is the wrong model.
