@@ -22,7 +22,10 @@ import java.sql.SQLException;
  */
 public final class Postgres {
 
-    private static final PostgreSQLContainer<?> CONTAINER = new PostgreSQLContainer<>("postgres:16");
+    // ponytail: every app a test boots keeps its 10-connection pool open until the JVM exits, and
+    // ten of them hit Postgres's default of 100. Close pools on app stop if the suite outgrows 300.
+    private static final PostgreSQLContainer<?> CONTAINER = new PostgreSQLContainer<>("postgres:16")
+            .withCommand("postgres", "-c", "max_connections=300");
 
     static {
         CONTAINER.start();
