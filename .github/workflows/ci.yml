@@ -24,5 +24,3 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: ./mvnw -B verify
-      - run: pnpm install --frozen-lockfile && pnpm build
-        working-directory: web
