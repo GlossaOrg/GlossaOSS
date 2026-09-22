@@ -97,16 +97,6 @@ public final class LocalizationService {
     /** A variant and its approved revision, which is null until something is approved in it. */
     private record Current(ContentVariant variant, ContentRevision approved) {}
 
-    /** §9: what the model is told once, before any one message. */
-    private static final String TRANSLATOR = """
-            You translate ICU MessageFormat patterns for a software localization tool.
-            Answer with the translated pattern alone: no quotes, no code fences, no explanation, no notes.
-            Keep every argument name exactly as it is written, and keep the ICU syntax valid.
-            Give plural, selectordinal and select arms the categories the target language needs, listed below,
-            and translate the text inside each arm.
-            Keep the punctuation, the placeholders and the leading and trailing spaces the source has.
-            Translate nothing that is not text a reader sees.""";
-
     private final Data data;
     private final ObjectMapper json;
     private final AiService ai;
@@ -342,17 +332,24 @@ public final class LocalizationService {
         if (from.equals(locale)) throw HttpException.badRequest("That is the source locale.");
         Map<String, Variable> contract = request.contract() != null ? request.contract() : messages.contractOf(request.payload());
         messages.validate(request.payload(), contract, from, false);
-        String ask = "Source locale: " + from + "\nTarget locale: " + locale
-                + "\nCategories the target needs: " + String.join(", ", MessageType.forms(locale, false).keySet())
-                + (contract.isEmpty() ? "" : "\nArguments: " + contract.entrySet().stream()
-                        .map(argument -> argument.getKey() + " (" + argument.getValue().type() + ")").collect(Collectors.joining(", ")))
-                + (request.context() == null || request.context().isBlank() ? "" : "\nWhat it is for: " + request.context().trim())
-                + "\n\nPattern:\n" + request.payload().get("pattern");
+        String context = request.context() == null || request.context().isBlank() ? "None." : request.context().trim();
+        String system = Prompts.render("translate-message", Map.ofEntries(
+                Map.entry("source_locale_code", from),
+                Map.entry("source_locale_name", localeName(from)),
+                Map.entry("target_locale_code", locale),
+                Map.entry("target_locale_name", localeName(locale)),
+                Map.entry("source_plural_categories", categories(from, false)),
+                Map.entry("source_ordinal_categories", categories(from, true)),
+                Map.entry("target_plural_categories", categories(locale, false)),
+                Map.entry("target_ordinal_categories", categories(locale, true)),
+                Map.entry("context", context),
+                Map.entry("content", String.valueOf(request.payload().get("pattern")))));
+        String ask = "Translate the source message into " + localeName(locale) + ". Return the ICU message only.";
         // ponytail: one retry, handing back the parser's own complaint. A model that misses twice is the wrong model.
         String refused = null;
         for (int attempt = 0; attempt < 2; attempt++) {
-            AiService.Completion answer = ai.complete(TRANSLATOR, refused == null ? ask
-                    : ask + "\n\nYour previous answer was refused: " + refused + "\nAnswer with a corrected pattern alone.");
+            AiService.Completion answer = ai.complete(system, refused == null ? ask
+                    : ask + "\n\nYour previous answer was refused: " + refused + "\nAnswer with a corrected message only.");
             Map<String, Object> suggested = Map.of("pattern", answer.text());
             try {
                 messages.validate(suggested, contract, locale, false);
@@ -513,6 +510,15 @@ public final class LocalizationService {
         return new ResourceView(resource.getId(), resource.getKey(), resource.getContext(), resource.getFieldType(), resource.isArchived(), source.getId(),
                 shown.getHeadRevisionId(), shown.getApprovedRevisionId(), shown.getPendingRevisionId(), approved != null && stale(approved, source),
                 source.getPayload(), approved == null ? null : approved.getPayload());
+    }
+
+    /** English, because the prompt is: the code alone can be ambiguous, and the name disambiguates it. */
+    private static String localeName(String tag) {
+        return ULocale.forLanguageTag(tag).getDisplayName(ULocale.ENGLISH);
+    }
+
+    private static String categories(String tag, boolean ordinal) {
+        return String.join(", ", MessageType.forms(tag, ordinal).keySet());
     }
 
     private static boolean stale(ContentRevision translation, ContentRevision source) {

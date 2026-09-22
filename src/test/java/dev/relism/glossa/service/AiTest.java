@@ -40,6 +40,9 @@ class AiTest {
     /** What the stand-in answers next, in order; the last answer repeats once the queue runs dry. */
     private static final Deque<String> ANSWERS = new ArrayDeque<>();
 
+    /** The last request body the stand-in received, to read the rendered prompt off. */
+    private static String SENT;
+
     private static HttpServer provider;
     private static String providerUrl;
     private static long project, admin, translator;
@@ -48,6 +51,7 @@ class AiTest {
     static void seed() throws Exception {
         provider = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         provider.createContext("/v1/chat/completions", exchange -> {
+            SENT = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             String answer = ANSWERS.size() > 1 ? ANSWERS.poll() : ANSWERS.peek();
             byte[] body = ("{\"choices\":[{\"message\":{\"content\":\"" + answer.replace("\\", "\\\\").replace("\"", "\\\"") + "\"}}]}")
                     .getBytes(StandardCharsets.UTF_8);
@@ -108,6 +112,13 @@ class AiTest {
 
         // Nothing was written: no revision, no variant, no event.
         assertEquals(0, sql("select count(*) from content_revision"));
+
+        // The prompt file was rendered: no placeholder survives, and the locale metadata reached the model.
+        assertFalse(SENT.contains("{{"), SENT);
+        assertTrue(SENT.contains("Italian"), SENT);
+        assertTrue(SENT.contains("Basket heading"), SENT);
+        // The target's plural categories are named, and English's are there as the source's.
+        assertTrue(SENT.contains("one, other"), SENT);
 
         // The source locale is not a translation target.
         app.request().with(as(admin)).json("{\"payload\":{\"pattern\":\"Hello\"}}")
