@@ -13,7 +13,7 @@ fresh fixture is useful.
 
 Stops and removes only the local Postgres container and its `glossa_postgres-data` volume, starts
 the backing services, lets Glossa run its Flyway migrations, and fills the database through the API
-— so every row is one the app itself would write. LibreTranslate models are preserved.
+— so every row is one the app itself would write.
 
 | Who | Signs in with | Holds |
 |---|---|---|

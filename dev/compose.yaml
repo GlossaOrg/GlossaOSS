@@ -1,13 +1,13 @@
-# Backing services for local development — Postgres and the LibreTranslate sidecar, with their
-# ports published so the app can be run from the host (or the IDE) against them. Glossa itself is
-# deliberately absent: deploy/docker-compose.yml bakes the jar into an image, which is how a
-# deployment is verified, not how it is developed.
+# Backing services for local development — Postgres and Keycloak, with their ports published so
+# the app can be run from the host (or the IDE) against them. Glossa itself is deliberately
+# absent: deploy/docker-compose.yml bakes the jar into an image, which is how a deployment is
+# verified, not how it is developed.
 #
 #   docker compose -f dev/compose.yaml up -d
 #
 # Ports bind on all interfaces, not 127.0.0.1: with a remote DOCKER_HOST they land on the
-# daemon's host, and a loopback binding there is reachable by nothing. Point DB_URL /
-# LIBRETRANSLATE_URL in .env at that host (`localhost` only when the daemon is local).
+# daemon's host, and a loopback binding there is reachable by nothing. Point DB_URL in .env at
+# that host (`localhost` only when the daemon is local).
 # Pinned, because Compose otherwise names the project after this file's directory: from `dev/`
 # that would be `dev`, and every volume below would be a brand-new empty one.
 name: glossa
@@ -28,16 +28,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-  libretranslate:
-    image: libretranslate/libretranslate:latest
-    environment:
-      LT_LOAD_ONLY: ${LT_LOAD_ONLY:-en,it,fr,de,es}
-    ports:
-      - "5000:5000"
-    volumes:
-      # Kept: the models are a multi-GB download, re-fetching them per `up` is not disposable.
-      - libretranslate-models:/home/libretranslate/.local
 
   # Keycloak, so the OIDC login flow (REQUIREMENTS §11) can be exercised for real in dev. The
   # image is this repo's, only to bake keycloak/glossa-realm.json in — see its Dockerfile.
@@ -71,4 +61,3 @@ services:
 
 volumes:
   postgres-data:
-  libretranslate-models:

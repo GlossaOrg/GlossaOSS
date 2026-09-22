@@ -99,15 +99,6 @@
             <artifactId>flash-ext-limiter</artifactId>
             <version>${flash.version}</version>
         </dependency>
-        <!--
-          §9: LibreTranslate suggestions must never block a user action, so they run as
-          background jobs. Also the home for translation-memory/staleness sweeps (§6, §7).
-        -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-scheduler</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
         <!-- §11: SSO, password sign-in and API keys, each optional, all on one security chain. -->
         <dependency>
             <groupId>dev.relism</groupId>
