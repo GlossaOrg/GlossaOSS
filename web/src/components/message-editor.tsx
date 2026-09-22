@@ -12,7 +12,7 @@ import { Splash } from '@/components/splash'
 import { api } from '@/lib/api'
 import { covers, useProject, type Project } from '@/lib/projects'
 import {
-  day, gaps, state, status, typeTint, useDetail, useLocale,
+  day, state, status, typeTint, useDetail, useLocale,
   type Analysis, type Contract, type Detail, type Locale, type Revision, type Variable,
 } from '@/lib/content'
 
@@ -65,7 +65,7 @@ function useCheck(projectId: number, locale: Locale, pattern: string, fixed: Con
   return {
     contract: fixed ?? analysis.data?.contract ?? {},
     problem: problem?.replace(/^Invalid ICU (pattern|formatter): /, '').replace(/:? ?\[at pattern index \d+\]/, '') ?? null,
-    missing: [...new Set(gaps(analysis.data?.structure ?? [], locale).map((gap) => gap.form))],
+    missing: analysis.data?.missing ?? [],
     checking: analysis.isFetching,
     error: at ? Number(at[1]) : undefined,
   }

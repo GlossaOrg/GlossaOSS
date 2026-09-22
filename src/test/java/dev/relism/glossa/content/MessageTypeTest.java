@@ -40,9 +40,7 @@ class MessageTypeTest {
         assertEquals(List.of("few", "many", "one", "other", "two", "zero"), List.copyOf(MessageType.forms("ar", false).keySet()));
         assertTrue(MessageType.forms("it-IT", false).get("many").contains("1000000"));
 
-        var italian = messages.analyze(pattern("{count, plural, one{# elemento} many{# milioni di elementi} other{# elementi}}"), contract, "it-IT", true);
-        assertEquals(List.of("many", "one", "other"), italian.structure().stream().map(n -> ((Node.Choice) n).branches()).findFirst().orElseThrow()
-                .stream().map(Node.Branch::match).sorted().toList());
+        messages.analyze(pattern("{count, plural, one{# elemento} many{# milioni di elementi} other{# elementi}}"), contract, "it-IT", true);
 
         // Exact matches may stand in for a category, missing branches may not.
         messages.analyze(pattern("{count, plural, =1{one} other{many}}"), contract, "en", true);
@@ -99,49 +97,16 @@ class MessageTypeTest {
         assertThrows(HttpException.class, () -> messages.contractOf(pattern("{value, plural, other {#}} {value, select, a {x} other {y}}")));
     }
 
-    /** What the editor renders: a tree, so it never reads or writes ICU syntax itself. */
+    /** What a draft still lacks to publish, found by the same check publishing runs. */
     @Test
-    void theStructureCarriesEveryBranchItsSamplesAndTheTextAround() {
-        String text = "You have {count, plural, one {# message} other {# messages}} waiting";
-        var analysis = messages.analyze(pattern(text), Map.of("count", number()), "en", true);
-
-        assertEquals(List.of(new Node.Text("You have "), choice(analysis), new Node.Text(" waiting")), analysis.structure());
-        assertEquals(List.of("one", "other"), choice(analysis).branches().stream().map(Node.Branch::match).toList());
-        assertEquals(List.of(new Node.Text("# message")), choice(analysis).branches().getFirst().body());
-        assertEquals(text, analysis.payload().get("pattern"));
-    }
-
-    /** Parsing and composing are one another's inverse, escaping and nesting included. */
-    @Test
-    void everyShapeSurvivesTheRoundTrip() {
-        List<String> patterns = List.of(
-                "plain text",
-                "It''s {name}, '{'not a hole'}' and 100%",
-                "L'evento e dell'anno, {n, plural, other {# giorni}}",
-                "{total, number, ::currency/EUR} on {due, date, ::yMMMd}",
-                "{count, plural, offset:1 =0 {none} one {# other} other {# others}}",
-                "{paymentStatus, select, paid{{daysUntil, plural, =0{Today} one{In # day} other{In # days}}} other{Unavailable}}");
-        for (String text : patterns) {
-            List<Node> once = messages.structureOf(pattern(text), "en");
-            Map<String, Object> composed = messages.payloadOf(once);
-            assertEquals(once, messages.structureOf(composed, "en"), text);
-            // And the composed pattern still says the same thing to ICU.
-            var contract = messages.contractOf(pattern(text));
-            assertEquals(messages.contractOf(composed), contract, text);
-            // Saving must never grow a message: an over-escaped apostrophe may shrink, none may double.
-            assertTrue(count((String) composed.get("pattern"), '\'') <= count(text, '\''), text);
-        }
+    void aDraftNamesTheFormsItStillNeeds() {
+        Map<String, FieldType.Variable> contract = Map.of("count", number());
+        assertEquals(List.of("many"), messages.analyze(pattern("{count, plural, one{x} other{y}}"), contract, "it", false).missing());
+        assertEquals(List.of(), messages.analyze(pattern("{count, plural, =1{x} other{y}}"), contract, "en", false).missing());
+        assertEquals(List.of("one", "two", "few"), messages.analyze(pattern("{count, selectordinal, other{#th}}"), contract, "en", false).missing());
         assertEquals("It's Ada, {not a hole} and 100%",
                 messages.render(pattern("It''s {name}, '{'not a hole'}' and 100%"),
                         Map.of("name", new FieldType.Variable(FieldType.VariableType.TEXT, List.of())), "en", Map.of("name", "Ada")));
-    }
-
-    private static long count(String text, char c) {
-        return text.chars().filter(x -> x == c).count();
-    }
-
-    private static Node.Choice choice(MessageType.Analysis analysis) {
-        return analysis.structure().stream().filter(Node.Choice.class::isInstance).map(Node.Choice.class::cast).findFirst().orElseThrow();
     }
 
     @Test

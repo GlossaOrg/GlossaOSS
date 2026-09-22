@@ -20,11 +20,6 @@ public interface FieldType {
     /** The contract {@code payload} implies, for a caller that declares its variables by writing them (§3). */
     Map<String, Variable> contractOf(Map<String, Object> payload);
 
-    /** The payload as an editable tree, and back: the pair a visual editor lives on. */
-    List<Node> structureOf(Map<String, Object> payload, String locale);
-
-    Map<String, Object> payloadOf(List<Node> nodes);
-
     /** {@code complete} adds what publication requires on top of what saving does. */
     void validate(Map<String, Object> payload, Map<String, Variable> contract, String locale, boolean complete);
 

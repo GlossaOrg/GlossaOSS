@@ -80,79 +80,95 @@ export const typeTint: Record<VariableType, string> = {
   BOOLEAN: 'bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100',
 }
 
-export type Segment = { text: string; argument?: string; kind?: string }
+export type Kind = 'text' | 'brace' | 'name' | 'type' | 'style' | 'arm' | 'hash' | 'quote' | 'comma'
+type Token = { text: string; kind: Kind; depth: number }
+type Frame = { arg: false; plural: boolean } | { arg: true; part: number; choice: boolean; plural: boolean }
 
 /**
- * A pattern split into literal text and its top-level arguments, for the read-only previews the
- * board shows. Editing never comes near here: the tree does that.
- *
- * ponytail: brace depth only, so a quoted '{' inside a literal reads as an argument. Cosmetic.
+ * ICU split into what each run of characters is, for colour only: the server parses for real and
+ * reports what is wrong. It tolerates half-typed input, because that is all it ever sees.
  */
-export function segments(pattern: string): Segment[] {
-  const out: Segment[] = []
-  let literal = ''
-  let argument = ''
-  let depth = 0
-  for (const c of pattern) {
-    if (c === '{') {
-      if (depth === 0) {
-        if (literal) out.push({ text: literal })
-        literal = ''
-        argument = ''
-      } else argument += c
-      depth++
-    } else if (c === '}' && depth > 0) {
-      depth--
-      if (depth === 0) {
-        const [name, kind] = argument.split(',', 2).map((part) => part.trim())
-        out.push({ text: name, argument: name, kind })
-      } else argument += c
-    } else if (depth === 0) literal += c
-    else argument += c
+export function lex(src: string): Token[] {
+  const out: Token[] = []
+  const stack: Frame[] = [{ arg: false, plural: false }]
+  const args = () => stack.filter((frame) => frame.arg).length
+  const push = (text: string, kind: Kind, depth = args()) => {
+    const last = out.at(-1)
+    if (last && last.kind === kind && kind !== 'brace' && last.depth === depth) last.text += text
+    else out.push({ text, kind, depth })
   }
-  if (literal) out.push({ text: literal })
+  const close = () => {
+    stack.pop()
+    push('}', 'brace')
+  }
+
+  for (let i = 0; i < src.length; ) {
+    const c = src[i]
+    const top = stack.at(-1)!
+    if (!top.arg) {
+      if (c === "'" && src[i + 1] === "'") {
+        push("''", 'quote')
+        i += 2
+      } else if (c === "'" && '{}#|'.includes(src[i + 1] ?? '')) {
+        let j = i + 1
+        while (j < src.length && src[j] !== "'") j++
+        push(src.slice(i, j + 1), 'quote')
+        i = j + 1
+      } else if (c === '{') {
+        push(c, 'brace')
+        stack.push({ arg: true, part: 0, choice: false, plural: false })
+        i++
+      } else if (c === '}' && stack.length > 1) {
+        stack.pop()
+        push(c, 'brace')
+        i++
+      } else {
+        push(c, c === '#' && top.plural ? 'hash' : 'text')
+        i++
+      }
+      continue
+    }
+    if (c === '}') {
+      close()
+      i++
+    } else if (c === ',' && top.part < 2) {
+      push(c, 'comma')
+      top.part++
+      i++
+    } else if (/\s/.test(c)) {
+      push(c, 'text')
+      i++
+    } else if (top.part === 0) {
+      push(c, 'name')
+      i++
+    } else if (top.part === 1) {
+      const word = /^[a-z]+/.exec(src.slice(i))?.[0] ?? c
+      top.choice = word === 'plural' || word === 'select' || word === 'selectordinal'
+      top.plural = word === 'plural' || word === 'selectordinal'
+      push(word, 'type')
+      i += word.length
+    } else if (!top.choice) {
+      push(c, 'style')
+      i++
+    } else if (c === '{') {
+      push(c, 'brace')
+      stack.push({ arg: false, plural: top.plural })
+      i++
+    } else {
+      const word = /^(offset:\s*\d+|=\d+(\.\d+)?|[^\s{}]+)/.exec(src.slice(i))![0]
+      push(word, word.startsWith('offset') ? 'type' : 'arm')
+      i += word.length
+    }
+  }
   return out
 }
-
-export type Node =
-  | { node: 'text'; value: string }
-  | { node: 'hole'; argument: string; format: string | null; style: string | null }
-  | { node: 'choice'; argument: string; kind: 'PLURAL' | 'SELECTORDINAL' | 'SELECT'; offset: number; branches: Branch[] }
-
-export type Branch = { match: string; body: Node[] }
 
 /** CLDR's own order, the one a reader counts in, instead of the alphabetical one the server sends. */
 export const counting = (forms: Record<string, string[]>) => ['zero', 'one', 'two', 'few', 'many', 'other'].filter((form) => form in forms)
 
-export type Analysis = { contract: Contract; structure: Node[]; payload: Payload; rtl: boolean }
+export type Analysis = { contract: Contract; missing: string[]; payload: Payload; rtl: boolean }
 
 export type Release = { version: number; locale: string; hash: string; createdAt: string }
-
-export type Choice = Extract<Node, { node: 'choice' }>
-
-/** Where a sub-message lives: which node of a list, then which arm of the choice there. */
-export type Step = { node: number; branch: number }
-
-/** One CLDR form a choice in the tree is still missing, and where it would be added. */
-export type Gap = { argument: string; form: string; at: number; path: Step[]; conditions: Record<string, string> }
-
-/** The forms this locale still needs, per choice in the tree, with the arm each one would join. */
-export function gaps(nodes: Node[], locale: Locale, prefix: Step[] = [], conditions: Record<string, string> = {}): Gap[] {
-  return nodes.flatMap((node, index) =>
-    node.node !== 'choice'
-      ? []
-      : [
-          ...(node.kind === 'SELECT'
-            ? []
-            : Object.keys(node.kind === 'PLURAL' ? locale.cardinal : locale.ordinal)
-                .filter((form) => !node.branches.some((branch) => branch.match === form))
-                .map((form) => ({ argument: node.argument, form, at: index, path: prefix, conditions }))),
-          ...node.branches.flatMap((branch, branchIndex) =>
-            gaps(branch.body, locale, [...prefix, { node: index, branch: branchIndex }], { ...conditions, [node.argument]: branch.match }),
-          ),
-        ],
-  )
-}
 
 export const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
