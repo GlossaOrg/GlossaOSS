@@ -13,7 +13,7 @@ only adds what's specific to Claude Code.
   way overengineering is.
 - Overengineering and unrequested abstractions are forbidden, not merely "avoided when
   possible" — see `AGENTS.md#philosophy`.
-- Flash (`../../Flash5`) is a sibling checkout, not a black box. Read its source and its
+- Flash (`../../Flash5` when checked out beside this repo) is not a black box. Read its source and its
   `flash-extensions/*/docs/` before writing infrastructure — that's cheaper than reinventing
   an extension that already ships.
 - Everything in this repo is in English, only the project's name is Greek.
