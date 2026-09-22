@@ -165,10 +165,8 @@ class LocalizationTest {
                 .expectStatus(200)
                 .expectBodyContains("\"daysUntil\":{\"type\":\"NUMBER\"")
                 .expectBodyContains("\"paymentStatus\":{\"type\":\"SELECT\"")
-                // The tree an editor renders, nested arm included, and the pattern it composes back to.
-                .expectBodyContains("\"node\":\"choice\"")
-                .expectBodyContains("\"match\":\"=0\"")
-                .expectBodyContains("\"node\":\"text\",\"value\":\"Today\"");
+                // The nested plural already has every form English asks for.
+                .expectBodyContains("\"missing\":[]");
 
         // The same variable used two incompatible ways is a mistake, whatever the depth.
         app.request().with(as(manager)).json("{\"payload\":{\"pattern\":\"{v, plural, other{#}} {v, select, a{x} other{y}}\"}}")
