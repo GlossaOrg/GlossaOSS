@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,7 +35,10 @@ public final class MessageType implements FieldType {
     public static final String ICU = VersionInfo.ICU_VERSION.toString();
     public static final String CLDR = LocaleData.getCLDRVersion().toString();
 
-    public record Analysis(Map<String, Variable> contract, List<Node> structure, Map<String, Object> payload, boolean rtl) {}
+    /** {@code missing}: the plural forms the locale still needs before the message publishes, in CLDR order. */
+    public record Analysis(Map<String, Variable> contract, List<String> missing, Map<String, Object> payload, boolean rtl) {}
+
+    private static final List<String> FORMS = List.of("zero", "one", "two", "few", "many");
 
     private static final Set<String> LANGUAGES =
             Arrays.stream(ULocale.getAvailableLocales()).map(ULocale::getLanguage).collect(Collectors.toUnmodifiableSet());
@@ -132,6 +136,7 @@ public final class MessageType implements FieldType {
         checkContract(contract);
         MessagePattern ast = parse(text);
         Set<String> used = new HashSet<>();
+        Set<String> missing = new LinkedHashSet<>();
         for (int i = 0; i < ast.countParts(); i++) {
             Part part = ast.getPart(i);
             if (part.getType() == Part.Type.MSG_START && part.getValue() > 16) {
@@ -150,7 +155,7 @@ public final class MessageType implements FieldType {
                     default -> throw HttpException.badRequest("Unsupported formatter for " + name + ".");
                 });
                 case CHOICE -> throw HttpException.badRequest("Use plural or select instead of choice.");
-                case SELECT, PLURAL, SELECTORDINAL -> checkBranches(ast, i, name, variable, locale, complete);
+                case SELECT, PLURAL, SELECTORDINAL -> checkBranches(ast, i, name, variable, locale, complete, missing);
             }
         }
         if (!used.equals(contract.keySet())) throw HttpException.badRequest("Remove the variables the message doesn't use.");
@@ -159,7 +164,7 @@ public final class MessageType implements FieldType {
         } catch (RuntimeException invalid) {
             throw HttpException.badRequest("Invalid ICU formatter: " + invalid.getMessage());
         }
-        return new Analysis(new TreeMap<>(contract), nodes(ast, 0, locale), payload, ULocale.forLanguageTag(locale).isRightToLeft());
+        return new Analysis(new TreeMap<>(contract), FORMS.stream().filter(missing::contains).toList(), payload, ULocale.forLanguageTag(locale).isRightToLeft());
     }
 
     @Override
@@ -212,8 +217,8 @@ public final class MessageType implements FieldType {
         return ast;
     }
 
-    /** Checks the branches of the plural, selectordinal or select argument starting at part {@code start}. */
-    private static void checkBranches(MessagePattern ast, int start, String name, Variable variable, String locale, boolean complete) {
+    /** Checks the branches of the plural, selectordinal or select argument starting at part {@code start}, collecting the forms it lacks. */
+    private static void checkBranches(MessagePattern ast, int start, String name, Variable variable, String locale, boolean complete, Set<String> missing) {
         ArgType kind = ast.getPart(start).getArgType();
         boolean select = kind == ArgType.SELECT;
         if (select && variable.type() != VariableType.SELECT && variable.type() != VariableType.BOOLEAN) {
@@ -247,87 +252,13 @@ public final class MessageType implements FieldType {
             }
         }
         if (!branches.contains("other")) throw HttpException.badRequest("Add an other branch to " + name + ".");
-        if (complete && !select) {
-            for (String category : allowed) {
-                if (!branches.contains(category) && !coveredByExactMatches(rules, category, offset, exact)) {
-                    throw HttpException.badRequest("Add the " + category + " branch to " + name + " for " + locale + ".");
-                }
+        if (select) return;
+        for (String category : allowed) {
+            if (!branches.contains(category) && !coveredByExactMatches(rules, category, offset, exact)) {
+                if (complete) throw HttpException.badRequest("Add the " + category + " branch to " + name + " for " + locale + ".");
+                missing.add(category);
             }
         }
-    }
-
-    @Override
-    public List<Node> structureOf(Map<String, Object> payload, String tag) {
-        return nodes(parse(pattern(payload)), 0, locale(tag));
-    }
-
-    @Override
-    public Map<String, Object> payloadOf(List<Node> nodes) {
-        StringBuilder pattern = new StringBuilder();
-        write(pattern, nodes == null ? List.of() : nodes);
-        return Map.of("pattern", pattern.toString());
-    }
-
-    /**
-     * The message starting at part {@code msg}, as literal text and the arguments between it. Quoting
-     * is undone here and put back by {@link #write}, so nothing downstream ever sees ICU escaping.
-     */
-    private static List<Node> nodes(MessagePattern ast, int msg, String locale) {
-        String pattern = ast.getPatternString();
-        List<Node> out = new ArrayList<>();
-        StringBuilder text = new StringBuilder();
-        int limit = ast.getLimitPartIndex(msg);
-        int from = ast.getPart(msg).getLimit();
-        for (int i = msg + 1; i < limit; i++) {
-            Part part = ast.getPart(i);
-            switch (part.getType()) {
-                // SKIP_SYNTAX drops the quote marks and the first of a doubled apostrophe; whatever
-                // survives in the source is already the literal text, so INSERT_CHAR is not replayed.
-                case SKIP_SYNTAX -> {
-                    text.append(pattern, from, part.getIndex());
-                    from = part.getLimit();
-                }
-                case ARG_START -> {
-                    text.append(pattern, from, part.getIndex());
-                    if (!text.isEmpty()) out.add(new Node.Text(text.toString()));
-                    text.setLength(0);
-                    out.add(argument(ast, i, locale));
-                    i = ast.getLimitPartIndex(i);
-                    from = ast.getPart(i).getLimit();
-                }
-                default -> { }
-            }
-        }
-        text.append(pattern, from, ast.getPart(limit).getIndex());
-        if (!text.isEmpty()) out.add(new Node.Text(text.toString()));
-        return out;
-    }
-
-    private static Node argument(MessagePattern ast, int start, String locale) {
-        String name = ast.getSubstring(ast.getPart(start + 1));
-        ArgType kind = ast.getPart(start).getArgType();
-        return switch (kind) {
-            case NONE -> new Node.Hole(name, null, null);
-            // ICU keeps the space before a style in the substring; composing would add another every round.
-            case SIMPLE -> new Node.Hole(name, ast.getSubstring(ast.getPart(start + 2)).strip(),
-                    ast.getPart(start + 3).getType() == Part.Type.ARG_STYLE ? ast.getSubstring(ast.getPart(start + 3)).strip() : null);
-            case PLURAL, SELECTORDINAL, SELECT -> choice(ast, start, name, kind, locale);
-            case CHOICE -> throw HttpException.badRequest("Use plural or select instead of choice.");
-        };
-    }
-
-    private static Node.Choice choice(MessagePattern ast, int start, String name, ArgType kind, String locale) {
-        double offset = kind == ArgType.SELECT ? 0 : ast.getPluralOffset(start + 2);
-        List<Node.Branch> branches = new ArrayList<>();
-        int limit = ast.getLimitPartIndex(start);
-        for (int i = start + 2; i < limit; i++) {
-            if (ast.getPart(i).getType() != Part.Type.ARG_SELECTOR) continue;
-            int body = i + 1;
-            while (ast.getPart(body).getType() != Part.Type.MSG_START) body++;
-            branches.add(new Node.Branch(ast.getSubstring(ast.getPart(i)), nodes(ast, body, locale)));
-            i = ast.getLimitPartIndex(body);
-        }
-        return new Node.Choice(name, kind.name(), offset, branches);
     }
 
     /** §6: the categories CLDR asks of a locale, each with a few of its own sample numbers. */
@@ -335,48 +266,6 @@ public final class MessageType implements FieldType {
         PluralRules rules = PluralRules.forLocale(ULocale.forLanguageTag(locale(tag)),
                 ordinal ? PluralRules.PluralType.ORDINAL : PluralRules.PluralType.CARDINAL);
         return samples(rules, rules.getKeywords());
-    }
-
-    /** What an apostrophe would quote if it were left alone. */
-    private static final String QUOTES = "{}#|'";
-
-    private static char next(String value, int at) {
-        return at + 1 < value.length() ? value.charAt(at + 1) : ' ';
-    }
-
-    /** ponytail: {@code #} is never quoted, so a literal # inside a plural needs the ICU view. */
-    private static void write(StringBuilder pattern, List<Node> nodes) {
-        for (Node node : nodes) {
-            switch (node) {
-                case Node.Text text -> {
-                    String value = text.value();
-                    for (int i = 0; i < value.length(); i++) {
-                        char c = value.charAt(i);
-                        // An apostrophe only quotes what follows it, so only those need doubling:
-                        // escaping every one of them grows the pattern on every save.
-                        if (c == '\'') pattern.append(QUOTES.indexOf(next(value, i)) < 0 ? "'" : "''");
-                        else if (c == '{' || c == '}') pattern.append('\'').append(c).append('\'');
-                        else pattern.append(c);
-                    }
-                }
-                case Node.Hole hole -> {
-                    pattern.append('{').append(hole.argument());
-                    if (hole.format() != null) pattern.append(", ").append(hole.format());
-                    if (hole.format() != null && hole.style() != null) pattern.append(", ").append(hole.style());
-                    pattern.append('}');
-                }
-                case Node.Choice choice -> {
-                    pattern.append('{').append(choice.argument()).append(", ").append(choice.kind().toLowerCase()).append(',');
-                    if (choice.offset() != 0) pattern.append(" offset:").append(plain(choice.offset()));
-                    for (Node.Branch branch : choice.branches()) {
-                        pattern.append(' ').append(branch.match()).append(" {");
-                        write(pattern, branch.body());
-                        pattern.append('}');
-                    }
-                    pattern.append('}');
-                }
-            }
-        }
     }
 
     /** A few of CLDR's own sample numbers per category, so an editor can show what {@code few} means in this locale. */

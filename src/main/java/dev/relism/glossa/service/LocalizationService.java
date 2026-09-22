@@ -12,7 +12,6 @@ import dev.relism.flash.ext.security.apikey.ApiKeyPrincipal;
 import dev.relism.glossa.content.FieldType;
 import dev.relism.glossa.content.FieldType.Variable;
 import dev.relism.glossa.content.MessageType;
-import dev.relism.glossa.content.Node;
 import dev.relism.glossa.persistence.entities.CatalogRelease;
 import dev.relism.glossa.persistence.entities.ContentEvent;
 import dev.relism.glossa.persistence.entities.ContentRevision;
@@ -83,8 +82,7 @@ public final class LocalizationService {
         }
     }
 
-    /** An editor sends the tree it edits; anything holding raw syntax sends the payload. */
-    public record MessageRequest(Map<String, Object> payload, List<Node> structure, Map<String, Variable> contract,
+    public record MessageRequest(Map<String, Object> payload, Map<String, Variable> contract,
                                  Map<String, Object> values, boolean complete) {}
 
     public record Rendered(String text, String resolvedLocale, long revisionId) {}
@@ -303,19 +301,15 @@ public final class LocalizationService {
     }
 
     public MessageType.Analysis analyze(long project, String locale, MessageRequest request) {
-        return inProject(project, false, () -> messages.analyze(payloadOf(request), contractOf(request), enabled(project, locale).getLocale(), request.complete()));
+        return inProject(project, false, () -> messages.analyze(request.payload(), contractOf(request), enabled(project, locale).getLocale(), request.complete()));
     }
 
     public String preview(long project, String locale, MessageRequest request) {
-        return inProject(project, false, () -> messages.render(payloadOf(request), contractOf(request), enabled(project, locale).getLocale(), request.values()));
-    }
-
-    private Map<String, Object> payloadOf(MessageRequest request) {
-        return request.payload() != null ? request.payload() : messages.payloadOf(request.structure());
+        return inProject(project, false, () -> messages.render(request.payload(), contractOf(request), enabled(project, locale).getLocale(), request.values()));
     }
 
     private Map<String, Variable> contractOf(MessageRequest request) {
-        return request.contract() != null ? request.contract() : messages.contractOf(payloadOf(request));
+        return request.contract() != null ? request.contract() : messages.contractOf(request.payload());
     }
 
     /** Every active resource resolved for {@code locale}; publishing an unchanged catalog returns the current release. */
