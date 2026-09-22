@@ -3,10 +3,7 @@
  * prod Flash serves this bundle itself (see vite.config.ts and Main#webBundlerConfig). So no
  * base URL, no VITE_API_URL, no CORS on either side.
  */
-/**
- * Sent with every call. A downstream build puts what the whole session is scoped to here — the
- * hosted edition's selected organization — because it is ambient: no caller should have to pass it.
- */
+/** Headers sent with every call: whatever the whole session is scoped to, which no caller should have to pass. */
 export const ambient: Record<string, string> = {}
 
 export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {

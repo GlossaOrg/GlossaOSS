@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>Glossa</name>
-    <description>Agent-native translation management system built on Flash.</description>
+    <description>Translation management system built on Flash.</description>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
@@ -52,6 +52,12 @@
     </properties>
 
     <dependencies>
+        <!-- ICU MessageFormat and versioned CLDR rules for localized messages (§6). -->
+        <dependency>
+            <groupId>com.ibm.icu</groupId>
+            <artifactId>icu4j</artifactId>
+            <version>78.3</version>
+        </dependency>
         <dependency>
             <groupId>dev.relism</groupId>
             <artifactId>flash</artifactId>
@@ -110,12 +116,6 @@
             <artifactId>flash-ext-scheduler</artifactId>
             <version>${flash.version}</version>
         </dependency>
-        <!-- §10: delivery responses must be "efficiently cacheable" with conditional re-fetching. -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-cache-caffeine</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
         <!-- §11: SSO, password sign-in and API keys, each optional, all on one security chain. -->
         <dependency>
             <groupId>dev.relism</groupId>
@@ -130,12 +130,6 @@
         <dependency>
             <groupId>dev.relism</groupId>
             <artifactId>flash-ext-security-apikey</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-        <!-- §12: MCP is a core capability, authenticated by the same chain as every route. -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-mcp</artifactId>
             <version>${flash.version}</version>
         </dependency>
         <!-- §13: serves and (in dev) orchestrates the React SPA under web/. -->

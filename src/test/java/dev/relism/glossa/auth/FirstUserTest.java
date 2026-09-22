@@ -29,7 +29,7 @@ class FirstUserTest {
 
     /** An installation that does not administer its own accounts: no administrator to invite, so nobody needs an invitation. */
     @RegisterExtension
-    static final FlashTest hosted = FlashTest.of(flash -> flash.apply(new GlossaApp(Postgres.fresh("hosted"), false, false)).install(new TestSecurity()));
+    static final FlashTest provisioned = FlashTest.of(flash -> flash.apply(new GlossaApp(Postgres.fresh("provisioned"), false, false)).install(new TestSecurity()));
 
     @Test
     void theFirstAccountIsCreatedOnceAndAdministers() {
@@ -58,15 +58,15 @@ class FirstUserTest {
 
     /** Where accounts are not the installation's, the provider's word makes one — and it administers nothing. */
     @Test
-    void aHostedInstallationLetsEveryProviderAccountInAndMakesNoAdministrator() {
-        hosted.request().with(TestSecurity.as(oidc("sub-1"))).get("/api/me").expectBodyContains("\"admin\":false");
-        hosted.request().with(TestSecurity.as(oidc("sub-2"))).get("/api/me").expectBodyContains("\"admin\":false");
+    void anInstallationNotOwningItsAccountsLetsEveryProviderAccountInAndMakesNoAdministrator() {
+        provisioned.request().with(TestSecurity.as(oidc("sub-1"))).get("/api/me").expectBodyContains("\"admin\":false");
+        provisioned.request().with(TestSecurity.as(oidc("sub-2"))).get("/api/me").expectBodyContains("\"admin\":false");
         // Nobody administers the installation, so its account list is nobody's to read and there is no first-account screen.
-        hosted.request().with(TestSecurity.as(oidc("sub-1"))).get("/api/users").expectStatus(403);
-        hosted.get("/api/setup").expectBody("{\"firstUser\":false}");
-        hosted.request().json("{\"email\":\"late@example.test\",\"password\":\"Long-enough!\"}").post("/api/setup").expectStatus(404);
+        provisioned.request().with(TestSecurity.as(oidc("sub-1"))).get("/api/users").expectStatus(403);
+        provisioned.get("/api/setup").expectBody("{\"firstUser\":false}");
+        provisioned.request().json("{\"email\":\"late@example.test\",\"password\":\"Long-enough!\"}").post("/api/setup").expectStatus(404);
         // The one refusal that survives: the gate still stops an account that was taken away.
-        hosted.request().with(TestSecurity.as(oidc("sub-3"))).get("/api/projects").expectStatus(200).expectBody("[]");
+        provisioned.request().with(TestSecurity.as(oidc("sub-3"))).get("/api/projects").expectStatus(200).expectBody("[]");
     }
 
     /**
@@ -76,18 +76,18 @@ class FirstUserTest {
      */
     @Test
     void averifiedSecondProviderJoinsTheAccountTheEmailAlreadyHas() {
-        String first = hosted.request().with(TestSecurity.as(oidc("sub-9"))).get("/api/me").expectStatus(200).body();
+        String first = provisioned.request().with(TestSecurity.as(oidc("sub-9"))).get("/api/me").expectStatus(200).body();
 
-        String joined = hosted.request().with(TestSecurity.as(oidc("elsewhere-9", "sub-9@example.test", "https://other.example.test", true)))
+        String joined = provisioned.request().with(TestSecurity.as(oidc("elsewhere-9", "sub-9@example.test", "https://other.example.test", true)))
                 .get("/api/me").expectStatus(200).body();
         assertEquals(idOf(first), idOf(joined), "a verified second provider must reach the same account");
 
         // Unverified: no join, and no second account for an address that is already somebody's.
-        hosted.request().with(TestSecurity.as(oidc("liar-9", "sub-9@example.test", "https://third.example.test", false)))
+        provisioned.request().with(TestSecurity.as(oidc("liar-9", "sub-9@example.test", "https://third.example.test", false)))
                 .get("/api/me").expectStatus(403).expectBodyContains("already exists");
 
         // Both ways in still reach it, and the account is still one row.
-        hosted.request().with(TestSecurity.as(oidc("sub-9"))).get("/api/me").expectBodyContains("\"id\":" + idOf(first) + ",");
+        provisioned.request().with(TestSecurity.as(oidc("sub-9"))).get("/api/me").expectBodyContains("\"id\":" + idOf(first) + ",");
     }
 
     /** §11's whole password path: an administrator invites, the link is taken up once, and a suspended account stops signing in. */

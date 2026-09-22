@@ -5,6 +5,7 @@ import { BookOpenIcon, PlusIcon, RefreshCwIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Flag } from '@/components/locale'
 import { OneTimeNote } from '@/components/one-time-note'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
@@ -32,7 +33,7 @@ const unfold = {
   transition: { duration: 0.22, ease: [0.2, 0, 0, 1] },
 } as const
 
-/** §11: the selected project's keys for services and agents. Gated to managers by `useScreens()`. */
+/** §11: the selected project's keys for services. Gated to managers by `useScreens()`. */
 export function ApiKeys() {
   const project = useProject().project!
   const client = useQueryClient()
@@ -50,12 +51,12 @@ export function ApiKeys() {
   const inactive = keys.data?.filter((k) => !isActive(k)) ?? []
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-x-16 gap-y-14 lg:py-4 xl:grid-cols-[minmax(0,1fr)_16rem]">
-      <div className="max-w-3xl min-w-0">
+    <div className="page grid gap-x-16 gap-y-14 lg:py-4 xl:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="min-w-0">
         <header className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="mb-2">API keys</h2>
-            <p className="text-muted-foreground text-[17px]">Services and agents use these to reach {project.name} without signing in.</p>
+            <p className="text-muted-foreground text-[17px]">Services use these to reach {project.name} without signing in.</p>
           </div>
           <Button onClick={() => setComposing(true)} disabled={composing}>
             <PlusIcon className="transition-transform duration-300 motion-safe:group-hover/button:rotate-90" />
@@ -123,10 +124,8 @@ export function ApiKeys() {
         </section>
         <section>
           <h3 className="mb-2 text-base">Using a key</h3>
-          <p className="text-muted-foreground mb-3">Send it as a bearer token to the API or the MCP endpoint.</p>
-          <pre className="bg-background mb-3 overflow-x-auto rounded-lg p-3 font-mono text-xs leading-relaxed">
-            {`Authorization: Bearer gk_…\n${location.origin}/mcp`}
-          </pre>
+          <p className="text-muted-foreground mb-3">Send it as a bearer token to the API.</p>
+          <pre className="bg-background mb-3 overflow-x-auto rounded-lg p-3 font-mono text-xs leading-relaxed">{'Authorization: Bearer gk_…'}</pre>
           <Button variant="outline" size="sm" nativeButton={false} render={<a href="/openapi/swagger" target="_blank" rel="noreferrer" />}>
             <BookOpenIcon className="transition-transform duration-300 motion-safe:group-hover/button:-rotate-6" />
             API reference
@@ -294,7 +293,12 @@ function RoleTag({ role, locale }: { role: Role; locale?: string | null }) {
   return (
     <span className={cn('inline-flex rounded-full px-2 py-px text-xs font-medium', r.tint)}>
       {r.label}
-      {locale && <span className="ml-1 opacity-70">{locale}</span>}
+      {locale && (
+        <span className="ml-1.5 inline-flex items-center gap-1 opacity-80">
+          <Flag locale={locale} className="size-3.5" />
+          {locale}
+        </span>
+      )}
     </span>
   )
 }

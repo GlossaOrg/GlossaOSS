@@ -12,7 +12,7 @@ export function SettingsDialog({ title, description, icon, tabs, open, onOpenCha
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90svh] max-w-5xl flex-col gap-6 p-6 sm:max-w-5xl">
+      <DialogContent className="flex h-[min(44rem,90svh)] max-w-5xl flex-col gap-6 p-6 sm:max-w-5xl">
         <DialogHeader className="flex-row items-center gap-3 text-left">
           {icon}
           <div className="grid gap-0.5">

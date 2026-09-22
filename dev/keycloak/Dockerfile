@@ -3,8 +3,9 @@
 # build context is sent over the API and always works.
 #
 # glossa-realm.json cannot carry comments, so its two non-obvious choices live here:
-#  - the `glossa` client enables the password grant, so an API or MCP call can be tested with a
-#    real token and no browser;
+#  - the `glossa` client enables the password grant, so an API call can be tested with a real token
+#    and no browser, and marks its access tokens `at+jwt` (RFC 9068): Flash takes no other JWT as a
+#    bearer, so an ID token can never pass for one;
 #  - it accepts redirects on both :5173 (the Vite dev server, which proxies /auth to Flash) and
 #    :8080 (Flash reached directly) — Flash derives redirect_uri from the request's Host header.
 FROM quay.io/keycloak/keycloak:26.4

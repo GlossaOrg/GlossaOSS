@@ -4,46 +4,36 @@ This document describes the intended product and behavior in plain language. It 
 
 ## 1. Product overview
 
-A self-hosted, open-source translation management system (TMS), also offered as a SaaS product. It lets teams define translatable content once and manage its translation across any number of languages, with a collaborative workflow between translators and reviewers, auto-translation suggestions, and an API that external applications use to fetch finished translations at runtime.
-
-The differentiating idea versus existing TMS products (Crowdin, Lokalise, Weblate, Tolgee) is that the system is **agent-native**: an AI agent can perform essentially the same actions as a human user — creating content, requesting translations, reviewing and approving suggestions, searching for problems — through a first-class integration, not a bolted-on chatbot.
+A self-hosted, open-source translation management system (TMS). It lets teams define translatable content once and manage its translation across any number of languages, with a collaborative workflow between translators and reviewers, auto-translation suggestions, and an API that external applications use to fetch finished translations at runtime. A team running it for itself gets the whole product.
 
 ## 2. Deployment and distribution
 
 - Distributed as a Docker image.
 - Intended to run via Docker Compose alongside two other containers: a PostgreSQL database (the system's only persistent datastore) and a LibreTranslate instance (used for automatic translation suggestions).
-- Both a self-hosted / open-source edition and a hosted SaaS edition are planned. The open-source edition has no concept of an organization at all: a project is the widest scope anything is grouped under, and permissions are granted per project. Multiple customer organizations are a hosted-edition addition, layered over the same project model without changing it — a user of either edition sees the same screens and the same separation between their projects.
+- There is no concept of an organization: a project is the widest scope anything is grouped under, and permissions are granted per project.
 
 ## 3. Content model philosophy — extensible, not hardcoded
 
-The system must not hardcode a permanent, closed list of "content types" into its core logic. Instead:
+- A localizable **resource** owns a stable key and names a registered field type. Every locale has an immutable sequence of revisions whose payload is validated by that type.
+- Field types own payload validation, rendering, editing and export. They are registered in code rather than represented by a closed enum, so later types can use structured payloads without changing identity, revision, review, fallback or publication.
+- The initial type is an ICU message. Markdown, HTML, rich documents and structured email are later field types over the same resource model. Images belong to a CMS and are outside Glossa's scope.
 
-- A small, fixed set of **field types** is built into the system (see section 4). Each field type knows how to validate its own value, how to render an editor for it, how to render a read-only preview of it, and how to be exported.
-- Users (project admins) compose arbitrary **content schemas** out of these field types, entirely as configuration/data, without any code change. A content schema can be as simple as a single text field, or as rich as a composite object with multiple named fields of different types (for example, an email template made of a subject line, a rich-text body, and a hero image).
-- Every translatable key in a project is associated with one content schema, and every locale's value for that key must conform to that schema.
-- This means new field types can be added to the system later (e.g. date, number, color, template-with-variables) without redesigning how content schemas, keys, or the review workflow work. The extensibility point is the field type registry, not the content schema mechanism.
+## 4. Field types
 
-## 4. Field types required for v1
-
-The following five field types must be supported at launch, each with its own dedicated editing experience and its own dedicated preview rendering (not a single generic textbox for everything):
-
-1. **Text** — a single string or a longer free-form text block (not tied to a single line).
-2. **Markdown** — authored as Markdown, previewed as rendered formatted output.
-3. **HTML** — for use cases like transactional emails; must have a live HTML preview so the author can see the rendered result. Because this field accepts arbitrary markup, all HTML content must be sanitized before storage and before rendering, to prevent script injection — this field type should never be treated as trusted input.
-4. **Rich text** — a WYSIWYG-style formatted text field, previewed as rendered formatted output, distinct from raw Markdown or HTML authoring.
-5. **Image** — an uploaded image asset. Images are locale-specific values just like text: the same logical field can hold a different image per locale (for example, a localized screenshot containing UI text in that language).
+- **Message** is required first: plain strings plus the portable ICU MessageFormat profile in §6.
+- Markdown, sanitized HTML, rich documents and structured email follow as separate field types, each with a type-specific editor and preview.
 
 ## 5. Localization structure
 
 - Content lives inside **projects**. A project declares one source locale (the reference language content is authored in) and any number of target locales.
-- Within a project, translatable items ("keys") are organized into **namespaces** for grouping (e.g. "checkout", "onboarding").
-- Each key has: a name, an association with one content schema, optional free-form context notes for translators, and an optional attached screenshot for visual context.
-- Each key has one value per enabled locale, shaped according to its content schema.
+- Resource keys are project-unique and may use dotted prefixes for grouping (e.g. `checkout.items`); prefixes need no separate namespace lifecycle.
+- Each resource has a key, field type and optional translator context. Each enabled locale may have one current approved revision and one pending proposal.
 
 ## 6. Advanced language handling
 
-- Pluralization and gender/number agreement must be handled properly, not as a simplistic singular/plural toggle. The system should support the same expressive approach used by professional translation tools: a message can encode multiple grammatical forms (plural categories, gender-based branching, etc.) within a single field value.
-- Different languages require different numbers of plural forms (English needs two, Polish needs four, Arabic needs six, and so on). The translator-facing editor must present exactly the plural forms required by the specific language being translated into — never a fixed one-size-fits-all set.
+- Messages use a declared portable ICU MessageFormat profile and the CLDR data pinned by ICU: named arguments, number/date/time formatting and skeletons, plural, selectordinal, select, exact matches, offsets, nesting and ICU escaping. Legacy choice and runtime-specific custom formatters are rejected.
+- Every message has a typed argument contract (text, number, temporal, select or boolean). Saved translations preserve exactly the source names and types; runtime rendering rejects missing, extra, wrongly typed, non-finite or out-of-domain values.
+- Different languages require different plural forms, and current CLDR rules may change. Authoring derives cardinal and ordinal categories for the exact locale from ICU; publication records ICU/CLDR versions and requires complete category coverage.
 - If the source content defines placeholder variables (e.g. a user's name, an order number), every locale's translation must preserve the same set of placeholders. This must be checked automatically and surfaced as a validation problem if a translation is missing a required placeholder or introduces one that doesn't exist in the source.
 - A glossary of terminology is maintained per project, per locale: preferred translations for specific terms, and terms that must never be translated at all. This should be used to help enforce consistency across translations.
 - A translation memory should be maintained: previously approved translations (or their source/target text pairs) are kept so that when a new, similar piece of source text appears, a relevant prior translation can be suggested to the translator, reducing repeated work and improving consistency.
@@ -78,28 +68,16 @@ If the source-locale content of a key is edited after a given locale's translati
 
 ## 11. Authentication
 
-- Human users (translators, reviewers, project managers, administrators) authenticate either via SSO using OpenID Connect (OIDC), or with an account held by the system itself. A self-hosted install must not be forced to stand up an identity provider before it can be used; the hosted edition uses SSO exclusively.
-- External services and agents that call the system authenticate with API keys the system issues itself and a project manager administers from the web interface — not with SSO tokens. A key is issued for one project, with one role, and cannot exceed it.
+- Human users (translators, reviewers, project managers, administrators) authenticate either via SSO using OpenID Connect (OIDC), or with an account held by the system itself. An install must not be forced to stand up an identity provider before it can be used.
+- External services that call the system authenticate with API keys the system issues itself and a project manager administers from the web interface — not with SSO tokens. A key is issued for one project, with one role, and cannot exceed it.
 - Whichever of the above authenticated a caller, what that caller is allowed to do is read from this system's own data (§8), never from an identity provider's claims. Changing the authentication strategy therefore cannot change anybody's permissions.
 
-## 12. Agent-native operations (MCP)
-
-The system must expose an MCP interface so an AI agent can perform the same categories of action a human collaborator can, including at least:
-
-- Listing missing or untranslated content for a given project/locale.
-- Requesting or reviewing automatic translation suggestions.
-- Approving or rejecting pending proposals (subject to the same role/permission rules that apply to human reviewers — an agent does not get elevated privileges).
-- Searching for inconsistent or duplicate translations across a project.
-- Creating new content schemas and keys.
-
-This should be treated as a core product capability rather than an optional add-on layered on top of the API.
-
-## 13. Frontend
+## 12. Frontend
 
 - Built as a React single-page application.
 - Visual direction: clean, modern, pastel color palette, in the spirit of tools like Miro or Evernote — approachable and friendly rather than dense/enterprise-styled.
 - The editing interface must be content-type aware: each field type from section 4 gets an editor and a preview appropriate to it (e.g. rendered HTML preview for HTML fields, rendered Markdown preview for Markdown fields, image preview for image fields), not one generic text box used for everything.
 
-## 14. Explicitly out of scope for v1
+## 13. Explicitly out of scope for v1
 
 - Real-time collaborative editing (WebSocket-based live updates, multi-user presence indicators, live cursors, etc.) has been discussed but is **not** part of the v1 functional requirements. It is being reconsidered separately and should not be designed or implemented as part of this scope. Do not assume any real-time/live-sync behavior when interpreting the rest of this document.

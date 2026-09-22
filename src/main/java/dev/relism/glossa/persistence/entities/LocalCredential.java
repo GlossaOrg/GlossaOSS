@@ -8,7 +8,7 @@ import lombok.Setter;
 
 import java.time.Instant;
 
-/** The password of an {@link AppUser} authenticated by Glossa itself. See {@link Passwords}. */
+/** The password of an {@link AppUser} authenticated by Glossa itself. See {@link dev.relism.glossa.service.Passwords}. */
 @Entity
 @Getter
 @Setter

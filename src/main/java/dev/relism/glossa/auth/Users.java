@@ -29,11 +29,13 @@ public final class Users implements UserResolver<AppUser>, PasswordStore {
     private final Data data;
     private final boolean selfAdministered;
     private final UserService accounts;
+    private final UserResolver<AppUser> others;
 
-    public Users(Data data, boolean selfAdministered, UserService accounts) {
+    public Users(Data data, boolean selfAdministered, UserService accounts, UserResolver<AppUser> others) {
         this.data = data;
         this.selfAdministered = selfAdministered;
         this.accounts = accounts;
+        this.others = others;
     }
 
     /**
@@ -56,7 +58,7 @@ public final class Users implements UserResolver<AppUser>, PasswordStore {
                 AppUser known = find(oidc.issuer(), oidc.name());
                 yield known != null ? known : arriveOnce(oidc);
             }
-            default -> throw new IllegalStateException("No Glossa user for " + principal.getClass().getName());
+            default -> others.resolve(principal);
         });
     }
 

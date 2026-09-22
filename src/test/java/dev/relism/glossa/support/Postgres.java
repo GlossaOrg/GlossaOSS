@@ -41,11 +41,20 @@ public final class Postgres {
         } catch (SQLException e) {
             throw new IllegalStateException(e);
         }
-        return Database.bootstrap(CONTAINER.getJdbcUrl().replace("/" + CONTAINER.getDatabaseName(), "/" + name), CONTAINER.getUsername(), CONTAINER.getPassword());
+        return Database.bootstrap(url(name), CONTAINER.getUsername(), CONTAINER.getPassword());
     }
 
     /** For asserting on what a migration actually did — the schema, not the app's view of it. */
     public static Connection connection() throws SQLException {
-        return DriverManager.getConnection(CONTAINER.getJdbcUrl(), CONTAINER.getUsername(), CONTAINER.getPassword());
+        return connection(CONTAINER.getDatabaseName());
+    }
+
+    /** The same, in a database made by {@link #fresh(String)}. */
+    public static Connection connection(String database) throws SQLException {
+        return DriverManager.getConnection(url(database), CONTAINER.getUsername(), CONTAINER.getPassword());
+    }
+
+    private static String url(String database) {
+        return CONTAINER.getJdbcUrl().replace("/" + CONTAINER.getDatabaseName(), "/" + database);
     }
 }

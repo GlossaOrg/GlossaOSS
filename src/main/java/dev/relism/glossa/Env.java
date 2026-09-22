@@ -31,9 +31,13 @@ public final class Env {
     /** §11: password sign-in, on unless disabled. */
     public static final boolean LOCAL_LOGIN = !"false".equalsIgnoreCase(get("LOCAL_LOGIN", "true"));
 
+    /** Where the installation is served, e.g. {@code https://glossa.example}. Unset, each request's own {@code Host} is used. */
+    public static final String ORIGIN = get("ORIGIN", null);
+
     private Env() {}
 
-    private static String get(String key, String fallback) {
+    /** {@code key} from the environment, else from {@code .env}, else {@code fallback}. */
+    public static String get(String key, String fallback) {
         String v = System.getenv(key);
         if (v == null || v.isBlank()) v = DOTENV.get(key);
         return (v == null || v.isBlank()) ? fallback : v;

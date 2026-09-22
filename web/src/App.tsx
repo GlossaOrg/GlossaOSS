@@ -63,7 +63,7 @@ export default function App() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={route.pathname}
-            className="@container/main flex flex-1 flex-col p-4 lg:p-8"
+            className="@container/main flex flex-1 flex-col p-4 lg:px-6 lg:py-8"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
