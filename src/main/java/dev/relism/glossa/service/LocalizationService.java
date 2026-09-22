@@ -85,6 +85,11 @@ public final class LocalizationService {
     public record MessageRequest(Map<String, Object> payload, Map<String, Variable> contract,
                                  Map<String, Object> values, boolean complete) {}
 
+    /** The source value to translate, and the resource's context if it has one: §9 keeps nothing, so nothing is read back. */
+    public record Suggest(Map<String, Object> payload, Map<String, Variable> contract, String context) {}
+
+    public record Suggestion(Map<String, Object> payload, String model) {}
+
     public record Rendered(String text, String resolvedLocale, long revisionId) {}
 
     private record Resolved(ContentRevision revision, String locale) {}
@@ -92,15 +97,27 @@ public final class LocalizationService {
     /** A variant and its approved revision, which is null until something is approved in it. */
     private record Current(ContentVariant variant, ContentRevision approved) {}
 
+    /** §9: what the model is told once, before any one message. */
+    private static final String TRANSLATOR = """
+            You translate ICU MessageFormat patterns for a software localization tool.
+            Answer with the translated pattern alone: no quotes, no code fences, no explanation, no notes.
+            Keep every argument name exactly as it is written, and keep the ICU syntax valid.
+            Give plural, selectordinal and select arms the categories the target language needs, listed below,
+            and translate the text inside each arm.
+            Keep the punctuation, the placeholders and the leading and trailing spaces the source has.
+            Translate nothing that is not text a reader sees.""";
+
     private final Data data;
     private final ObjectMapper json;
+    private final AiService ai;
     private final MessageType messages = new MessageType();
     /** §3's registry: the field types a resource may name. */
     private final Map<String, FieldType> types = Map.of(messages.name(), messages);
 
-    public LocalizationService(Data data, ObjectMapper json) {
+    public LocalizationService(Data data, ObjectMapper json, AiService ai) {
         this.data = data;
         this.json = json;
+        this.ai = ai;
     }
 
     /** Every locale path or argument must match an enabled locale exactly, so the role check and the data agree on it. */
@@ -310,6 +327,43 @@ public final class LocalizationService {
 
     private Map<String, Variable> contractOf(MessageRequest request) {
         return request.contract() != null ? request.contract() : messages.contractOf(request.payload());
+    }
+
+    /**
+     * §9: a translation for one message, for whoever asked to accept, edit or discard. Nothing is
+     * stored, so what they keep is written by {@link #edit} as their own revision. The provider is
+     * called outside any transaction: it takes seconds, and a database connection is not for waiting in.
+     */
+    public Suggestion suggest(long project, String locale, Suggest request) {
+        String from = inProject(project, false, () -> {
+            enabled(project, locale);
+            return source(project).getLocale();
+        });
+        if (from.equals(locale)) throw HttpException.badRequest("That is the source locale.");
+        Map<String, Variable> contract = request.contract() != null ? request.contract() : messages.contractOf(request.payload());
+        messages.validate(request.payload(), contract, from, false);
+        String ask = "Source locale: " + from + "\nTarget locale: " + locale
+                + "\nCategories the target needs: " + String.join(", ", MessageType.forms(locale, false).keySet())
+                + (contract.isEmpty() ? "" : "\nArguments: " + contract.entrySet().stream()
+                        .map(argument -> argument.getKey() + " (" + argument.getValue().type() + ")").collect(Collectors.joining(", ")))
+                + (request.context() == null || request.context().isBlank() ? "" : "\nWhat it is for: " + request.context().trim())
+                + "\n\nPattern:\n" + request.payload().get("pattern");
+        // ponytail: one retry, handing back the parser's own complaint. A model that misses twice is the wrong model.
+        String refused = null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            AiService.Completion answer = ai.complete(TRANSLATOR, refused == null ? ask
+                    : ask + "\n\nYour previous answer was refused: " + refused + "\nAnswer with a corrected pattern alone.");
+            Map<String, Object> suggested = Map.of("pattern", answer.text());
+            try {
+                messages.validate(suggested, contract, locale, false);
+            } catch (HttpException invalid) {
+                refused = invalid.getMessage();
+                continue;
+            }
+            ai.used();
+            return new Suggestion(suggested, answer.model());
+        }
+        throw new HttpException(502, "The AI did not produce a usable message: " + refused);
     }
 
     /** Every active resource resolved for {@code locale}; publishing an unchanged catalog returns the current release. */

@@ -251,6 +251,11 @@
                          reads like production output. Both must be set at JVM start, hence
                          argLine rather than systemPropertyVariables. -->
                     <argLine>-Dorg.jboss.logging.provider=slf4j -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</argLine>
+                    <environmentVariables>
+                        <!-- §9: a throwaway key, so the AI provider's stored credential is sealed in
+                             tests exactly as in production. Env reads the environment first. -->
+                        <ENCRYPTION_KEY>dGVzdC1vbmx5LWtleS10ZXN0LW9ubHkta2V5LTMyYnk=</ENCRYPTION_KEY>
+                    </environmentVariables>
                 </configuration>
             </plugin>
             <!--

@@ -12,6 +12,7 @@ import dev.relism.flash.extension.FlashApp;
 import dev.relism.flash.extension.FlashApplication;
 import dev.relism.glossa.auth.ProjectRoles;
 import dev.relism.glossa.persistence.Database;
+import dev.relism.glossa.service.AiService;
 import dev.relism.glossa.persistence.entities.AppUser;
 
 /**
@@ -36,6 +37,7 @@ public final class GlossaApp implements FlashApplication {
         throw new IllegalStateException("No Glossa user for " + principal.getClass().getName());
     };
     private String origin;
+    private AiService.Access ai;
 
     /** Signs in with passwords unless {@link Env#LOCAL_LOGIN} turns it off; whoever signs up or in first administers the install. */
     public GlossaApp(Database.Bootstrap db) {
@@ -72,10 +74,16 @@ public final class GlossaApp implements FlashApplication {
         return this;
     }
 
+    /** §9: where AI calls may go; {@code null} uses the provider this installation configures for itself. */
+    public GlossaApp ai(AiService.Access ai) {
+        this.ai = ai;
+        return this;
+    }
+
     @Override
     public void configure(FlashApp app) {
         JacksonExtension jackson = new JacksonExtension();
-        GlossaServices services = new GlossaServices(db.data(), localLogin, selfAdministered, users);
+        GlossaServices services = new GlossaServices(db.data(), localLogin, selfAdministered, users, ai);
         SecurityExtension security = new SecurityExtension().users(services.users()).roles(roles).loginPage("/login");
         if (origin != null) security.origin(origin);
         if (localLogin) app.install(new FormLoginExtension(services.users()));
