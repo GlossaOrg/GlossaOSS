@@ -88,8 +88,6 @@ public final class LocalizationService {
     /** The source value to translate, and the resource's context if it has one: §9 keeps nothing, so nothing is read back. */
     public record Suggest(Map<String, Object> payload, Map<String, Variable> contract, String context) {}
 
-    public record Suggestion(Map<String, Object> payload, String model) {}
-
     public record Rendered(String text, String resolvedLocale, long revisionId) {}
 
     private record Resolved(ContentRevision revision, String locale) {}
@@ -327,7 +325,7 @@ public final class LocalizationService {
      * stored, so what they keep is written by {@link #edit} as their own revision. The provider is
      * called outside any transaction: it takes seconds, and a database connection is not for waiting in.
      */
-    public Suggestion suggest(long project, String locale, Suggest request) {
+    public Map<String, Object> suggest(long project, String locale, Suggest request) {
         String from = inProject(project, false, () -> {
             enabled(project, locale);
             return source(project).getLocale();
@@ -352,9 +350,9 @@ public final class LocalizationService {
         // ponytail: one retry, handing back the parser's own complaint. A model that misses twice is the wrong model.
         String refused = null;
         for (int attempt = 0; attempt < 2; attempt++) {
-            AiService.Completion answer = ai.complete(system, refused == null ? ask
+            String answer = ai.complete(system, refused == null ? ask
                     : ask + "\n\nYour previous answer was refused: " + refused + "\nAnswer with a corrected message only.");
-            Map<String, Object> suggested = Map.of("pattern", answer.text());
+            Map<String, Object> suggested = Map.of("pattern", answer);
             try {
                 messages.validate(suggested, contract, locale, false);
             } catch (HttpException invalid) {
@@ -362,7 +360,8 @@ public final class LocalizationService {
                 continue;
             }
             ai.used();
-            return new Suggestion(suggested, answer.model());
+            // The payload alone: which model answered is the administrator's business, not a translator's.
+            return suggested;
         }
         throw new HttpException(502, "The AI did not produce a usable message: " + refused);
     }

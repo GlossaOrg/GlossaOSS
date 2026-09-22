@@ -40,8 +40,6 @@ public final class AiService {
 
     public record Endpoint(String baseUrl, String apiKey, String model) {}
 
-    public record Completion(String text, String model) {}
-
     /** {@code apiKey} is never returned; {@code configured} says whether one is stored. */
     public record SettingsView(boolean enabled, String baseUrl, String model, boolean configured) {}
 
@@ -99,7 +97,7 @@ public final class AiService {
     }
 
     /** The provider's answer, or 502: a provider that is slow, down or lying is not the caller's fault. */
-    public Completion complete(String system, String user) {
+    public String complete(String system, String user) {
         Endpoint endpoint = access != null ? access.endpoint() : configured();
         HttpResponse<String> response;
         try {
@@ -132,8 +130,7 @@ public final class AiService {
         if (!content.isTextual() || content.asText().isBlank()) throw new HttpException(502, "The AI provider answered nothing.");
         // Models wrap code in fences however plainly they are told not to. Only the fences and the
         // newlines around the answer go: a message's own spaces and tabs are part of its value.
-        String text = content.asText().replaceAll("^\\s*```[a-zA-Z]*\\n|\\n```\\s*$", "").replaceAll("^[\\r\\n]+|[\\r\\n]+$", "");
-        return new Completion(text, endpoint.model());
+        return content.asText().replaceAll("^\\s*```[a-zA-Z]*\\n|\\n```\\s*$", "").replaceAll("^[\\r\\n]+|[\\r\\n]+$", "");
     }
 
     private Endpoint configured() {
