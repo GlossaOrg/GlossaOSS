@@ -80,6 +80,19 @@ public final class AiService {
         return settings();
     }
 
+    /**
+     * Whether an AI call would be allowed right now, for a caller who may not see the provider: the
+     * frontend offers no AI where there is none. It is {@link #endpoint()}'s own answer rather than a
+     * second reading of the same rules, so the two can never disagree.
+     */
+    public boolean available() {
+        try {
+            return (access != null ? access.endpoint() : configured()) != null;
+        } catch (HttpException unavailable) {
+            return false;
+        }
+    }
+
     /** One AI action the caller asked for succeeded. */
     public void used() {
         if (access != null) access.used();
