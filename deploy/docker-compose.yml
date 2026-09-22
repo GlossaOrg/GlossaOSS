@@ -1,5 +1,5 @@
-# The three-container deployment REQUIREMENTS §2 describes: Glossa, its Postgres (the only
-# persistent datastore), and the LibreTranslate instance that backs automatic suggestions.
+# The two-container deployment REQUIREMENTS §2 describes: Glossa and its Postgres, the only
+# persistent datastore.
 #
 # Run from the repository root:  docker compose -f deploy/docker-compose.yml up
 services:
@@ -15,7 +15,6 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/glossa
       DB_USERNAME: glossa
       DB_PASSWORD: ${DB_PASSWORD:-glossa}
-      LIBRETRANSLATE_URL: http://libretranslate:5000
       # SSO is mandatory for a real deployment (§11) — set these, then uncomment.
       # OIDC_ISSUER: ${OIDC_ISSUER}
       # OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
@@ -40,15 +39,5 @@ services:
       timeout: 5s
       retries: 10
 
-  libretranslate:
-    image: libretranslate/libretranslate:latest
-    environment:
-      # Only the languages this deployment actually translates into — LibreTranslate downloads
-      # a model per pair at first start, and the full set is several GB.
-      LT_LOAD_ONLY: ${LT_LOAD_ONLY:-en,it,fr,de,es}
-    volumes:
-      - libretranslate-models:/home/libretranslate/.local
-
 volumes:
   postgres-data:
-  libretranslate-models:

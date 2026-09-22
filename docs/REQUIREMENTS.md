@@ -9,7 +9,7 @@ A self-hosted, open-source translation management system (TMS). It lets teams de
 ## 2. Deployment and distribution
 
 - Distributed as a Docker image.
-- Intended to run via Docker Compose alongside two other containers: a PostgreSQL database (the system's only persistent datastore) and a LibreTranslate instance (used for automatic translation suggestions).
+- Intended to run via Docker Compose alongside a PostgreSQL database, the system's only persistent datastore.
 - There is no concept of an organization: a project is the widest scope anything is grouped under, and permissions are granted per project.
 
 ## 3. Content model philosophy — extensible, not hardcoded
@@ -52,11 +52,13 @@ If the source-locale content of a key is edited after a given locale's translati
 - Every change of state — a proposal being created, approved, or rejected, a value being edited directly, or a value being reverted to a prior version — must be recorded in a permanent, append-only change log capturing who made the change, when, and the value before and after. Nothing in this log is ever edited or deleted.
 - Reverting to an earlier value is done by taking a previously logged value and reapplying it as a brand-new recorded change — it is not a special/destructive operation, and it does not rewrite history.
 
-## 9. Automatic translation suggestions (LibreTranslate integration)
+## 9. AI assistance
 
-- Missing or newly-needed translations can be automatically suggested using the LibreTranslate service running alongside the app.
-- This must always happen asynchronously, in the background — a user action (like saving an edited source string) must never block waiting on a call to LibreTranslate, since that service can be slow.
-- A machine-generated suggestion enters the system through the exact same proposal/review pathway as a human-submitted one — it appears as a pending proposal attributed to a recognizable system/AI author, visually distinguishable in the interface, but it still requires human review before it can become the live, published value. Machine suggestions must never bypass review and auto-publish.
+- Optional, and off until an administrator enables it and configures a provider: any service exposing an OpenAI-compatible API, so a model hosted by the team and a commercial aggregator are the same setup. An install that never enables it is complete without it.
+- These features assist the person working, they never act by themselves. A suggestion is computed on request and shown to whoever asked; it becomes content only if that person saves it, as their own change through the ordinary workflow of §8. Nothing is proposed, approved, published or recorded on the system's own initiative, and no AI author exists.
+- The first of them suggests a translation for one message, from its source value, the argument contract it must preserve (§6) and the target locale's plural categories. A suggestion that is not valid for that contract is not offered.
+- It must be plain which model answered and through which provider, since the provider is paid per use.
+- Separately from the above: a proposal written by a machine credential rather than a person (§11) still requires human review before it becomes the live value, and is shown as machine-written wherever values are listed.
 
 ## 10. Public delivery API (for consuming applications)
 
