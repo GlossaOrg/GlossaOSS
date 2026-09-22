@@ -21,7 +21,7 @@
           `2.1.0-<short-sha>` per push to master) from the registry below. To try unreleased Flash
           changes, `mvn install` a Flash checkout and build with -Dflash.version=2.1.0-SNAPSHOT.
         -->
-        <flash.version>2.1.0-6d44f9e</flash.version>
+        <flash.version>2.1.0-8353033</flash.version>
 
         <slf4j.version>2.0.16</slf4j.version>
         <junit.version>5.11.0</junit.version>
@@ -127,7 +127,7 @@
         <!-- §13: serves and (in dev) orchestrates the React SPA under web/. -->
         <dependency>
             <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-web-bundler</artifactId>
+            <artifactId>flash-ext-vite</artifactId>
             <version>${flash.version}</version>
         </dependency>
 
@@ -227,6 +227,12 @@
             <url>https://git.pixel-services.com/api/packages/Relism/maven</url>
         </repository>
     </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>gitea-flash</id>
+            <url>https://git.pixel-services.com/api/packages/Relism/maven</url>
+        </pluginRepository>
+    </pluginRepositories>
 
     <build>
         <finalName>glossa</finalName>
@@ -260,11 +266,10 @@
               The dev loop: `mvn compile exec:exec@dev` runs Main off target/classes, skipping the
               shade that `package` would otherwise redo on every edit. `exec` and not `java`: the
               latter runs Main inside Maven's own JVM under an isolated classloader, where SLF4J
-              finds no provider (all logging silently vanishes) and the web bundler never brings
-              the Vite dev server up. This forks a real JVM instead, identical to `java -jar`.
-              The config sits in a phase-less <execution> rather than on the plugin, so it cannot
-              leak into the docker profile's web-bundler-manifest execution below; exec:exec has
-              no default phase binding, so declaring the goal here does not attach it to a build.
+              finds no provider (all logging silently vanishes) and Vite's dev server never comes
+              up. This forks a real JVM instead, identical to `java -jar`.
+              exec:exec has no default phase binding, so declaring the goal here does not attach
+              it to a build.
             -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -297,6 +302,18 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Builds web/ at prepare-package into the jar, so `mvn package` makes a jar that serves
+                 its own frontend and `mvn test` needs no Node. -->
+            <plugin>
+                <groupId>dev.relism</groupId>
+                <artifactId>flash-ext-vite-maven-plugin</artifactId>
+                <version>${flash.version}</version>
+                <executions>
+                    <execution>
+                        <goals><goal>build</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -323,62 +340,5 @@
         </plugins>
     </build>
 
-    <!--
-      Only active for the Docker image build (`mvn -Pdocker package`, see Dockerfile) — never
-      touches a plain local `mvn package`/`mvn test`, which would otherwise fail whenever
-      web/dist hasn't been built. Wires the frontend's already-built web/dist into the shaded
-      jar as classpath resources, matching Main#webBundlerConfig()'s prod branch
-      (.assetsFromClasspath("web/dist")): copy web/dist into target/classes/web/dist, then run
-      WebBundlerBuild against it to generate the asset-manifest.json ClasspathAssetsSource
-      requires — both before maven-shade-plugin's `package`-phase execution above picks
-      target/classes up. See Flash/flash-extensions/flash-ext-web-bundler/docs/build-time.md.
-    -->
-    <profiles>
-        <profile>
-            <id>docker</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-resources-plugin</artifactId>
-                        <version>3.3.1</version>
-                        <executions>
-                            <execution>
-                                <id>copy-web-dist</id>
-                                <phase>process-resources</phase>
-                                <goals><goal>copy-resources</goal></goals>
-                                <configuration>
-                                    <outputDirectory>${project.build.outputDirectory}/web/dist</outputDirectory>
-                                    <resources>
-                                        <resource>
-                                            <directory>${project.basedir}/web/dist</directory>
-                                        </resource>
-                                    </resources>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.5.0</version>
-                        <executions>
-                            <execution>
-                                <id>web-bundler-manifest</id>
-                                <phase>process-classes</phase>
-                                <goals><goal>java</goal></goals>
-                                <configuration>
-                                    <mainClass>dev.relism.flash.ext.webbundler.WebBundlerBuild</mainClass>
-                                    <arguments>
-                                        <argument>${project.build.outputDirectory}/web/dist</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 
 </project>

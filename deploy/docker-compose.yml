@@ -4,6 +4,7 @@
 # Run from the repository root:  docker compose -f deploy/docker-compose.yml up
 services:
   glossa:
+    image: glossaorg/glossa:latest
     build:
       context: ..
       dockerfile: Dockerfile

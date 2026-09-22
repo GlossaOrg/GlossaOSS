@@ -14,7 +14,7 @@ export default defineConfig({
   },
   server: {
     // Everything belongs to the Flash app on 8080 except what only this dev server can answer,
-    // so dev and prod (where the SPA is served from 8080 itself, see Main#webBundlerConfig)
+    // so dev and prod (where the SPA is served from 8080 itself, see flash-ext-vite)
     // hit the same relative paths — no VITE_API_URL or CORS wiring either way.
     //
     // Deliberately a catch-all rather than a list of prefixes: a list silently answers every
@@ -37,10 +37,7 @@ export default defineConfig({
         // silently start answering index.html.
         bypass(req) {
           const url = req.url ?? '/'
-          // `/` is never proxied, whatever the Accept header: in DEV it is
-          // WebBundlerExtension that spawns this dev server and then blocks on
-          // GET http://127.0.0.1:5173/ returning 200 before the backend finishes booting.
-          // Proxying that ping upstream deadlocks the boot it is gating.
+          // `/` is the app itself, whatever the Accept header.
           if (url === '/') return url
           if (/^\/(@|src\/|node_modules\/|favicon\.svg)/.test(url)) return url
           if (!BACKEND.test(url) && req.headers.accept?.includes('text/html')) return '/index.html'

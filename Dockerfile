@@ -1,31 +1,28 @@
 # syntax=docker/dockerfile:1.7
 
-# ---- frontend (web/, served from the classpath in prod — see Main#webBundlerConfig() and the
-#      `docker` Maven profile in pom.xml, which embeds this dist/ into the jar) ----
-FROM node:22-alpine AS frontend
-WORKDIR /web
-COPY web/package.json web/pnpm-lock.yaml ./
-RUN corepack enable && corepack prepare pnpm@11.15.1 --activate \
-    && pnpm install --frozen-lockfile
-COPY web/ ./
-RUN pnpm build
-
-# ---- backend ----
-FROM maven:3.9-eclipse-temurin-21 AS backend
+# ---- build: `mvn package` builds the frontend into the jar too (flash-ext-vite-maven-plugin), so
+#      this one stage needs a JDK and Node. It runs on the builder's platform: only the runtime
+#      layer below is per-architecture. ----
+FROM --platform=$BUILDPLATFORM node:22-slim AS node
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-21 AS build
+COPY --from=node /usr/local/bin/node /usr/local/bin/
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
+    && corepack enable && corepack prepare pnpm@11.15.1 --activate
 WORKDIR /build
 COPY pom.xml ./
 COPY src ./src
-COPY --from=frontend /web/dist ./web/dist
-# dev.relism:flash resolves anonymously from Gitea's Maven registry (Relism/Flash5 is a public
-# repo owned by a public user — see pom.xml's flash.version comment). No credentials needed.
+COPY web ./web
+# Flash and its Maven plugin resolve anonymously from their public registry (see pom.xml).
 # Tests need Testcontainers (a real Postgres via Docker) and can't run inside an isolated
-# `docker build` stage — run `mvn test` as its own CI step before this image is built, not here.
-RUN mvn -B -Pdocker -DskipTests package
+# `docker build` stage — CI runs them before this image is built, not here.
+RUN --mount=type=cache,target=/root/.m2 --mount=type=cache,target=/root/.local/share/pnpm/store \
+    mvn -B -DskipTests package
 
 # ---- runtime ----
 FROM eclipse-temurin:21-jre-alpine AS runtime
 WORKDIR /app
-COPY --from=backend /build/target/glossa.jar ./glossa.jar
+COPY --from=build /build/target/glossa.jar ./glossa.jar
 EXPOSE 8080
 # Temurin is container-aware (cgroup limits visible to the JVM since JDK 10+), but only if a
 # limit is actually declared on the container. JDK_JAVA_OPTIONS is the standard java launcher
