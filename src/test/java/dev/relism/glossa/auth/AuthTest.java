@@ -30,6 +30,7 @@ class AuthTest {
 
     @BeforeAll
     static void seed() throws Exception {
+        app.get("/healthz").expectStatus(200);
         project = sql("insert into project (slug, name) values ('alpha', 'Alpha') returning id");
         otherProject = sql("insert into project (slug, name) values ('beta', 'Beta') returning id");
         manager = account("manager@example.test");
