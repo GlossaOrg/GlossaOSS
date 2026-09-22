@@ -5,7 +5,13 @@ import { useScreens } from '@/screens'
 
 export function SiteHeader() {
   const { pathname } = useLocation()
-  const title = useScreens().find((item) => item.url === pathname)?.title ?? 'Glossa'
+  // A route with parameters never equals the pathname, so it is matched on its literal prefix —
+  // after every exact match, which a parameterised sibling would otherwise shadow.
+  const screens = useScreens()
+  const title =
+    (screens.find((item) => item.url === pathname) ??
+      screens.find((item) => item.url.includes('/:') && pathname.startsWith(`${item.url.split('/:')[0]}/`)))
+      ?.title ?? 'Glossa'
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">

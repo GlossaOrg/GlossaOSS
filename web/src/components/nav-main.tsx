@@ -22,7 +22,7 @@ export function NavMain({ label, screens, className }: { label?: string; screens
     <SidebarGroup className={className}>
       {label && <SidebarGroupLabel className="eyebrow h-auto truncate px-3 pb-3">{label}</SidebarGroupLabel>}
       <SidebarMenu>
-        {screens.map((item) => (
+        {screens.filter((screen) => !screen.hidden).map((item) => (
           <SidebarMenuItem key={item.url}>
             <SidebarMenuButton
               isActive={pathname === item.url}

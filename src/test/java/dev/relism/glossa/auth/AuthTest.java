@@ -57,7 +57,7 @@ class AuthTest {
         app.request().with(as(manager)).get("/api/projects/" + otherProject + "/keys").expectStatus(403);
     }
 
-    /** §12: a key is its own grant — an agent holding one has exactly what it was issued with, nowhere else. */
+    /** §11: a key is its own grant — a service holding one has exactly what it was issued with, nowhere else. */
     @Test
     void anApiKeyActsWithinItsGrantOnly() {
         String reader = issue("READER");
@@ -115,11 +115,6 @@ class AuthTest {
 
     private static OidcPrincipal oidc(String subject, String email) {
         return new OidcPrincipal("sso", subject, Map.of("iss", "https://id.example.test", "email", email, "email_verified", true), "at", null, null);
-    }
-
-    @Test
-    void mcpRefusesAnAnonymousCall() {
-        app.request().json("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}").post("/mcp").expectStatus(401);
     }
 
     private static String issue(String role) {

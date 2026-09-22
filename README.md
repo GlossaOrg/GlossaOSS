@@ -1,9 +1,9 @@
 # Glossa
 
-An agent-native translation management system: define translatable content once, manage it across
-any number of languages with a translator/reviewer workflow, and serve finished translations to
-consuming applications over an API. An AI agent can drive the same operations a human can, over
-MCP — see [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) for the full functional spec.
+A translation management system: define translatable content once, manage it across any number of
+languages with a translator/reviewer workflow, and serve finished translations to consuming
+applications over an API — see [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) for the full
+functional spec.
 
 Built on [Flash](../../Flash5) (Java 21, virtual threads) with a React SPA frontend.
 
@@ -19,8 +19,8 @@ Built on [Flash](../../Flash5) (Java 21, virtual threads) with a React SPA front
 | `src/main/java/dev/relism/glossa/Main.java` | Production entrypoint. Adds the two externally-dependent extensions (web bundler, OIDC). |
 | `src/main/java/dev/relism/glossa/persistence/` | Postgres bootstrap — Flyway migrate, then Hibernate `validate`. Entities in `entities/`. |
 | `src/main/java/dev/relism/glossa/api/` | HTTP handlers, discovered by `scan(...)`. |
-| `src/main/java/dev/relism/glossa/mcp/` | MCP tools (§12), discovered by `McpConfig.toolsPackage(...)`. |
-| `src/main/java/dev/relism/glossa/service/` | Logic shared by handlers and tools. |
+| `src/main/java/dev/relism/glossa/content/` | Field types (§3). |
+| `src/main/java/dev/relism/glossa/service/` | The domain logic handlers call. |
 | `src/main/resources/db/migration/` | Flyway migrations. Add one per entity. |
 | `web/` | React SPA — Vite, Tailwind v4, shadcn/ui, TanStack Query, Zustand, Motion. The root route is the dashboard, behind the OIDC gate. |
 | `dev.sh` | The dev loop: backing services up, then Glossa in the foreground. |
@@ -30,9 +30,9 @@ Built on [Flash](../../Flash5) (Java 21, virtual threads) with a React SPA front
 
 ### Flash extensions in use
 
-`data-hibernate` (Postgres), `jackson`, `openapi`, `validation`, `cache-caffeine` (§10 delivery
-caching), `scheduler` (§9 background LibreTranslate jobs), `limiter` (§10 rate limiting), `oidc`
-(§11 SSO), `mcp` (§12), `web-bundler` (§13).
+`data-hibernate` (Postgres), `jackson`, `openapi`, `validation`, `scheduler` (§9 background
+LibreTranslate jobs), `limiter` (§10 rate limiting), `oidc`
+(§11 SSO), `web-bundler` (§12).
 
 ## Local development
 
@@ -85,8 +85,8 @@ the callback sets the session and returns you to where you were going.
 | Admin console | <http://localhost:8081> — `admin` / `admin` |
 | Realm source | `dev/keycloak/glossa-realm.json`, baked into the image by its `Dockerfile` |
 
-The client also allows the password grant, so an API or MCP call can be tested with a real token
-and no browser:
+The client also allows the password grant, so an API call can be tested with a real token and no
+browser:
 
 ```bash
 curl -s -X POST http://localhost:8081/realms/glossa/protocol/openid-connect/token \

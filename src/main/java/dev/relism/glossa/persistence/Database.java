@@ -9,10 +9,16 @@ import dev.relism.flash.ext.data.hibernate.HibernateData;
 import dev.relism.flash.ext.data.hibernate.HibernateTxManager;
 import dev.relism.glossa.Env;
 import dev.relism.glossa.persistence.entities.AppUser;
+import dev.relism.glossa.persistence.entities.CatalogRelease;
+import dev.relism.glossa.persistence.entities.ContentEvent;
+import dev.relism.glossa.persistence.entities.ContentRevision;
+import dev.relism.glossa.persistence.entities.ContentVariant;
 import dev.relism.glossa.persistence.entities.Invitation;
 import dev.relism.glossa.persistence.entities.LocalCredential;
+import dev.relism.glossa.persistence.entities.LocalizedResource;
 import dev.relism.glossa.persistence.entities.Project;
 import dev.relism.glossa.persistence.entities.ProjectApiKey;
+import dev.relism.glossa.persistence.entities.ProjectLocale;
 import dev.relism.glossa.persistence.entities.ProjectMember;
 import dev.relism.glossa.persistence.entities.UserIdentity;
 import lombok.extern.slf4j.Slf4j;
@@ -47,8 +53,9 @@ public final class Database {
     private static final String CORE_HISTORY_TABLE = "flyway_schema_history";
 
     /** Add each {@code @Entity} here as it is introduced — see this class's javadoc. */
-    private static final List<Class<?>> CORE_ENTITIES =
-            List.of(AppUser.class, UserIdentity.class, LocalCredential.class, Project.class, ProjectMember.class, ProjectApiKey.class, Invitation.class);
+    private static final List<Class<?>> CORE_ENTITIES = List.of(
+            AppUser.class, UserIdentity.class, LocalCredential.class, Project.class, ProjectMember.class, ProjectApiKey.class, Invitation.class,
+            ProjectLocale.class, LocalizedResource.class, ContentVariant.class, ContentRevision.class, ContentEvent.class, CatalogRelease.class);
 
     private Database() {}
 

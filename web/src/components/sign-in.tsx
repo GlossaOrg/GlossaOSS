@@ -52,7 +52,7 @@ export function SignIn({ refused }: { refused?: string } = {}) {
   const first = !!setup.data?.firstUser
   // Nothing to choose, and nothing to warn about: go straight to the only provider. Never when the
   // server refused the session that provider just gave us — that is how a sign-in loop is made, and
-  // never when a downstream build offers a way in of its own: then there is something to choose.
+  // never when a plugin offers a way in of its own: then there is something to choose.
   const straightThrough = !setup.isPending && !first && !refused && !form && redirects.length === 1 && !plugin.signIn
 
   useEffect(() => {

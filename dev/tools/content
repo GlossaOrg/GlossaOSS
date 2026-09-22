@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Fills one project through the API: locales with fallbacks, messages in every shape the ICU profile
+# takes, translations in every review state, an API key's proposal, a revert, an archived message
+# and published catalogs. Going through the API keeps every row valid, every event logged.
+#
+#   MANAGER=<header> TRANSLATOR=<header> REVIEWER=<header> content <base-url> <project-id>
+#
+# Each role is a whole header, "Authorization: Bearer …" or "Cookie: …". TRANSLATOR and REVIEWER
+# hold their role on Italian.
+set -euo pipefail
+
+base=$1
+project=$2
+declare -A id src head pending
+
+call() { # curl, printing the answer; a failure names the request and the server's reason on stderr
+  local answer status
+  answer=$(curl -sS -w '\n%{http_code}' "$@")
+  status=${answer##*$'\n'}
+  answer=${answer%$'\n'*}
+  if [ "$status" -ge 400 ]; then
+    echo "${*: -1} answered $status: $answer" >&2
+    return 1
+  fi
+  printf '%s' "$answer"
+}
+
+api() { # api <header> <method> <path> [json]
+  local body=()
+  if [ -n "${4:-}" ]; then body=(--data "$4"); fi
+  call -X "$2" -H "$1" -H 'Content-Type: application/json' "${body[@]}" "$base/api/projects/$project$3"
+}
+
+locale() { # locale <tag> [fallback] [source]
+  api "$MANAGER" PUT "/locales/$1" "$(jq -n --arg f "${2:-}" --argjson s "${3:-false}" '{source: $s, fallbackLocale: (if $f == "" then null else $f end)}')" >/dev/null
+}
+
+message() { # message <key> <context> <pattern>
+  local view
+  view=$(api "$MANAGER" POST /resources "$(jq -n --arg k "$1" --arg c "$2" --arg p "$3" \
+    '{key: $k, context: (if $c == "" then null else $c end), fieldType: "message", payload: {pattern: $p}}')")
+  id[$1]=$(jq -r .id <<<"$view")
+  src[$1]=$(jq -r .sourceRevisionId <<<"$view")
+  head[$1/en]=${src[$1]}
+}
+
+write() { # write <header> <key> <locale> <pattern>: approved for a reviewer, a proposal otherwise
+  local view
+  view=$(api "$1" PUT "/resources/${id[$2]}/variants/$3" "$(jq -n --argjson h "${head[$2/$3]:-0}" --argjson s "${src[$2]}" --arg p "$4" \
+    '{expectedHeadRevisionId: $h, sourceRevisionId: $s, payload: {pattern: $p}}')")
+  head[$2/$3]=$(jq -r .headRevisionId <<<"$view")
+  pending[$2/$3]=$(jq -r '.pendingRevisionId // empty' <<<"$view")
+  if [ "$3" = en ]; then src[$2]=$(jq -r .sourceRevisionId <<<"$view"); fi
+}
+
+review() { # review <key> <locale> <true|false>
+  api "$REVIEWER" POST "/resources/${id[$1]}/variants/$2/review" "{\"revisionId\":${pending[$1/$2]},\"approve\":$3}" >/dev/null
+}
+
+locale en "" true
+locale it en
+locale de en
+locale fr en
+locale fr-CA fr
+locale ar en
+
+message checkout.title "Page heading" "Checkout"
+message checkout.items "Under the cart icon" "{count, plural, =0 {Your cart is empty} one {# item in your cart} other {# items in your cart}}"
+message checkout.total "" "Total: {amount, number, ::currency/EUR}"
+message checkout.delivery "Estimated delivery" "Arrives by {date, date, ::MMMMd}"
+message account.greeting "" "Hello, {name}!"
+message account.lastVisit "Shown once per session" "Welcome back, {name}. Your last visit was on {lastVisit, date, ::yMMMd}."
+message inbox.unread "" "You have {count, plural, =0 {no unread messages} one {# unread message} other {# unread messages}}."
+message inbox.reply "Notification" "{gender, select, female {She replied} male {He replied} other {They replied}} to your comment."
+message events.reminder "Push notification before an event" "{paymentStatus, select, paid {{daysUntil, plural, =0 {Your event is today} one {Your event is in # day} other {Your event is in # days}}} other {Complete your payment to keep your seat}}"
+message events.rank "Leaderboard" "You finished {place, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}."
+message settings.notifications "Toggle label" "{enabled, select, true {Notifications are on} false {Notifications are off} other {Notifications}}"
+message errors.network "" "Can't reach the server. Check your connection and try again."
+message legacy.banner "Retired with the old theme" "Try our new look"
+
+# Italian, in every state: approved, approved on review, proposed, sent back, reverted, stale, missing.
+write "$MANAGER" checkout.title it "Cassa"
+write "$MANAGER" checkout.items it "{count, plural, =0 {Il carrello è vuoto} one {# articolo nel carrello} many {# di articoli nel carrello} other {# articoli nel carrello}}"
+write "$MANAGER" checkout.total it "Totale: {amount, number, ::currency/EUR}"
+write "$MANAGER" inbox.unread it "{count, plural, =0 {Nessun messaggio da leggere} one {Hai # messaggio da leggere} many {Hai # di messaggi da leggere} other {Hai # messaggi da leggere}}."
+write "$MANAGER" settings.notifications it "{enabled, select, true {Notifiche attive} false {Notifiche disattivate} other {Notifiche}}"
+write "$MANAGER" events.rank it "Hai finito in posizione {place, selectordinal, many {#} other {#}}."
+write "$TRANSLATOR" account.lastVisit it "Bentornato, {name}. La tua ultima visita risale al {lastVisit, date, ::yMMMd}."
+review account.lastVisit it true
+write "$TRANSLATOR" inbox.reply it "{gender, select, female {Ha risposto} male {Ha risposto} other {Hanno risposto}} al tuo commento."
+write "$TRANSLATOR" checkout.delivery it "Arriva il {date, date, ::MMMMd}"
+review checkout.delivery it false
+write "$MANAGER" account.greeting it "Ciao, {name}!"
+first=${head[account.greeting/it]}
+write "$MANAGER" account.greeting it "Salve, {name}!"
+head[account.greeting/it]=$(api "$MANAGER" POST "/resources/${id[account.greeting]}/variants/it/revert" \
+  "{\"revisionId\":$first,\"expectedHeadRevisionId\":${head[account.greeting/it]},\"sourceRevisionId\":${src[account.greeting]}}" | jq -r .headRevisionId)
+write "$MANAGER" errors.network it "Impossibile raggiungere il server. Controlla la connessione e riprova."
+write "$MANAGER" errors.network en "Can't reach the server. Check your connection, then try again."
+
+# German: a few approved, and an API key's proposal waiting for a person.
+write "$MANAGER" checkout.title de "Kasse"
+write "$MANAGER" checkout.items de "{count, plural, =0 {Dein Warenkorb ist leer} one {# Artikel im Warenkorb} other {# Artikel im Warenkorb}}"
+write "$MANAGER" account.greeting de "Hallo, {name}!"
+key=$(api "$MANAGER" POST /keys '{"name":"Translation bot","role":"TRANSLATOR","locale":"de"}' | jq -r .token)
+write "Authorization: Bearer $key" inbox.unread de "{count, plural, =0 {Keine ungelesenen Nachrichten} one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}."
+
+# French, with a Canadian override of one message; everything else falls back through fr to en.
+write "$MANAGER" checkout.title fr "Paiement"
+write "$MANAGER" checkout.items fr "{count, plural, =0 {Votre panier est vide} one {# article dans votre panier} many {# d’articles dans votre panier} other {# articles dans votre panier}}"
+write "$MANAGER" account.greeting fr "Bonjour, {name} !"
+write "$MANAGER" checkout.title fr-CA "Passer à la caisse"
+
+# Arabic: right to left, and all six plural forms.
+write "$MANAGER" checkout.items ar "{count, plural, zero {سلتك فارغة} one {عنصر واحد في سلتك} two {عنصران في سلتك} few {# عناصر في سلتك} many {# عنصرًا في سلتك} other {# عنصر في سلتك}}"
+write "$MANAGER" account.greeting ar "مرحبًا، {name}!"
+
+api "$MANAGER" PUT "/resources/${id[legacy.banner]}/archive" '{"archived":true}' >/dev/null
+
+for tag in en it de; do
+  api "$MANAGER" POST "/catalogs/$tag" >/dev/null
+done

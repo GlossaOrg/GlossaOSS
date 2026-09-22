@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 /** Paths the backend answers itself, HTML or not — `req.url` carries the query string, hence `\?`. */
-const BACKEND = /^\/(api|auth|mcp|healthz|openapi|\.well-known)(\/|$|\?)/
+const BACKEND = /^\/(api|auth|healthz|openapi)(\/|$|\?)/
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -19,8 +19,8 @@ export default defineConfig({
     //
     // Deliberately a catch-all rather than a list of prefixes: a list silently answers every
     // path nobody remembered to add with Vite's SPA fallback, i.e. `index.html` under a 200.
-    // That breaks protocol endpoints in ways that are hard to see — an MCP client cannot parse
-    // HTML from `/mcp` or `/.well-known/*`, and no request ever reaches the backend to log it.
+    // That breaks endpoints in ways that are hard to see — a client gets HTML under a 200, and no
+    // request ever reaches the backend to log it.
     proxy: {
       '^/': {
         target: 'http://localhost:8080',

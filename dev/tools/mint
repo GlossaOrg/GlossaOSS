@@ -1,22 +1,61 @@
 #!/usr/bin/env bash
-# Rebuild the disposable local database, migrate it through the app, then load dev fixtures.
+# Rebuild the disposable local database, migrate it through the app, then fill it through the API
+# the way people would: the dev realm user signs in first and administers the install, invites a
+# translator and a reviewer, and the storefront gets its content (see ./content).
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
 compose=(docker compose -f dev/compose.yaml)
 volume=glossa_postgres-data
+base=http://localhost:8080
+password=Glossa-dev1
 log=$(mktemp)
 app=
 
 stop_app() {
-  if [ -n "$app" ] && kill -0 "$app" 2>/dev/null; then
-    kill "$app"
+  if [ -n "$app" ]; then
+    kill -- "-$app" 2>/dev/null || true
     wait "$app" 2>/dev/null || true
   fi
   rm -f "$log"
 }
 trap stop_app EXIT INT TERM
+
+call() { # curl, printing the answer; a failure names the request and the server's reason on stderr
+  local answer status
+  answer=$(curl -sS -w '\n%{http_code}' "$@")
+  status=${answer##*$'\n'}
+  answer=${answer%$'\n'*}
+  if [ "$status" -ge 400 ]; then
+    echo "${*: -1} answered $status: $answer" >&2
+    return 1
+  fi
+  printf '%s' "$answer"
+}
+
+post() { # post <header> <path> <json>
+  call -X POST -H "$1" -H 'Content-Type: application/json' --data "$3" "$base$2"
+}
+
+member() { # member <email> <name> <role>: invited to the storefront on Italian, accepted, signed in; prints its session header
+  local link
+  link=$(post "$admin" /api/users/invites "$(jq -n --arg e "$1" --arg n "$2" --arg r "$3" --argjson p "$storefront" \
+    '{email: $e, name: $n, sso: false, project: $p, role: $r, locale: "it", expiresInDays: 0}')" | jq -r .link)
+  post "Accept: application/json" "/api/invite/${link#/invite/}" "{\"password\":\"$password\"}" >/dev/null
+  echo "Cookie: $(curl -sS -o /dev/null -D - --data-urlencode "username=$1" --data-urlencode "password=$password" "$base/auth/form/login" \
+    | grep -io 'flash_session=[^;]*')"
+}
+
+seed() {
+  admin="Authorization: Bearer $(call http://localhost:8081/realms/glossa/protocol/openid-connect/token \
+    -d grant_type=password -d client_id=glossa -d client_secret=dev-secret -d username=dev -d password=dev | jq -r .access_token)"
+  call -H "$admin" "$base/api/me" >/dev/null
+  storefront=$(post "$admin" /api/projects '{"name":"Storefront"}' | jq .id)
+  post "$admin" /api/projects '{"name":"Help center"}' >/dev/null
+  MANAGER=$admin TRANSLATOR=$(member tina@example.test Tina TRANSLATOR) REVIEWER=$(member rico@example.test Rico REVIEWER) \
+    dev/tools/content "$base" "$storefront"
+}
 
 "${compose[@]}" stop postgres >/dev/null 2>&1 || true
 "${compose[@]}" rm -f postgres >/dev/null 2>&1 || true
@@ -25,11 +64,11 @@ if docker volume inspect "$volume" >/dev/null 2>&1; then
 fi
 "${compose[@]}" up -d --wait --build
 
-./mvnw compile exec:exec@dev >"$log" 2>&1 &
+setsid ./mvnw compile exec:exec@dev >"$log" 2>&1 &
 app=$!
 for _ in {1..60}; do
-  if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/me || true)" = 401 ]; then
-    "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U glossa -d glossa < dev/tools/seed.sql
+  if [ "$(curl -s -o /dev/null -w '%{http_code}' "$base/api/me" || true)" = 401 ]; then
+    seed
     exit
   fi
   if ! kill -0 "$app" 2>/dev/null; then

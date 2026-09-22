@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * §11's API key administration, shared by every transport and open only to a project's managers
- * ({@code @RolesAllowed} on each). Failures are {@link HttpException}s: HTTP answers their status, MCP their message.
+ * ({@code @RolesAllowed} on each). Failures are {@link HttpException}s.
  */
 public final class ApiKeyService {
 

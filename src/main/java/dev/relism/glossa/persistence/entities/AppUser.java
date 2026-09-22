@@ -37,7 +37,7 @@ public class AppUser {
     private String email;
     private String name;
 
-    /** Install administrator: creates users and issues keys anywhere. Never set in the hosted edition. */
+    /** Install administrator: creates users and issues keys anywhere. */
     private boolean admin;
 
     private Instant createdAt = Instant.now();

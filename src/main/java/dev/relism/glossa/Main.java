@@ -14,8 +14,8 @@ import dev.relism.glossa.persistence.Database;
 import java.nio.file.Path;
 
 /**
- * Production entrypoint. One port serves everything: the React SPA (§13), the admin and public
- * delivery APIs (§10), and {@code /mcp} (§12).
+ * Production entrypoint. One port serves everything: the React SPA (§12), the admin and public
+ * delivery APIs (§10).
  *
  * <p>Only the two externally-dependent extensions are installed here; the rest of the app is
  * {@link GlossaApp}, which tests boot unchanged.
@@ -29,7 +29,7 @@ public final class Main {
             app.install(new OidcExtension(OidcProvider.of("sso", Env.OIDC_ISSUER, Env.OIDC_CLIENT_ID, Env.OIDC_CLIENT_SECRET)
                     .name("Single sign-on").scopes(Env.OIDC_SCOPES)));
         }
-        app.apply(new GlossaApp(Database.bootstrap())).startAndBlock();
+        app.apply(new GlossaApp(Database.bootstrap()).origin(Env.ORIGIN)).startAndBlock();
     }
 
     /**

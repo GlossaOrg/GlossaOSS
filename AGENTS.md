@@ -32,10 +32,10 @@ point; nothing else gets one by analogy.
 ## Flash first
 
 Glossa is a Flash application. Flash lives at `../../Flash5`, resolved from your local `~/.m2` —
-read its source and its `flash-extensions/*/docs/` before writing infrastructure. Caching,
-rate limiting, background jobs, validation, OIDC, MCP and the SPA bundler are already
-installed extensions (see `pom.xml`, each with the § it satisfies). Use them; don't hand-roll
-a second mechanism next to one.
+read its source and its `flash-extensions/*/docs/` before writing infrastructure. Rate
+limiting, background jobs, validation, OIDC and the SPA bundler are already installed extensions
+(see `pom.xml`, each with the § it satisfies), and a cache is `flash-ext-cache-caffeine` the day a
+profile asks for one. Use them; don't hand-roll a second mechanism next to one.
 
 Every extension, route and service goes in `GlossaApp` so `Main` and every test boot identical
 wiring. Only extensions needing an external resource no test has — the web bundler, OIDC —
@@ -46,13 +46,11 @@ belong in `Main`.
 - `api/` — HTTP handlers, discovered by `scan(...)`. One file per resource: an abstract
   `XxxHandlers extends RequestHandler` resolves its dependencies in `onInit()`, and each route is a
   `public static final` nested subclass carrying its own route annotation.
-- `mcp/` — MCP tools, discovered by `McpConfig.toolsPackage(...)`, grouped the same way as
-  `XxxTools extends McpTool`. §12: a tool runs under the same role checks as its HTTP equivalent —
-  an agent never gets elevated privileges.
-- `service/` — `XxxService`, the logic both transports share: lookups, validation, authorization
-  beyond the annotation, writes. Request/view records nest on the service. It throws
-  `HttpException`: HTTP answers its status, MCP returns its message as the tool error. Handlers and
-  tools only parse, call and return — no repository, no transaction.
+- `content/` — §3's field types: each validates and renders its own values.
+- `service/` — `XxxService`, the domain logic: lookups, validation, authorization beyond the
+  annotation, writes. Request/view records nest on the service. It throws `HttpException`, whose
+  status HTTP answers, and knows nothing of the transport, so anything composing the core can call
+  it. Handlers only parse, call and return — no repository, no transaction.
 - `persistence/` — Postgres bootstrap: Flyway migrates, then Hibernate `validate`.
 - `persistence/entities/` — every `@Entity`, with the enums its columns map. Entities live nowhere else.
 
@@ -67,11 +65,10 @@ a package with one class that won't gain a second soon is a file in the package 
   loudly when those drift.
 - Migrations are append-only; never edit one that has been applied.
 - §2 puts no organization in the core: a project is the widest scope, and a grant is per project.
-  Scope new tables to a project, never to a tenant — organizations are a `GlossaCloud` layer that
-  maps orgs onto these same projects, and a tenant column here would be dead weight upstream.
+  Scope new tables to a project, never to anything wider.
 - §11 keeps roles in this database. Nothing reads a role or a group out of a token: the credential
   says who the caller is, `auth/ProjectRoles` says what they may do, and `@RolesAllowed(on = "project")`
-  asks it — on handlers and MCP tools alike (§12).
+  asks it.
 - Roles come in two scopes. `ADMINISTRATOR` is the installation's, asked for with
   `@RolesAllowed(ProjectRoles.ADMINISTRATOR)` and no `on`; it covers every project and owns what
   belongs to the install rather than to one project — accounts above all. `MANAGER` down to `READER`
@@ -120,7 +117,7 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 - Same-origin by design — `lib/api.ts` takes a path, never a base URL. There is no
   `VITE_API_URL` and no CORS config on either side; adding one means the dev proxy in
   `vite.config.ts` is wrong instead.
-- §13: pastel, approachable, Miro/Evernote-spirited — not dense enterprise UI. Each field type
+- §12: pastel, approachable, Miro/Evernote-spirited — not dense enterprise UI. Each field type
   from §4 gets its own editor *and* its own preview; one generic textbox for everything is a
   requirements violation, not a shortcut.
 - §4: HTML field content is untrusted. Sanitize before storage and before rendering.
@@ -131,16 +128,16 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
   `master`, lowercase, words separated by `-`.
 - Commits: Conventional Commits — `<type>(<scope>): <description>`. Types: `feat`, `fix`,
   `refactor`, `test`, `docs`, `chore`.
-- Scopes: `api`, `mcp`, `persistence`, `web`, `deploy`, `docs`, `deps`, `build`.
+- Scopes: `api`, `persistence`, `web`, `deploy`, `docs`, `deps`, `build`.
 - Never push directly to `master`. Always via PR.
 - Never commit `target/`, `.env`, or `dependency-reduced-pom.xml`.
 
 ## What an agent must not do here
 
 - Hardcode a closed list of content types — §3 makes schemas data, composed from field types.
-- Let a machine-generated translation become live without human review (§9), or let an MCP
-  caller bypass the role checks a human is subject to (§12).
+- Let a machine-generated translation become live without human review (§9), or let an API key
+  reach past the grant it was issued with (§11).
 - Call LibreTranslate on the request path — §9 makes it background work, always.
-- Design or implement real-time collaboration: explicitly out of scope for v1 (§14).
+- Design or implement real-time collaboration: explicitly out of scope for v1 (§13).
 - Bump `flash.version` in the `docker` profile as a side effect of unrelated work.
 - Add a dependency for what a few lines of JDK or Flash already do.
