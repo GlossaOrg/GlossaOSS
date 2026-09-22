@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One command for the dev loop: backing services up (idempotent), then Glossa in the foreground.
-# Ctrl-C stops Glossa and leaves Postgres and LibreTranslate running for the next run.
+# Ctrl-C stops Glossa and leaves the backing services running for the next run.
 set -euo pipefail
 cd "$(dirname "$0")"
 if [ "${1:-}" = --mint ]; then

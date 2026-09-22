@@ -3,7 +3,6 @@ package dev.relism.glossa;
 import dev.relism.flash.ext.jackson.JacksonExtension;
 import dev.relism.flash.ext.limiter.LimiterExtension;
 import dev.relism.flash.ext.openapi.OpenApiExtension;
-import dev.relism.flash.ext.scheduler.SchedulerExtension;
 import dev.relism.flash.ext.security.RoleResolver;
 import dev.relism.flash.ext.security.SecurityExtension;
 import dev.relism.flash.ext.security.UserResolver;
@@ -85,8 +84,6 @@ public final class GlossaApp implements FlashApplication {
                 .install(jackson)
                 .install(services)
                 .install(new ValidationExtension())
-                // §9: LibreTranslate suggestions run in the background, never on the request path.
-                .install(new SchedulerExtension())
                 // §10: the public delivery API must be rate-limited.
                 .install(new LimiterExtension())
                 .install(new OpenApiExtension("/openapi", "Glossa API", VERSION))

@@ -137,7 +137,6 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 - Hardcode a closed list of content types — §3 makes schemas data, composed from field types.
 - Let a machine-generated translation become live without human review (§9), or let an API key
   reach past the grant it was issued with (§11).
-- Call LibreTranslate on the request path — §9 makes it background work, always.
 - Design or implement real-time collaboration: explicitly out of scope for v1 (§13).
 - Bump `flash.version` in the `docker` profile as a side effect of unrelated work.
 - Add a dependency for what a few lines of JDK or Flash already do.
