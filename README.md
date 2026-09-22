@@ -97,6 +97,19 @@ down` keeps it, add `-v` to start clean. Keycloak keeps none: every start re-imp
 file, so what you get is always what is in git. `./dev.sh --mint` rebuilds the database with demo
 content (see `dev/README.md`).
 
+### AI features
+
+Off until an administrator turns them on in Settings and names an OpenAI-compatible provider
+(REQUIREMENTS §9): a base URL such as `https://openrouter.ai/api/v1`, a model, and an API key. The
+key is sealed in the database with `ENCRYPTION_KEY`, so generate that first and keep it:
+
+```bash
+head -c 32 /dev/urandom | base64
+```
+
+A suggestion is computed on request and stored nowhere. Whoever asked for it decides, and what they
+keep they save themselves, as their own revision.
+
 ## Tests
 
 ```bash

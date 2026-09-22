@@ -34,6 +34,9 @@ public final class Env {
     /** Where the installation is served, e.g. {@code https://glossa.example}. Unset, each request's own {@code Host} is used. */
     public static final String ORIGIN = get("ORIGIN", null);
 
+    /** §9: 32 random bytes, base64, sealing stored credentials such as the AI provider's API key. */
+    public static final String ENCRYPTION_KEY = get("ENCRYPTION_KEY", null);
+
     private Env() {}
 
     /** {@code key} from the environment, else from {@code .env}, else {@code fallback}. */

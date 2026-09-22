@@ -164,6 +164,15 @@ public abstract class LocalizationHandlers extends RequestHandler {
         }
     }
 
+    @POST("/api/projects/{project}/messages/{locale}/translate")
+    @RolesAllowed(value = "TRANSLATOR", on = {"project", "locale"})
+    @ApiOperation(summary = "Suggests a translation for one message (§9). Stores nothing: the caller writes what they keep.", tags = "localization")
+    public static final class Translate extends LocalizationHandlers {
+        @Override public Object handle(Request req, Response res) throws Exception {
+            return content.suggest(project(req), req.param("locale"), json.body(req, LocalizationService.Suggest.class));
+        }
+    }
+
     @POST("/api/projects/{project}/catalogs/{locale}")
     @RolesAllowed(value = "MANAGER", on = "project")
     @ApiOperation(summary = "Publishes the locale's catalog. An unchanged catalog stays the current release.", tags = "delivery")
