@@ -23,15 +23,15 @@ Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual
 | `src/main/resources/db/migration/` | Flyway migrations. Add one per entity. |
 | `web/` | React SPA — Vite, Tailwind v4, shadcn/ui, TanStack Query, Zustand, Motion. The root route is the dashboard, behind the OIDC gate. |
 | `dev.sh` | The dev loop: backing services up, then Glossa in the foreground. |
-| `dev/compose.yaml` | Postgres + LibreTranslate + Keycloak for local development, started by `dev.sh`. |
+| `dev/compose.yaml` | Postgres + Keycloak for local development, started by `dev.sh`. |
 | `dev/keycloak/` | The dev realm (§11) and the image that bakes it into Keycloak. |
-| `deploy/docker-compose.yml` | Glossa + Postgres + LibreTranslate, the deployment §2 describes. |
+| `deploy/docker-compose.yml` | Glossa + Postgres, the deployment §2 describes. |
 
 ### Flash extensions in use
 
-`data-hibernate` (Postgres), `jackson`, `openapi`, `validation`, `scheduler` (§9 background
-LibreTranslate jobs), `limiter` (§10 rate limiting), `oidc`
-(§11 SSO), `vite` (§12: Vite beside the app in DEV, the built SPA from the jar otherwise).
+`data-hibernate` (Postgres), `jackson`, `openapi`, `validation`, `limiter` (§10 rate
+limiting), `oidc` (§11 SSO), `vite` (§12: Vite beside the app in DEV, the built SPA from the jar
+otherwise).
 
 ## Local development
 
@@ -45,8 +45,8 @@ cp .env.example .env
 ./dev.sh
 ```
 
-`dev.sh` is the whole loop: it brings the backing services up (`dev/compose.yaml` — Postgres,
-LibreTranslate and Keycloak, ports published, idempotent, left running when you Ctrl-C), then
+`dev.sh` is the whole loop: it brings the backing services up (`dev/compose.yaml` — Postgres and
+Keycloak, ports published, idempotent, left running when you Ctrl-C), then
 runs `Main` off
 `target/classes` with `-Dflash.env=dev` via `mvn compile exec:exec@dev`, which skips the shade
 step `package` does. (`exec:java` is not equivalent — see the comment on the plugin in `pom.xml`.)
@@ -92,8 +92,8 @@ curl -s -X POST http://localhost:8081/realms/glossa/protocol/openid-connect/toke
 Comment `OIDC_ISSUER` out to boot with authentication disabled, which is what tests do and never
 what you want in a deployment.
 
-Postgres and LibreTranslate keep their data in named volumes; `docker compose -f dev/compose.yaml
-down` keeps them, add `-v` to start clean. Keycloak keeps none: every start re-imports the realm
+Postgres keeps its data in a named volume; `docker compose -f dev/compose.yaml
+down` keeps it, add `-v` to start clean. Keycloak keeps none: every start re-imports the realm
 file, so what you get is always what is in git. `./dev.sh --mint` rebuilds the database with demo
 content (see `dev/README.md`).
 
