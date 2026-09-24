@@ -82,7 +82,7 @@ public final class Users {
             long id,
             String email,
             String name,
-            @SchemaProperty(description = "Administers the install. False in the hosted edition, where nobody does.")
+            @SchemaProperty(description = "Administers the install. False wherever the install administers nobody.")
             boolean admin,
             @SchemaProperty(description = "The password was retired: every route but this one is refused until it changes.")
             boolean mustChangePassword) {}
