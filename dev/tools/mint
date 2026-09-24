@@ -64,7 +64,7 @@ if docker volume inspect "$volume" >/dev/null 2>&1; then
 fi
 "${compose[@]}" up -d --wait --build
 
-setsid ./mvnw compile exec:exec@dev >"$log" 2>&1 &
+setsid ./dev.sh >"$log" 2>&1 &
 app=$!
 for _ in {1..60}; do
   if [ "$(curl -s -o /dev/null -w '%{http_code}' "$base/api/me" || true)" = 401 ]; then
