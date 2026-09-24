@@ -1,0 +1,82 @@
+/*
+ * Glossa's palette on Scalar's variables. Every value here is a token from web/src/index.css:
+ * the reference page is the application in another window, not a third-party document about it.
+ * The fonts are the ones the app bundles, served from the same CDN as Scalar itself.
+ */
+@font-face {
+    font-family: 'Geist';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url(https://cdn.jsdelivr.net/npm/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2) format('woff2-variations');
+}
+
+@font-face {
+    font-family: 'Geist Mono';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url(https://cdn.jsdelivr.net/npm/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2) format('woff2-variations');
+}
+
+.light-mode, .dark-mode {
+    --scalar-font: 'Geist', ui-sans-serif, system-ui, sans-serif;
+    --scalar-font-code: 'Geist Mono', ui-monospace, monospace;
+
+    /* --radius is 0.5rem there, and the steps above it are the same ramp. */
+    --scalar-radius: 0.5rem;
+    --scalar-radius-md: 0.6rem;
+    --scalar-radius-lg: 0.7rem;
+    --scalar-radius-xl: 0.9rem;
+
+    /* A link is the accent, as everywhere else in the app; underlined only under the pointer. */
+    --scalar-link-color: var(--scalar-color-accent);
+    --scalar-link-color-hover: var(--scalar-color-accent);
+    --scalar-text-decoration: none;
+    --scalar-text-decoration-hover: underline;
+
+    --scalar-sidebar-color-active: var(--scalar-color-accent);
+    --scalar-sidebar-item-active-background: var(--scalar-background-accent);
+    --scalar-sidebar-item-hover-background: var(--scalar-background-2);
+    --scalar-sidebar-search-background: var(--scalar-background-2);
+}
+
+.light-mode {
+    --scalar-background-1: oklch(1 0 0);
+    --scalar-background-2: oklch(0.968 0.003 106);
+    --scalar-background-3: oklch(0.945 0.004 106);
+    --scalar-background-card: oklch(1 0 0);
+    --scalar-sidebar-background-1: oklch(1 0 0);
+    --scalar-color-1: oklch(0.22 0 0);
+    --scalar-color-2: oklch(0.45 0 0);
+    --scalar-color-3: oklch(0.60 0 0);
+    --scalar-border-color: oklch(0.921 0.003 106);
+    --scalar-color-accent: oklch(0.62 0.176 148);
+    --scalar-background-accent: oklch(0.62 0.176 148 / 10%);
+    /* The app's primary action is black and the brand green is the accent; both hold here. */
+    --scalar-button-1: oklch(0.18 0 0);
+    --scalar-button-1-hover: oklch(0.30 0 0);
+    --scalar-button-1-color: oklch(0.99 0 0);
+    --scalar-color-green: oklch(0.62 0.176 148);
+    --scalar-color-red: oklch(0.577 0.245 27.325);
+}
+
+.dark-mode {
+    --scalar-background-1: oklch(0.14 0 0);
+    --scalar-background-2: oklch(0.19 0 0);
+    --scalar-background-3: oklch(0.25 0 0);
+    --scalar-background-card: oklch(0.19 0 0);
+    --scalar-sidebar-background-1: oklch(0.16 0 0);
+    --scalar-color-1: oklch(0.97 0 0);
+    --scalar-color-2: oklch(0.68 0 0);
+    --scalar-color-3: oklch(0.55 0 0);
+    --scalar-border-color: oklch(1 0 0 / 12%);
+    --scalar-color-accent: oklch(0.78 0.18 152);
+    --scalar-background-accent: oklch(0.78 0.18 152 / 14%);
+    /* Dark swaps the black action for the brighter green, exactly as the app does. */
+    --scalar-button-1: oklch(0.78 0.18 152);
+    --scalar-button-1-hover: oklch(0.83 0.18 152);
+    --scalar-button-1-color: oklch(0.14 0 0);
+    --scalar-color-green: oklch(0.78 0.18 152);
+    --scalar-color-red: oklch(0.704 0.191 22.216);
+}

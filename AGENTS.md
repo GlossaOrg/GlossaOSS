@@ -43,9 +43,13 @@ belong in `Main`.
 
 ## Package layout (`dev.relism.glossa`)
 
-- `api/` — HTTP handlers, discovered by `scan(...)`. One file per resource: an abstract
-  `XxxHandlers extends RequestHandler` resolves its dependencies in `onInit()`, and each route is a
-  `public static final` nested subclass carrying its own route annotation.
+- `api/` — HTTP handlers, discovered by `scan(...)`. One file per resource: a `final` container
+  whose routes are `public static final` nested classes, each carrying its own route annotation.
+  The container declares the service every route there works through once, on a private base per
+  handler flavour — `Base extends RequestHandler` and `Body<B> extends JsonHandler<B>`, both with
+  `@Inject protected XxxService`. A route that needs a service the others do not declares it with
+  its own `@Inject`; a container whose routes do not share one has no bases at all. Never `onInit`
+  with `require`: `@Inject` fails at boot naming the field, and costs no method.
 - `content/` — §3's field types: each validates and renders its own values.
 - `service/` — `XxxService`, the domain logic: lookups, validation, authorization beyond the
   annotation, writes. Request/view records nest on the service. It throws `HttpException`, whose
@@ -60,7 +64,7 @@ a package with one class that won't gain a second soon is a file in the package 
 ## Persistence
 
 - Postgres is the only persistent datastore (§2). No second store, no cache promoted to one.
-- Every `@Entity` lands with its Flyway migration in `src/main/resources/db/migration` **and**
+- Every `@Entity` lands with its Flyway migration in `backend/src/main/resources/db/migration` **and**
   its registration in `Database#CORE_ENTITIES` — `hbm2ddl.auto=validate` fails the boot
   loudly when those drift.
 - Migrations are append-only; never edit one that has been applied.
@@ -106,7 +110,7 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 - Non-trivial logic leaves one runnable check behind. No test for a trivial one-liner — YAGNI
   applies to tests too.
 
-## Frontend (`web/`)
+## Frontend (`frontend/`)
 
 - React SPA, Vite, Tailwind v4, shadcn/ui, TanStack Query, Zustand, Motion, Sonner for toasts.
   shadcn components are added via the CLI into `components/ui/` and otherwise left alone.
@@ -128,7 +132,7 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
   `master`, lowercase, words separated by `-`.
 - Commits: Conventional Commits — `<type>(<scope>): <description>`. Types: `feat`, `fix`,
   `refactor`, `test`, `docs`, `chore`.
-- Scopes: `api`, `persistence`, `web`, `deploy`, `docs`, `deps`, `build`.
+- Scopes: `api`, `persistence`, `frontend`, `deploy`, `docs`, `deps`, `build`.
 - Never push directly to `master`. Always via PR.
 - Never commit `target/`, `.env`, or `dependency-reduced-pom.xml`.
 
