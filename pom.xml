@@ -10,13 +10,12 @@
     <packaging>pom</packaging>
 
     <name>Glossa (parent)</name>
-    <description>How an edition of Glossa is built: its versions, its repositories, its jar.</description>
+    <description>How Glossa is built: its versions, its repositories, its jar.</description>
 
     <!--
-      This POM is the build; `app` is Glossa. The hosted edition inherits from here too, out of the
-      `core` submodule it pins, so a compiler setting, a Flash version or the way a jar is assembled
-      is written once and both editions are built the same way. An edition's own module carries only
-      what makes it that edition: its dependencies and the class its jar starts.
+      This POM is the build; `backend` is Glossa. A compiler setting, a Flash version or the way the
+      jar is assembled is written here once, and every module that inherits this POM is built the
+      same way. A module carries only what is its own: its dependencies and the class its jar starts.
     -->
     <modules>
         <module>backend</module>
@@ -26,7 +25,7 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <!-- The Vite project a module serves: beside it, in either repository. -->
+        <!-- The Vite project a module serves, beside it. -->
         <vite.root>${project.basedir}/../frontend</vite.root>
 
         <!--
@@ -105,11 +104,11 @@
     </pluginRepositories>
 
     <build>
-        <!-- Each edition's jar is named after itself: glossa.jar, glossacloud.jar. -->
+        <!-- A jar is named after its module: glossa.jar. -->
         <finalName>${project.artifactId}</finalName>
 
         <!--
-          What builds a jar, configured here and declared by each edition's module. Managed rather
+          What builds a jar, configured here and declared by the module that has one. Managed rather
           than inherited outright: an execution inherited by this POM would run against it too, and
           a parent has no sources, no frontend and no jar to shade.
         -->
