@@ -17,4 +17,4 @@ fi
 # into it), and without it an edited config file silently keeps running the old image. Cached, so
 # it costs nothing when nothing changed.
 docker compose -f dev/compose.yaml up -d --wait --build
-exec ./mvnw compile exec:exec@dev "$@"
+exec ./mvnw -pl backend compile exec:exec@dev "$@"

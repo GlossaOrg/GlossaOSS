@@ -5,23 +5,42 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>dev.relism</groupId>
-    <artifactId>glossa</artifactId>
+    <artifactId>glossa-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
 
-    <name>Glossa</name>
-    <description>Translation management system built on Flash.</description>
+    <name>Glossa (parent)</name>
+    <description>How an edition of Glossa is built: its versions, its repositories, its jar.</description>
+
+    <!--
+      This POM is the build; `app` is Glossa. The hosted edition inherits from here too, out of the
+      `core` submodule it pins, so a compiler setting, a Flash version or the way a jar is assembled
+      is written once and both editions are built the same way. An edition's own module carries only
+      what makes it that edition: its dependencies and the class its jar starts.
+    -->
+    <modules>
+        <module>backend</module>
+    </modules>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- The Vite project a module serves: beside it, in either repository. -->
+        <vite.root>${project.basedir}/../frontend</vite.root>
 
         <!--
           A build published by Flash's CI (https://git.pixel-services.com/Relism/Flash5, one
           `2.1.0-<short-sha>` per push to master) from the registry below. To try unreleased Flash
           changes, `mvn install` a Flash checkout and build with -Dflash.version=2.1.0-SNAPSHOT.
         -->
-        <flash.version>2.1.0-8353033</flash.version>
+        <flash.version>2.1.0-2608302</flash.version>
+
+        <!--
+          JDAE (https://github.com/Relism/JDAE), built from its tag by JitPack, which serves it
+          under `com.github.<owner>.<repo>`. The tag is the version: JitPack does not strip the `v`.
+        -->
+        <jdae.version>v1.2.1</jdae.version>
 
         <slf4j.version>2.0.16</slf4j.version>
         <junit.version>5.11.0</junit.version>
@@ -43,190 +62,117 @@
         <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 
-    <dependencies>
-        <!-- ICU MessageFormat and versioned CLDR rules for localized messages (§6). -->
-        <dependency>
-            <groupId>com.ibm.icu</groupId>
-            <artifactId>icu4j</artifactId>
-            <version>78.3</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>dev.relism</groupId>
+                <artifactId>flash-parent</artifactId>
+                <version>${flash.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!--
-          Postgres is the only persistent datastore (docs/REQUIREMENTS.md §2). This is Flash's
-          own Hibernate repository layer, wired into the same @Transactional/Tx/TxManager
-          system as the rest of the extension graph — see Flash's flash-ext-data-hibernate
-          and flash-ext-data-core.
-        -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-data-hibernate</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-
-        <!-- JSON marshalling for the admin API and the public delivery API (§10). -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-jackson</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-        <!-- OpenAPI spec + Swagger UI — the delivery API is a public integration surface (§10). -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-openapi</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-        <!-- Request validation (jakarta constraints, compiled once per type) for the write API. -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-validation</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-        <!-- §10: "The public delivery API must be rate-limited". -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-limiter</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-        <!-- §11: SSO, password sign-in and API keys, each optional, all on one security chain. -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-security-oidc</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-security-form</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-security-apikey</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-        <!-- §13: serves and (in dev) orchestrates the React SPA under web/. -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-vite</artifactId>
-            <version>${flash.version}</version>
-        </dependency>
-
-        <!--
-          flyway-core pulls Jackson 3 (tools.jackson.core:jackson-databind), whose own POM
-          notes annotations "remain at Jackson 2.x group id" and requires
-          com.fasterxml.jackson.core:jackson-annotations 2.21+. flash-ext-jackson's
-          jackson-databind transitively pulls a 2.17.x jackson-annotations, which Maven picks
-          by default (nearer in the tree) — too old for Jackson 3's databind, causing a
-          NoClassDefFoundError at Flyway boot. jackson-annotations is additive/backward
-          compatible across minor versions, so pinning it up here satisfies both. Same fix
-          ../Pathway carries for the same flyway+flash-ext-jackson pairing.
-        -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>2.21</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.zaxxer</groupId>
-            <artifactId>HikariCP</artifactId>
-            <version>${hikaricp.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>${postgresql.version}</version>
-        </dependency>
-
-        <!-- flyway-database-postgresql is discovered via classpath service-loading; no direct code reference needed. -->
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-            <version>${flyway.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-database-postgresql</artifactId>
-            <version>${flyway.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>${slf4j.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Boots the real app on an ephemeral port and asserts against real responses. -->
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-testing</artifactId>
-            <version>${flash.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>dev.relism</groupId>
-            <artifactId>flash-ext-security-test</artifactId>
-            <version>${flash.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Real Postgres in a container — no mocking a real DB's behavior. -->
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>${testcontainers.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${testcontainers.version}</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-
-    <!-- Flash and its own dependencies, public and anonymous: no settings.xml, no credentials. -->
     <repositories>
         <repository>
             <id>gitea-flash</id>
             <name>Gitea Maven Registry (Relism)</name>
             <url>https://git.pixel-services.com/api/packages/Relism/maven</url>
         </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
     </repositories>
+
     <pluginRepositories>
         <pluginRepository>
             <id>gitea-flash</id>
             <url>https://git.pixel-services.com/api/packages/Relism/maven</url>
         </pluginRepository>
+        <pluginRepository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </pluginRepository>
     </pluginRepositories>
 
     <build>
-        <finalName>glossa</finalName>
+        <!-- Each edition's jar is named after itself: glossa.jar, glossacloud.jar. -->
+        <finalName>${project.artifactId}</finalName>
+
+        <!--
+          What builds a jar, configured here and declared by each edition's module. Managed rather
+          than inherited outright: an execution inherited by this POM would run against it too, and
+          a parent has no sources, no frontend and no jar to shade.
+        -->
+        <pluginManagement>
+            <plugins>
+                <!--
+                  Rewrites the compiled classes at process-classes, before the tests read the spec:
+                  each documentation annotation is replaced by the flash-ext-openapi annotations its
+                  expander builds. Expanders and the classes they name are loaded from this module's
+                  own compile classpath.
+                -->
+                <plugin>
+                    <groupId>com.github.Relism.JDAE</groupId>
+                    <artifactId>jdae-maven-plugin</artifactId>
+                    <version>${jdae.version}</version>
+                    <executions>
+                        <execution>
+                            <goals><goal>expand-annotations</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- Builds frontend/ at prepare-package into the jar, so `mvn package` makes a jar that serves
+                     its own frontend and `mvn test` needs no Node. -->
+                <plugin>
+                    <groupId>dev.relism</groupId>
+                    <artifactId>flash-ext-vite-maven-plugin</artifactId>
+                    <version>${flash.version}</version>
+                    <configuration>
+                        <root>${vite.root}</root>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals><goal>build</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.6.0</version>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals><goal>shade</goal></goals>
+                            <configuration>
+                                <transformers>
+                                    <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                        <mainClass>${main.class}</mainClass>
+                                    </transformer>
+                                    <!-- Without this, only one dependency's META-INF/services/* file per
+                                         interface survives shading instead of all of them being merged —
+                                         silently breaks Flyway's own database-type ServiceLoader lookup
+                                         (flyway-database-postgresql). -->
+                                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                </transformers>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <!-- Configuration only: nothing here runs against a POM that builds nothing. -->
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -258,83 +204,7 @@
                     </environmentVariables>
                 </configuration>
             </plugin>
-            <!--
-              The dev loop: `mvn compile exec:exec@dev` runs Main off target/classes, skipping the
-              shade that `package` would otherwise redo on every edit. `exec` and not `java`: the
-              latter runs Main inside Maven's own JVM under an isolated classloader, where SLF4J
-              finds no provider (all logging silently vanishes) and Vite's dev server never comes
-              up. This forks a real JVM instead, identical to `java -jar`.
-              exec:exec has no default phase binding, so declaring the goal here does not attach
-              it to a build.
-            -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.5.0</version>
-                <executions>
-                    <execution>
-                        <id>dev</id>
-                        <goals><goal>exec</goal></goals>
-                        <configuration>
-                            <executable>java</executable>
-                            <arguments>
-                                <argument>-Dflash.env=dev</argument>
-                                <!-- Hibernate logs through JBoss Logging, which picks JUL over
-                                     SLF4J unless told otherwise — without this its output is the
-                                     odd two-line JUL format among everyone else's SLF4J lines.
-                                     The Dockerfile sets the same property for the image. -->
-                                <argument>-Dorg.jboss.logging.provider=slf4j</argument>
-                                <!-- No LANG is set in a bare shell or container, so stdout
-                                     defaults to ASCII and every non-ASCII character in a log
-                                     line (or a translated string — this is a translation tool)
-                                     prints as `?`. -->
-                                <argument>-Dstdout.encoding=UTF-8</argument>
-                                <argument>-Dstderr.encoding=UTF-8</argument>
-                                <argument>-classpath</argument>
-                                <classpath/>
-                                <argument>dev.relism.glossa.Main</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- Builds web/ at prepare-package into the jar, so `mvn package` makes a jar that serves
-                 its own frontend and `mvn test` needs no Node. -->
-            <plugin>
-                <groupId>dev.relism</groupId>
-                <artifactId>flash-ext-vite-maven-plugin</artifactId>
-                <version>${flash.version}</version>
-                <executions>
-                    <execution>
-                        <goals><goal>build</goal></goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.6.0</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals><goal>shade</goal></goals>
-                        <configuration>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>dev.relism.glossa.Main</mainClass>
-                                </transformer>
-                                <!-- Without this, only one dependency's META-INF/services/* file per
-                                     interface survives shading instead of all of them being merged —
-                                     silently breaks Flyway's own database-type ServiceLoader lookup
-                                     (flyway-database-postgresql). -->
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
-
 
 </project>
