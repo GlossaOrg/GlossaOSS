@@ -14,14 +14,16 @@ Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual
 
 | Path | What |
 |---|---|
-| `src/main/java/dev/relism/glossa/GlossaApp.java` | Every extension, route and service. Both `Main` and every test boot this. |
-| `src/main/java/dev/relism/glossa/Main.java` | Production entrypoint. Adds the two externally-dependent extensions (web bundler, OIDC). |
-| `src/main/java/dev/relism/glossa/persistence/` | Postgres bootstrap — Flyway migrate, then Hibernate `validate`. Entities in `entities/`. |
-| `src/main/java/dev/relism/glossa/api/` | HTTP handlers, discovered by `scan(...)`. |
-| `src/main/java/dev/relism/glossa/content/` | Field types (§3). |
-| `src/main/java/dev/relism/glossa/service/` | The domain logic handlers call. |
-| `src/main/resources/db/migration/` | Flyway migrations. Add one per entity. |
-| `web/` | React SPA — Vite, Tailwind v4, shadcn/ui, TanStack Query, Zustand, Motion. The root route is the dashboard, behind the OIDC gate. |
+| `pom.xml` | `glossa-parent`: the versions, the repositories and the build every edition shares. The hosted edition inherits from it too. |
+| `backend/` | Glossa itself, the jar this parent builds. |
+| `backend/src/main/java/dev/relism/glossa/GlossaApp.java` | Every extension, route and service. Both `Main` and every test boot this. |
+| `backend/src/main/java/dev/relism/glossa/Main.java` | Production entrypoint. Adds the two externally-dependent extensions (web bundler, OIDC). |
+| `backend/src/main/java/dev/relism/glossa/persistence/` | Postgres bootstrap — Flyway migrate, then Hibernate `validate`. Entities in `entities/`. |
+| `backend/src/main/java/dev/relism/glossa/api/` | HTTP handlers, discovered by `scan(...)`. |
+| `backend/src/main/java/dev/relism/glossa/content/` | Field types (§3). |
+| `backend/src/main/java/dev/relism/glossa/service/` | The domain logic handlers call. |
+| `backend/src/main/resources/db/migration/` | Flyway migrations. Add one per entity. |
+| `frontend/` | React SPA — Vite, Tailwind v4, shadcn/ui, TanStack Query, Zustand, Motion. The root route is the dashboard, behind the OIDC gate. |
 | `dev.sh` | The dev loop: backing services up, then Glossa in the foreground. |
 | `dev/compose.yaml` | Postgres + Keycloak for local development, started by `dev.sh`. |
 | `dev/keycloak/` | The dev realm (§11) and the image that bakes it into Keycloak. |
@@ -29,7 +31,8 @@ Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual
 
 ### Flash extensions in use
 
-`data-hibernate` (Postgres), `jackson`, `openapi`, `validation`, `limiter` (§10 rate
+`data-hibernate` (Postgres), `jackson-json` (bodies parsed, checked and documented from their
+type), `openapi`, `limiter` (§10 rate
 limiting), `oidc` (§11 SSO), `vite` (§12: Vite beside the app in DEV, the built SPA from the jar
 otherwise).
 
@@ -56,10 +59,10 @@ edit would mean an image rebuild, and a bind mount can't stand in for that again
 `DOCKER_HOST`. `deploy/docker-compose.yml` is where the containerised app lives — that is the
 deployment, and it runs standalone.
 
-(`dev.sh` cd's to the repository root itself — in DEV the web bundler resolves `web/` relative to
+(`dev.sh` cd's to the repository root itself — in DEV the web bundler resolves `frontend/` relative to
 the working directory.)
 
-DEV mode installs the frontend's dependencies when `web/pnpm-lock.yaml` changes, spawns the Vite
+DEV mode installs the frontend's dependencies when `frontend/pnpm-lock.yaml` changes, spawns the Vite
 dev server itself and proxies to it, so there is no second command to
 run and no CORS to configure. It also turns on Flash's use-after-return detection for pooled
 `Request`/`Response` objects — keep it on locally.
@@ -129,7 +132,7 @@ that fails first when a dependency, a migration or an extension install order br
   unreleased Flash changes, `mvn install` a Flash checkout and build with
   `-Dflash.version=2.1.0-SNAPSHOT`.
 - **Everything else on the JVM side** is Maven Central, pinned in `pom.xml`.
-- **The frontend** is a pnpm project in `web/`, locked by `web/pnpm-lock.yaml`. Packaging builds it,
+- **The frontend** is a pnpm project in `frontend/`, locked by `frontend/pnpm-lock.yaml`. Packaging builds it,
   so Node and pnpm are needed for `./mvnw package`, not for `./mvnw test`.
 
 ## Development flow
@@ -157,7 +160,7 @@ Publishing a GitHub release tagged `vX.Y.Z` builds the image and pushes it to Do
 ./mvnw package -Dflash.vite.skip  # the backend alone, without Node
 ```
 
-`flash-ext-vite-maven-plugin` builds `web/` at `prepare-package`, so `./mvnw test` never needs
+`flash-ext-vite-maven-plugin` builds `frontend/` at `prepare-package`, so `./mvnw test` never needs
 Node and every packaged jar serves its own frontend. The Dockerfile runs the same command.
 
 ```bash

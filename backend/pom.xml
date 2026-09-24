@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>dev.relism</groupId>
+        <artifactId>glossa-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>glossa</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Glossa</name>
+    <description>Translation management system built on Flash.</description>
+
+    <properties>
+        <!-- What the shaded jar starts, and what `mvn exec:exec@dev` runs. -->
+        <main.class>dev.relism.glossa.Main</main.class>
+    </properties>
+
+    <dependencies>
+        <!-- ICU MessageFormat and versioned CLDR rules for localized messages (§6). -->
+        <dependency>
+            <groupId>com.ibm.icu</groupId>
+            <artifactId>icu4j</artifactId>
+            <version>78.3</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash</artifactId>
+        </dependency>
+        <!-- Expanders are compiled here and run by the plugin below; nothing needs them at runtime. -->
+        <dependency>
+            <groupId>com.github.Relism.JDAE</groupId>
+            <artifactId>jdae-api</artifactId>
+            <version>${jdae.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!--
+          Postgres is the only persistent datastore (docs/REQUIREMENTS.md §2). This is Flash's
+          own Hibernate repository layer, wired into the same @Transactional/Tx/TxManager
+          system as the rest of the extension graph — see Flash's flash-ext-data-hibernate
+          and flash-ext-data-core.
+        -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-data-hibernate</artifactId>
+        </dependency>
+
+        <!-- JSON marshalling for the admin API and the public delivery API (§10). -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-jackson-json</artifactId>
+        </dependency>
+        <!-- OpenAPI spec + Swagger UI — the delivery API is a public integration surface (§10). -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-openapi</artifactId>
+        </dependency>
+        <!-- §10: "The public delivery API must be rate-limited". -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-limiter</artifactId>
+        </dependency>
+        <!-- §11: SSO, password sign-in and API keys, each optional, all on one security chain. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-security-oidc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-security-form</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-security-apikey</artifactId>
+        </dependency>
+        <!-- §13: serves and (in dev) orchestrates the React SPA under frontend/. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-vite</artifactId>
+        </dependency>
+
+        <!--
+          flyway-core pulls Jackson 3 (tools.jackson.core:jackson-databind), whose own POM
+          notes annotations "remain at Jackson 2.x group id" and requires
+          com.fasterxml.jackson.core:jackson-annotations 2.21+. flash-ext-jackson's
+          jackson-databind transitively pulls a 2.17.x jackson-annotations, which Maven picks
+          by default (nearer in the tree) — too old for Jackson 3's databind, causing a
+          NoClassDefFoundError at Flyway boot. jackson-annotations is additive/backward
+          compatible across minor versions, so pinning it up here satisfies both. Same fix
+          ../Pathway carries for the same flyway+flash-ext-jackson pairing.
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.21</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${hikaricp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        </dependency>
+
+        <!-- flyway-database-postgresql is discovered via classpath service-loading; no direct code reference needed. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>${flyway.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Boots the real app on an ephemeral port and asserts against real responses. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-testing</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Real Postgres in a container — no mocking a real DB's behavior. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Each configured by the parent; declared here because this module is the one that
+                 has sources to expand, a frontend to build and a jar to shade. -->
+            <plugin>
+                <groupId>com.github.Relism.JDAE</groupId>
+                <artifactId>jdae-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>dev.relism</groupId>
+                <artifactId>flash-ext-vite-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
+            <!--
+              The dev loop: `mvn compile exec:exec@dev` runs Main off target/classes, skipping the
+              shade that `package` would otherwise redo on every edit. `exec` and not `java`: the
+              latter runs Main inside Maven's own JVM under an isolated classloader, where SLF4J
+              finds no provider (all logging silently vanishes) and Vite's dev server never comes
+              up. This forks a real JVM instead, identical to `java -jar`.
+              exec:exec has no default phase binding, so declaring the goal here does not attach
+              it to a build.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>dev</id>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <executable>java</executable>
+                            <arguments>
+                                <argument>-Dflash.env=dev</argument>
+                                <!-- Hibernate logs through JBoss Logging, which picks JUL over
+                                     SLF4J unless told otherwise — without this its output is the
+                                     odd two-line JUL format among everyone else's SLF4J lines.
+                                     The Dockerfile sets the same property for the image. -->
+                                <argument>-Dorg.jboss.logging.provider=slf4j</argument>
+                                <!-- No LANG is set in a bare shell or container, so stdout
+                                     defaults to ASCII and every non-ASCII character in a log
+                                     line (or a translated string — this is a translation tool)
+                                     prints as `?`. -->
+                                <argument>-Dstdout.encoding=UTF-8</argument>
+                                <argument>-Dstderr.encoding=UTF-8</argument>
+                                <argument>-classpath</argument>
+                                <classpath/>
+                                <argument>${main.class}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

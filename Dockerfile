@@ -10,9 +10,8 @@ COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
     && corepack enable && corepack prepare pnpm@11.15.1 --activate
 WORKDIR /build
-COPY pom.xml ./
-COPY src ./src
-COPY web ./web
+# The whole repository, minus what .dockerignore drops: one line that no new directory can outdate.
+COPY . .
 # Flash and its Maven plugin resolve anonymously from their public registry (see pom.xml).
 # Tests need Testcontainers (a real Postgres via Docker) and can't run inside an isolated
 # `docker build` stage — CI runs them before this image is built, not here.
@@ -21,8 +20,11 @@ RUN --mount=type=cache,target=/root/.m2 --mount=type=cache,target=/root/.local/s
 
 # ---- runtime ----
 FROM eclipse-temurin:21-jre-alpine AS runtime
+# Nothing here writes to disk: the jar serves its own frontend and everything else is Postgres.
+RUN adduser -D -H glossa
+USER glossa
 WORKDIR /app
-COPY --from=build /build/target/glossa.jar ./glossa.jar
+COPY --from=build /build/backend/target/glossa.jar ./glossa.jar
 EXPOSE 8080
 # Temurin is container-aware (cgroup limits visible to the JVM since JDK 10+), but only if a
 # limit is actually declared on the container. JDK_JAVA_OPTIONS is the standard java launcher
