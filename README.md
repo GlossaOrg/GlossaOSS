@@ -14,7 +14,7 @@ Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual
 
 | Path | What |
 |---|---|
-| `pom.xml` | `glossa-parent`: the versions, the repositories and the build every edition shares. The hosted edition inherits from it too. |
+| `pom.xml` | `glossa-parent`: the versions, the repositories and the build, inherited by every module. |
 | `backend/` | Glossa itself, the jar this parent builds. |
 | `backend/src/main/java/dev/relism/glossa/GlossaApp.java` | Every extension, route and service. Both `Main` and every test boot this. |
 | `backend/src/main/java/dev/relism/glossa/Main.java` | Production entrypoint. Adds the two externally-dependent extensions (web bundler, OIDC). |
