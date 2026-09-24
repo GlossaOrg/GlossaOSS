@@ -17,4 +17,8 @@ fi
 # into it), and without it an edited config file silently keeps running the old image. Cached, so
 # it costs nothing when nothing changed.
 docker compose -f dev/compose.yaml up -d --wait --build
-exec ./mvnw -pl backend compile exec:exec@dev "$@"
+# The app runs off target/classes, skipping the shade that `package` would redo on every edit,
+# and from this directory: a relative path in DEV — frontend/, .env — is resolved against it.
+./mvnw -q compile dependency:build-classpath -Dmdep.outputFile=target/classpath -pl backend -am
+exec java -Dflash.env=dev -Dorg.jboss.logging.provider=slf4j -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 \
+  -cp "backend/target/classes:$(cat backend/target/classpath)" dev.relism.glossa.Main "$@"

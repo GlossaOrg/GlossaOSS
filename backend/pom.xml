@@ -192,53 +192,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
             </plugin>
-            <!--
-              The dev loop: `mvn compile exec:exec@dev` runs Main off target/classes, skipping the
-              shade that `package` would otherwise redo on every edit. `exec` and not `java`: the
-              latter runs Main inside Maven's own JVM under an isolated classloader, where SLF4J
-              finds no provider (all logging silently vanishes) and Vite's dev server never comes
-              up. This forks a real JVM instead, identical to `java -jar`.
-              exec:exec has no default phase binding, so declaring the goal here does not attach
-              it to a build.
-            -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.5.0</version>
-                <executions>
-                    <execution>
-                        <id>dev</id>
-                        <goals><goal>exec</goal></goals>
-                        <configuration>
-                            <!--
-                              From the repository root, as the dev loop always ran: a relative path
-                              in DEV — the frontend the extension starts Vite in, the .env a
-                              developer keeps — is resolved against the working directory, and this
-                              module's own directory is one level below where both of them are.
-                            -->
-                            <workingDirectory>${project.parent.basedir}</workingDirectory>
-                            <executable>java</executable>
-                            <arguments>
-                                <argument>-Dflash.env=dev</argument>
-                                <!-- Hibernate logs through JBoss Logging, which picks JUL over
-                                     SLF4J unless told otherwise — without this its output is the
-                                     odd two-line JUL format among everyone else's SLF4J lines.
-                                     The Dockerfile sets the same property for the image. -->
-                                <argument>-Dorg.jboss.logging.provider=slf4j</argument>
-                                <!-- No LANG is set in a bare shell or container, so stdout
-                                     defaults to ASCII and every non-ASCII character in a log
-                                     line (or a translated string — this is a translation tool)
-                                     prints as `?`. -->
-                                <argument>-Dstdout.encoding=UTF-8</argument>
-                                <argument>-Dstderr.encoding=UTF-8</argument>
-                                <argument>-classpath</argument>
-                                <classpath/>
-                                <argument>${main.class}</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
