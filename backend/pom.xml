@@ -210,6 +210,13 @@
                         <id>dev</id>
                         <goals><goal>exec</goal></goals>
                         <configuration>
+                            <!--
+                              From the repository root, as the dev loop always ran: a relative path
+                              in DEV — the frontend the extension starts Vite in, the .env a
+                              developer keeps — is resolved against the working directory, and this
+                              module's own directory is one level below where both of them are.
+                            -->
+                            <workingDirectory>${project.parent.basedir}</workingDirectory>
                             <executable>java</executable>
                             <arguments>
                                 <argument>-Dflash.env=dev</argument>
