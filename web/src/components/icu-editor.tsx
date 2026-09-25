@@ -282,7 +282,7 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
           </Button>
           {pane && (
             <>
-              <Tabs value={open ? 'split' : 'single'} onValueChange={(view) => setOpen(view === 'split')} className="max-lg:hidden">
+              <Tabs value={open ? 'split' : 'single'} onValueChange={(view) => setOpen(view === 'split')}>
                 <TabsList>
                   <TabsTrigger value="split" aria-label={reference ? 'Side by side' : 'Show templates'} title={reference ? 'Side by side' : 'Show templates'} className="px-2">
                     {reference ? <Columns2Icon /> : <LayoutTemplateIcon />}

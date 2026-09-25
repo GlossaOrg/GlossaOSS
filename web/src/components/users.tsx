@@ -144,7 +144,7 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{account.name || account.email}</span>
             {account.administrator && (
-              <Badge className="bg-primary text-primary-foreground">Admin</Badge>
+              <Badge>Admin</Badge>
             )}
           </div>
           <p className="text-muted-foreground mt-0.5">{account.email}</p>

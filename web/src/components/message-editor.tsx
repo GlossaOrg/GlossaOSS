@@ -162,7 +162,7 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge dot={s.dot} className="h-10 px-4 text-sm">{s.label}</Badge>
-          <LocaleSwitch project={project} locale={locale} />
+          <LocaleSwitch project={project} locale={locale} dirty={dirty} />
           {manager && (
             <Button variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => archive.mutate(!resource.archived)}>
               {resource.archived ? 'Restore' : 'Archive'}
@@ -258,14 +258,22 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
 }
 
 /** The language being edited, switchable in place: the editor remounts on the other locale's revisions. */
-function LocaleSwitch({ project, locale }: { project: Project; locale: Locale }) {
+function LocaleSwitch({ project, locale, dirty }: { project: Project; locale: Locale; dirty: boolean }) {
   const { rows, select } = useLocale(project.id)
   const lists = useLocaleLists(project.id, rows)
   // Only what the caller may read: a role limited to one locale is refused the others.
   const readable = rows.filter((_, i) => !lists[i]?.error)
   if (readable.length < 2) return null
   return (
-    <Select lead={<Dot locale={locale.locale} />} value={locale.locale} aria-label="Language" onChange={(e) => select(e.target.value)}>
+    // Switching remounts the editor on the other locale, so unsaved text is saved or discarded first.
+    <Select
+      lead={<Dot locale={locale.locale} />}
+      value={locale.locale}
+      disabled={dirty}
+      title={dirty ? 'Save or discard your change first.' : undefined}
+      aria-label="Language"
+      onChange={(e) => select(e.target.value)}
+    >
       {readable.map((l) => (
         <option key={l.locale} value={l.locale}>
           {languageName(l.locale)}{l.source ? ' (source)' : ''}

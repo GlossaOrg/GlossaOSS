@@ -16,14 +16,15 @@ const known: Record<string, number> = { en: 0, it: 1, fr: 2, de: 3, ar: 4, pt: 5
 
 /**
  * Which of the eight pastels (`--lang-N` in index.css) a language wears. By tag, not by project:
- * Italian is the same pink everywhere. A regional variant sits three pastels on from its language,
- * so French and Canadian French never look like one tile twice.
+ * Italian is the same pink everywhere. A regional variant sits three to seven pastels on from its
+ * language, by its region, so French and Canadian French, or two Englishes, never share one.
  * ponytail: past the eight known languages two can land on the same pastel; the monogram still tells them apart.
  */
 export function hue(tag: string) {
   const [language, ...rest] = tag.toLowerCase().split(/[-_]/)
-  const base = known[language] ?? [...language].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 8
-  return rest.length ? (base + 3) % 8 : base
+  const sum = (text: string) => [...text].reduce((total, c) => total + c.charCodeAt(0), 0)
+  const base = known[language] ?? sum(language) % 8
+  return rest.length ? (base + 3 + (sum(rest.join('-')) % 5)) % 8 : base
 }
 
 export const tint = (tag: string) => `var(--lang-${hue(tag)})`
