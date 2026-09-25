@@ -63,6 +63,17 @@
             <groupId>dev.relism</groupId>
             <artifactId>flash-ext-jackson-json</artifactId>
         </dependency>
+        <!-- §11 and §4: request bodies are checked against the rules their own types declare,
+             by adapters generated at build time rather than by reflection. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-validation-avaje</artifactId>
+        </dependency>
+        <!-- §10: the delivery formats that are XML, Android string resources first. JSON stays the automatic one. -->
+        <dependency>
+            <groupId>dev.relism</groupId>
+            <artifactId>flash-ext-jackson-xml</artifactId>
+        </dependency>
         <!-- OpenAPI spec + Swagger UI — the delivery API is a public integration surface (§10). -->
         <dependency>
             <groupId>dev.relism</groupId>

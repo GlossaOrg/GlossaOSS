@@ -33,7 +33,7 @@
           `2.1.0-<short-sha>` per push to master) from the registry below. To try unreleased Flash
           changes, `mvn install` a Flash checkout and build with -Dflash.version=2.1.0-SNAPSHOT.
         -->
-        <flash.version>2.1.0-2608302</flash.version>
+        <flash.version>2.1.0-2798d03</flash.version>
 
         <!--
           JDAE (https://github.com/Relism/JDAE), built from its tag by JitPack, which serves it
@@ -183,6 +183,15 @@
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                             <version>${lombok.version}</version>
+                        </path>
+                        <!--
+                          Writes a validation adapter for every type annotated @Valid: the engine
+                          reads no annotations at runtime, so a type without its adapter is refused
+                          by name on the first request. The version comes from the Flash BOM.
+                        -->
+                        <path>
+                            <groupId>io.avaje</groupId>
+                            <artifactId>avaje-validator-generator</artifactId>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>

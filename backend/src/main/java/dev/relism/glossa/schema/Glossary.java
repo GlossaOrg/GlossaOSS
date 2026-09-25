@@ -2,6 +2,7 @@ package dev.relism.glossa.schema;
 
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
+import io.avaje.validation.constraints.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
@@ -21,6 +22,7 @@ public final class Glossary {
             String translation) {}
 
     @Schema(name = "NewGlossaryTerm", description = "Adds a term or replaces what it says. One term per locale.")
+    @Valid
     public record NewTerm(
             @SchemaProperty(required = true)
             @NotBlank(message = "is required")

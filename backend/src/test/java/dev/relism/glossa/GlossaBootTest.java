@@ -55,9 +55,13 @@ class GlossaBootTest {
                 .expectBodyContains("requestBody")
                 .expectBodyContains("#/components/schemas/Error")
                 .expectBodyContains("#/components/responses/Unauthorized")
-                // The schema names, descriptions and constraints come from the types themselves.
+                // The schema names, descriptions and rules come from the types themselves: the
+                // validation engine says what its annotations mean, and the document carries it.
                 .expectBodyContains("#/components/schemas/NewResource")
                 .expectBodyContains("Dots group keys without a namespace of their own")
-                .expectBodyContains("Only the keys under this dotted prefix.");
+                .expectBodyContains("Only the keys under this dotted prefix.")
+                .expectBodyContains("\"pattern\":")
+                .expectBodyContains("\"maxLength\":")
+                .expectBodyContains("\"required\":[");
     }
 }

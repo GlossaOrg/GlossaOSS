@@ -8,7 +8,6 @@ import dev.relism.flash.ext.security.Authenticated;
 import dev.relism.flash.ext.security.SecurityIdentity;
 import dev.relism.flash.extension.Inject;
 import dev.relism.flash.models.Request;
-import dev.relism.flash.models.RequestHandler;
 import dev.relism.flash.models.Response;
 import dev.relism.flash.routing.GET;
 import dev.relism.flash.routing.POST;
@@ -31,8 +30,8 @@ public final class MetaHandlers {
     @GET("/healthz")
     @ApiOperation(summary = "Name, version and liveness.", tags = "Meta")
         @Undocumented
-    public static final class Health extends RequestHandler {
-        @Override public Object handle(Request req, Response res) {
+    public static final class Health extends JsonHandler<Void, Map<String, String>> {
+        @Override public Map<String, String> handle(Request req, Response res, Void ignored) {
             return Map.of("service", "glossa", "version", GlossaApp.VERSION, "status", "ok");
         }
     }
@@ -41,8 +40,8 @@ public final class MetaHandlers {
     @GET("/api/me")
     @Authenticated
     @ApiOperation(summary = "The signed-in user's identity.", tags = "Meta")
-    public static final class Me extends RequestHandler {
-        @Override public Object handle(Request req, Response res) {
+    public static final class Me extends JsonHandler<Void, MeView> {
+        @Override public MeView handle(Request req, Response res, Void ignored) {
             AppUser user = SecurityIdentity.current().user(AppUser.class);
             // The resolver rather than the column, so an API key never reads as an administrator.
             return new MeView(user.getId(), user.getEmail(), user.getName(),
@@ -55,10 +54,10 @@ public final class MetaHandlers {
     @Authenticated
     @ApiOperation(summary = "Changes the account's password.", tags = "Meta")
     @APIResponse(responseCode = "204", description = "Changed. The old one stops working")
-    public static final class ChangePassword extends JsonHandler<NewPassword> {
+    public static final class ChangePassword extends JsonHandler<NewPassword, Void> {
         @Inject private UserService users;
 
-        @Override public Object handle(Request req, Response res, NewPassword body) throws Exception {
+        @Override public Void handle(Request req, Response res, NewPassword body) throws Exception {
             users.changePassword(body.password());
             res.status(204);
             return null;
