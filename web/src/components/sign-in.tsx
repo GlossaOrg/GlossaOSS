@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { KeyRoundIcon, LanguagesIcon } from 'lucide-react'
+import { KeyRoundIcon } from 'lucide-react'
 import { motion } from 'motion/react'
-import { Greetings } from '@/components/greetings'
+import { AuthCard } from '@/components/auth-card'
 import { PasswordFields } from '@/components/password-fields'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,7 +45,6 @@ export function SignIn({ refused }: { refused?: string } = {}) {
   const setup = useQuery({ queryKey: ['setup'], queryFn: () => api<{ firstUser: boolean }>('/api/setup'), retry: false })
   const [problem, setProblem] = useState<Problem | null>(null)
   const [pending, setPending] = useState(false)
-  const card = useRef<HTMLElement>(null)
   const redirect = `?redirect=${encodeURIComponent(returnTo())}`
   const form = methods?.find((m) => m.kind === 'form')
   const redirects = methods?.filter((m) => m.kind === 'redirect') ?? []
@@ -92,25 +91,10 @@ export function SignIn({ refused }: { refused?: string } = {}) {
   const field = (name: Problem['field']) => ({ 'aria-invalid': problem?.field === name, onChange: () => problem?.field === name && setProblem(null) })
 
   return (
-    <div className="bg-secondary relative isolate grid min-h-svh place-items-center overflow-hidden p-6">
-      <Greetings around={card} />
-
-      <motion.main
-        ref={card}
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-        className="bg-background w-full max-w-sm rounded-2xl p-8 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_24px_48px_-24px_rgb(0_0_0/0.18)]"
-      >
-        <div className="bg-brand text-primary-foreground mb-6 grid size-10 place-items-center rounded-xl dark:text-black">
-          <LanguagesIcon className="size-5" />
-        </div>
-        <h2 className={first && !refused ? 'mb-1 text-2xl' : 'mb-6 text-2xl'}>
-          {refused ? "Can't sign in" : first && form ? 'Create the first account' : 'Sign in to Glossa'}
-        </h2>
-        {first && !refused && <p className="text-muted-foreground mb-6 text-sm">No users yet.</p>}
+    <AuthCard title={refused ? "Can't sign in" : first && form ? 'Create the first account' : 'Sign in'}>
+        {!refused && <p className="text-muted-foreground mb-7">{first ? 'No users yet.' : 'Welcome back.'}</p>}
         {refused ? (
-          <div role="alert" className="text-destructive bg-destructive/8 rounded-lg p-3.5 text-sm leading-relaxed">
+          <div role="alert" className="text-destructive bg-destructive/8 mt-5 rounded-2xl p-4 text-sm leading-relaxed">
             <p className="mb-2">{refused}</p>
             {/* Signing in again would arrive with the same identity and be refused again: the way on is out. */}
             <form method="POST" action="/auth/logout">
@@ -129,8 +113,8 @@ export function SignIn({ refused }: { refused?: string } = {}) {
             transition={{ delay: 0.3, duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="bg-brand/8 text-foreground mb-6 flex gap-3 rounded-lg p-3.5 text-sm leading-relaxed">
-              <KeyRoundIcon className="text-brand mt-0.5 size-4 shrink-0" />
+            <div className="bg-secondary text-foreground mb-6 flex gap-3 rounded-2xl p-4 text-sm leading-relaxed">
+              <KeyRoundIcon className="mt-0.5 size-4 shrink-0" />
               <p>
                 {form
                   ? 'This account will be the admin, with access to everything.'
@@ -167,13 +151,13 @@ export function SignIn({ refused }: { refused?: string } = {}) {
                 {problem.message}
               </motion.p>
             )}
-            <Button type="submit" disabled={pending} className="mt-1">
+            <Button type="submit" size="lg" disabled={pending} className="mt-2">
               {first ? 'Create account' : 'Sign in'}
             </Button>
           </form>
         )}
         {form && redirects.length > 0 && (
-          <div className="text-muted-foreground my-5 flex items-center gap-3 text-xs">
+          <div className="text-muted-foreground my-4 flex items-center gap-3 text-[13px]">
             <span className="bg-border h-px flex-1" />
             or
             <span className="bg-border h-px flex-1" />
@@ -181,7 +165,7 @@ export function SignIn({ refused }: { refused?: string } = {}) {
         )}
         <div className="grid gap-2">
           {redirects.map((m) => (
-            <Button key={m.id} variant={form ? 'outline' : 'default'} onClick={() => (location.href = m.url + redirect)}>
+            <Button key={m.id} size="lg" variant={form ? 'outline' : 'default'} onClick={() => (location.href = m.url + redirect)}>
               Continue with {m.name}
             </Button>
           ))}
@@ -189,7 +173,6 @@ export function SignIn({ refused }: { refused?: string } = {}) {
         </div>
         </>
         )}
-      </motion.main>
-    </div>
+    </AuthCard>
   )
 }

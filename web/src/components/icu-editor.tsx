@@ -2,7 +2,8 @@ import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { CheckIcon, Columns2Icon, CopyIcon, LayoutTemplateIcon, PlusIcon, Redo2Icon, SearchIcon, SparklesIcon, SquareIcon, Undo2Icon } from 'lucide-react'
 import { cn } from 'cn'
-import { Language } from '@/components/locale'
+import { Badge } from '@/components/kit'
+import { Language, tint } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -10,22 +11,29 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAi } from '@/lib/ai'
-import { counting, lex, typeTint, type Contract, type Kind, type Locale } from '@/lib/content'
+import { counting, lex, type Contract, type Kind, type Locale } from '@/lib/content'
 import { library } from '@/lib/templates'
 
+/**
+ * Syntax in ink, and what a message fills in on the pastel of the language it is written in: the
+ * caller sets `--hl` (see `ink`) on whatever holds a `Highlight`.
+ */
 const tone: Record<Exclude<Kind, 'brace'>, string> = {
   text: '',
   comma: 'text-muted-foreground/60',
-  quote: 'text-slate-400 dark:text-slate-500',
-  name: 'rounded-[3px] bg-sky-100/80 text-sky-800 dark:bg-sky-400/15 dark:text-sky-200',
-  type: 'text-violet-600 dark:text-violet-300',
-  style: 'text-rose-600 dark:text-rose-300',
-  arm: 'text-emerald-700 dark:text-emerald-300',
-  hash: 'rounded-[3px] bg-amber-100/80 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200',
+  quote: 'text-muted-foreground/60',
+  name: 'text-on-tint rounded-[4px] bg-(--hl) font-semibold',
+  type: 'text-muted-foreground',
+  style: 'text-muted-foreground',
+  arm: 'font-semibold',
+  hash: 'text-on-tint rounded-[4px] bg-(--hl) font-semibold',
 }
 
-/** Matching braces share a colour, so the eye pairs them without counting. */
-const braces = ['text-brand', 'text-violet-500', 'text-sky-500', 'text-amber-500', 'text-rose-500']
+/** Where a `Highlight` is shown: `--hl` for its arguments, the pastel of `locale`, or a light wash over one. */
+export const ink = (locale?: string) => ({ '--hl': locale ? tint(locale) : 'rgb(255 255 255 / 0.7)' }) as React.CSSProperties
+
+/** Matching braces alternate between two weights of ink, so the eye pairs them without counting. */
+const braces = ['text-foreground font-semibold', 'text-muted-foreground font-semibold']
 
 /** The pattern as coloured spans; `error` marks the character the server pointed at, if it did. */
 export function Highlight({ source, error }: { source: string; error?: number }) {
@@ -171,7 +179,6 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
   }
 
   const blank = !value.trim()
-  const status = blank ? null : checking ? 'Checking' : problem ? 'Error' : 'Valid'
 
   return (
     // The side column is always mounted and its width animates, so closing it never leaves it hanging
@@ -184,28 +191,19 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
     >
       {pane && (
         <div inert={!open} className={cn('flex min-w-0 overflow-hidden transition-opacity duration-200 lg:pr-3', open ? 'opacity-100' : 'opacity-0 max-lg:hidden')}>
-          {reference ? <Reference locale={reference.locale} pattern={reference.pattern} /> : <Templates onPick={(pattern) => write(pattern, undefined, true)} />}
+          {reference ? <Reference locale={reference.locale} pattern={reference.pattern} /> : <Templates locale={locale.locale} onPick={(pattern) => write(pattern, undefined, true)} />}
         </div>
       )}
 
-      <section className="bg-background flex min-w-0 flex-col overflow-hidden rounded-xl border">
-        <header className="flex h-12 items-center gap-2 border-b px-3">
-          <Pane role={role} locale={locale.locale} />
-          <span
-            className={cn(
-              'ml-auto inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium transition-colors',
-              !status && 'invisible',
-              status === 'Error' ? 'bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200',
-            )}
-          >
-            <span className={cn('size-1.5 rounded-full bg-current', status === 'Checking' && 'motion-safe:animate-pulse')} />
-            {status}
-          </span>
+      <section className="bg-background flex min-w-0 flex-col overflow-hidden rounded-[28px] border">
+        <header className="flex min-h-14 flex-wrap items-center gap-1 border-b px-4 py-2">
+          {/* Beside a source, the pane being written in needs no label: it is the other one. */}
+          <Pane role={reference ? undefined : role} locale={locale.locale} />
+          <span className="ml-auto" />
           {suggest && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="text-brand"
               disabled={!ai || writing}
               title={ai ? undefined : 'AI features are off.'}
               onClick={ask}
@@ -214,7 +212,6 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
               Suggest
             </Button>
           )}
-          <span className="bg-border mx-1 h-4 w-px" />
           <Button variant="ghost" size="icon-sm" aria-label="Undo" onClick={() => run('undo')}>
             <Undo2Icon />
           </Button>
@@ -227,7 +224,7 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
               queued.current = null
             }}
           >
-            <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="text-brand" />}>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="sm" />}>
               <PlusIcon className="transition-transform duration-300 motion-safe:group-hover/button:rotate-90" />
               Insert
             </DropdownMenuTrigger>
@@ -239,9 +236,7 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
                     {Object.entries(variables).map(([name, variable]) => (
                       <DropdownMenuItem key={name} onClick={() => (queued.current = () => write(`{${name}}`))}>
                         <span className="font-mono text-[13px]">{name}</span>
-                        <DropdownMenuShortcut>
-                          <span className={cn('rounded px-1 text-[10px]', typeTint[variable.type])}>{variable.type.toLowerCase()}</span>
-                        </DropdownMenuShortcut>
+                        <DropdownMenuShortcut>{variable.type.toLowerCase()}</DropdownMenuShortcut>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuGroup>
@@ -287,13 +282,12 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
           </Button>
           {pane && (
             <>
-              <span className="bg-border mx-1 h-4 w-px" />
-              <Tabs value={open ? 'split' : 'single'} onValueChange={(view) => setOpen(view === 'split')}>
-                <TabsList className="h-7">
-                  <TabsTrigger value="split" aria-label={reference ? 'Side by side' : 'Show templates'} title={reference ? 'Side by side' : 'Show templates'} className="px-1.5">
+              <Tabs value={open ? 'split' : 'single'} onValueChange={(view) => setOpen(view === 'split')} className="max-lg:hidden">
+                <TabsList>
+                  <TabsTrigger value="split" aria-label={reference ? 'Side by side' : 'Show templates'} title={reference ? 'Side by side' : 'Show templates'} className="px-2">
                     {reference ? <Columns2Icon /> : <LayoutTemplateIcon />}
                   </TabsTrigger>
-                  <TabsTrigger value="single" aria-label={reference ? 'Translation only' : 'Editor only'} title={reference ? 'Translation only' : 'Editor only'} className="px-1.5">
+                  <TabsTrigger value="single" aria-label={reference ? 'Translation only' : 'Editor only'} title={reference ? 'Translation only' : 'Editor only'} className="px-2">
                     <SquareIcon />
                   </TabsTrigger>
                 </TabsList>
@@ -306,8 +300,8 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
             the height, so the two can never scroll apart. Both must wrap identically. */}
         <div
           className={cn(
-            'relative min-h-44 flex-1 font-mono text-[13.5px] leading-[1.75] transition-shadow duration-500',
-            landed && 'ring-brand/45 ring-2 ring-inset',
+            'relative min-h-48 flex-1 font-mono text-[14.5px] leading-[1.8] transition-shadow duration-500',
+            landed && 'ring-foreground/30 ring-2 ring-inset',
           )}
         >
           <AnimatePresence>
@@ -326,7 +320,7 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
                   transition={{ duration: 0.3, ease: [0.2, 0, 0, 1] }}
                   className="flex items-center gap-2 font-sans text-sm font-medium"
                 >
-                  <SparklesIcon className="text-brand size-4 motion-safe:animate-[float_1.8s_ease-in-out_infinite]" />
+                  <SparklesIcon className="size-4 motion-safe:animate-[float_1.8s_ease-in-out_infinite]" />
                   <span className="bg-[linear-gradient(110deg,var(--muted-foreground)_35%,var(--foreground)_50%,var(--muted-foreground)_65%)] bg-[length:200%_100%] bg-clip-text text-transparent motion-safe:animate-[sheen_1.6s_linear_infinite]">
                     Writing a suggestion
                   </span>
@@ -334,7 +328,7 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
               </motion.div>
             )}
           </AnimatePresence>
-          <pre aria-hidden dir={locale.rtl ? 'rtl' : undefined} className="m-0 p-4 break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
+          <pre aria-hidden dir={locale.rtl ? 'rtl' : undefined} style={ink(locale.locale)} className="m-0 p-5 break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
             <Highlight source={value} error={error} />
             {'\n'}
           </pre>
@@ -346,12 +340,12 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
             placeholder={templates ? 'Write a message, or start from a template' : reference ? 'Write the translation' : 'Write the message'}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={indent}
-            className="caret-foreground selection:bg-brand/20 placeholder:text-muted-foreground/60 absolute inset-0 resize-none overflow-hidden bg-transparent p-4 break-words whitespace-pre-wrap text-transparent outline-none [overflow-wrap:anywhere]"
+            className="caret-foreground selection:bg-foreground/15 placeholder:text-muted-foreground/60 absolute inset-0 resize-none overflow-hidden bg-transparent p-5 break-words whitespace-pre-wrap text-transparent outline-none [overflow-wrap:anywhere]"
           />
         </div>
 
-        <footer className={cn('flex items-start gap-2 border-t px-4 py-2 text-sm', problem && !blank ? 'bg-rose-50/60 text-rose-700 dark:bg-rose-400/5 dark:text-rose-300' : 'text-muted-foreground')}>
-          <span className={cn('mt-2 size-1.5 shrink-0 rounded-full', blank ? 'bg-muted-foreground/40' : problem ? 'bg-destructive' : missing.length ? 'bg-amber-500' : 'bg-emerald-500')} />
+        <footer className={cn('flex items-start gap-2.5 border-t px-5 py-3 text-sm', problem && !blank ? 'bg-destructive/6 text-destructive' : 'text-muted-foreground')}>
+          <span className={cn('mt-2 size-1.5 shrink-0 rounded-full', blank ? 'bg-muted-foreground/40' : problem ? 'bg-destructive' : missing.length ? 'bg-amber-500' : 'bg-emerald-500', checking && 'motion-safe:animate-pulse')} />
           <span className="min-w-0">
             {problem ??
               (missing.length
@@ -364,53 +358,53 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
   )
 }
 
-/** Categories down the side, their templates beside them; a search looks through all of them at once. */
-/** Which language a pane holds, said with its flag and its name rather than in small grey capitals. */
-function Pane({ role, locale }: { role: string; locale: string }) {
+/** Which language a pane holds, said with its colour and its name rather than in small grey capitals. */
+function Pane({ role, locale }: { role?: string; locale: string }) {
   return (
-    <span className="flex min-w-0 items-center gap-2 text-sm">
-      <Language locale={locale} />
-      <span className="bg-muted text-muted-foreground rounded-full px-2 py-px text-[11px] font-medium">{role}</span>
+    <span className="flex min-w-0 items-center gap-2 text-[15px]">
+      <Language locale={locale} tag={!!role} className="font-semibold" />
+      {role && <Badge className="bg-foreground/[0.07]">{role}</Badge>}
     </span>
   )
 }
 
-/** The source beside its translation: read-only, set in the same type so lines can be compared. */
+/** The source beside its translation, on its own pastel: read-only, set in the same type so lines can be compared. */
 function Reference({ locale, pattern }: { locale: Locale; pattern: string }) {
   return (
-    <section className="bg-secondary/60 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
-      <header className="flex h-12 items-center border-b px-4">
+    <section className="text-on-tint flex min-w-0 flex-1 flex-col overflow-hidden rounded-[28px]" style={{ background: tint(locale.locale) }}>
+      <header className="flex h-14 items-center border-b border-black/8 px-5">
         <Pane role="Source" locale={locale.locale} />
       </header>
-      <pre dir={locale.rtl ? 'rtl' : undefined} className="m-0 flex-1 p-4 font-mono text-[13.5px] leading-[1.75] break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
+      <pre dir={locale.rtl ? 'rtl' : undefined} style={ink()} className="m-0 flex-1 p-5 font-mono text-[14.5px] leading-[1.8] break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
         <Highlight source={pattern} />
       </pre>
     </section>
   )
 }
 
-function Templates({ onPick }: { onPick: (pattern: string) => void }) {
+/** Categories down the side, their templates beside them; a search looks through all of them at once. */
+function Templates({ onPick, locale }: { onPick: (pattern: string) => void; locale: string }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(library[0].name)
   const needle = query.trim().toLowerCase()
-  const all = library.flatMap((group) => group.templates.map((template) => ({ ...template, icon: group.icon, group: group.name })))
+  const all = library.flatMap((group) => group.templates.map((template) => ({ ...template, group: group.name })))
   const shown = needle
     ? all.filter((template) => `${template.name} ${template.description} ${template.group} ${template.pattern}`.toLowerCase().includes(needle))
     : all.filter((template) => template.group === category)
 
   return (
-    <aside className="bg-background flex h-[36rem] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
-      <label className="relative border-b p-2.5">
-        <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-5 size-3.5 -translate-y-1/2" />
+    <aside style={ink(locale)} className="bg-background flex h-[38rem] min-w-0 flex-1 flex-col overflow-hidden rounded-[28px] border">
+      <label className="relative border-b p-3">
+        <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-7 size-4 -translate-y-1/2" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={`Search ${all.length} templates`}
-          className="bg-muted/50 focus:bg-background focus:ring-ring/40 h-8 w-full rounded-lg pr-2 pl-8 text-sm outline-none focus:ring-2"
+          className="bg-secondary focus:bg-background focus:ring-ring/25 h-10 w-full rounded-full pr-3 pl-11 text-sm outline-none focus:ring-2"
         />
       </label>
       <div className="grid min-h-0 flex-1 grid-cols-[9.5rem_minmax(0,1fr)]">
-        <nav className="grid content-start gap-px overflow-y-auto border-r p-1.5">
+        <nav className="grid content-start gap-0.5 overflow-y-auto border-r p-2">
           {library.map((group) => {
             const active = !needle && group.name === category
             return (
@@ -422,31 +416,27 @@ function Templates({ onPick }: { onPick: (pattern: string) => void }) {
                   setQuery('')
                 }}
                 className={cn(
-                  'link-bg-animated flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px]',
-                  active ? 'bg-brand/10 text-brand font-medium' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  'link-bg-animated flex h-9 cursor-pointer items-center gap-2 rounded-full px-3 text-left text-[13.5px]',
+                  active ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:bg-secondary hover:text-foreground font-medium',
                 )}
               >
-                <group.icon className="size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{group.name}</span>
                 <span className="text-[10px] opacity-50">{group.templates.length}</span>
               </button>
             )
           })}
         </nav>
-        <ul className="grid content-start gap-1.5 overflow-y-auto p-2">
+        <ul className="grid content-start gap-2 overflow-y-auto p-3">
           {shown.map((template) => (
             <li key={`${template.group}/${template.name}`}>
               <button
                 type="button"
                 onClick={() => onPick(template.pattern)}
-                className="hover:border-brand/40 hover:bg-brand/5 grid w-full cursor-pointer gap-1 rounded-lg border p-2.5 text-left transition-[background-color,border-color,transform] duration-200 motion-safe:hover:-translate-y-px"
+                className="hover:bg-secondary grid w-full cursor-pointer gap-1 rounded-2xl border p-3.5 text-left transition-[background-color,transform] duration-200 motion-safe:hover:-translate-y-px"
               >
-                <span className="flex items-center gap-1.5 text-sm font-medium">
-                  <template.icon className="text-brand size-3.5 shrink-0" />
-                  <span className="truncate">{template.name}</span>
-                </span>
+                <span className="truncate text-[15px] font-semibold">{template.name}</span>
                 <span className="text-muted-foreground text-xs">{needle ? `${template.group} · ${template.description}` : template.description}</span>
-                <code className="line-clamp-2 font-mono text-[11px] leading-relaxed">
+                <code className="mt-1 line-clamp-2 font-mono text-xs leading-relaxed">
                   <Highlight source={template.pattern.replace(/\n\s*/g, ' ')} />
                 </code>
               </button>

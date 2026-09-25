@@ -1,9 +1,3 @@
-import {
-  BellIcon, CalculatorIcon, CalendarIcon, CircleAlertIcon, GitBranchIcon, HashIcon, HeartIcon, HourglassIcon, KeyRoundIcon, LayersIcon,
-  ListOrderedIcon, ShoppingCartIcon, SparklesIcon, TextCursorInputIcon, TypeIcon,
-  type LucideIcon,
-} from 'lucide-react'
-
 /** A starting point: a message that already parses, so an author edits words instead of syntax. */
 export type Template = { name: string; description: string; pattern: string }
 
@@ -15,10 +9,9 @@ const l = (...lines: string[]) => lines.join('\n')
  * that needs more forms says so in the editor the moment one is inserted. Lists and rich-text tags
  * are not here because the §6 profile has neither.
  */
-export const library: { name: string; icon: LucideIcon; templates: Template[] }[] = [
+export const library: { name: string; templates: Template[] }[] = [
   {
     name: 'Basics',
-    icon: TypeIcon,
     templates: [
       { name: 'Greeting', description: 'A name in a sentence', pattern: 'Hello, {name}!' },
       { name: 'Welcome back', description: 'A name and a date', pattern: 'Welcome back, {name}. Your last visit was on {lastVisit, date, ::yMMMd}.' },
@@ -28,7 +21,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Plurals',
-    icon: HashIcon,
     templates: [
       { name: 'Item count', description: 'None, one, many', pattern: l('{count, plural,', '  =0 {No items}', '  one {# item}', '  other {# items}', '}') },
       {
@@ -51,7 +43,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Select',
-    icon: GitBranchIcon,
     templates: [
       {
         name: 'Gendered reply',
@@ -80,7 +71,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Ordinals',
-    icon: ListOrderedIcon,
     templates: [
       { name: 'Ranking', description: '1st, 2nd, 3rd…', pattern: l('You finished {place, selectordinal,', '  one {#st}', '  two {#nd}', '  few {#rd}', '  other {#th}', '}.') },
       {
@@ -97,7 +87,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Nested',
-    icon: LayersIcon,
     templates: [
       {
         name: 'Who added photos',
@@ -151,7 +140,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Numbers',
-    icon: CalculatorIcon,
     templates: [
       { name: 'Price', description: 'A currency amount', pattern: 'Total: {amount, number, ::currency/EUR}' },
       { name: 'Progress', description: 'A percentage', pattern: '{ratio, number, ::percent} complete' },
@@ -163,7 +151,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Dates & Time',
-    icon: CalendarIcon,
     templates: [
       { name: 'Due date', description: 'A short date', pattern: 'Due {due, date, ::yMMMd}' },
       { name: 'Event start', description: 'Weekday, date and time', pattern: 'Starts {start, date, ::EEEEMMMMd} at {start, time, ::Hm}' },
@@ -174,7 +161,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Time & Duration',
-    icon: HourglassIcon,
     templates: [
       { name: 'Minutes ago', description: 'Just now, then counted', pattern: l('{minutes, plural,', '  =0 {Just now}', '  one {# minute ago}', '  other {# minutes ago}', '}') },
       { name: 'Hours left', description: 'A countdown', pattern: l('{hours, plural,', '  one {# hour left}', '  other {# hours left}', '}') },
@@ -193,7 +179,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'E-commerce',
-    icon: ShoppingCartIcon,
     templates: [
       {
         name: 'Cart summary',
@@ -228,7 +213,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Notifications',
-    icon: BellIcon,
     templates: [
       { name: 'Mentions', description: 'Who, how often, where', pattern: l('{name} mentioned you {count, plural,', '  one {once}', '  other {# times}', '} in {channel}') },
       { name: 'New messages', description: 'From one sender', pattern: l('{sender} sent you {count, plural,', '  one {a message}', '  other {# messages}', '}') },
@@ -251,7 +235,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Social',
-    icon: HeartIcon,
     templates: [
       {
         name: 'Followers',
@@ -273,7 +256,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Forms',
-    icon: TextCursorInputIcon,
     templates: [
       { name: 'Required field', description: 'A field name', pattern: '{field} is required.' },
       { name: 'Minimum length', description: 'At least N characters', pattern: l('Use at least {min, plural,', '  one {# character}', '  other {# characters}', '}.') },
@@ -292,7 +274,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Account',
-    icon: KeyRoundIcon,
     templates: [
       {
         name: 'Password expiry',
@@ -310,7 +291,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Status & Errors',
-    icon: CircleAlertIcon,
     templates: [
       {
         name: 'Upload',
@@ -338,7 +318,6 @@ export const library: { name: string; icon: LucideIcon; templates: Template[] }[
   },
   {
     name: 'Real world',
-    icon: SparklesIcon,
     templates: [
       {
         name: 'Order summary',

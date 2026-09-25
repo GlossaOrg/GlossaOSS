@@ -43,7 +43,7 @@ export function Invite({ token }: { token: string }) {
   if (invitation.error) {
     return (
       <AuthCard title="This link has expired">
-        <p className="text-muted-foreground mb-7 text-sm">
+        <p className="text-muted-foreground mb-7">
           {(invitation.error as { detail?: string }).detail || 'It was already used or has expired. Ask an admin for a new one.'}
         </p>
         <Button variant="outline" nativeButton={false} render={<a href="/" />}>
@@ -56,7 +56,7 @@ export function Invite({ token }: { token: string }) {
   const { email, name, reset } = invitation.data!
   return (
     <AuthCard title={reset ? 'Choose a new password' : 'Welcome to Glossa'}>
-      <p className="text-muted-foreground mb-7 text-sm">{reset ? `For ${email}.` : `You were invited as ${email}. Choose a password to continue.`}</p>
+      <p className="text-muted-foreground mb-7">{reset ? `For ${email}.` : `You were invited as ${email}. Choose a password to continue.`}</p>
       <form onSubmit={submit} noValidate className="grid gap-4">
         {!reset && (
           <label className="grid gap-1.5">
@@ -72,7 +72,7 @@ export function Invite({ token }: { token: string }) {
             {problem}
           </motion.p>
         )}
-        <Button type="submit" disabled={pending} className="mt-1">
+        <Button type="submit" size="lg" disabled={pending} className="mt-2">
           {reset ? 'Set password' : 'Create account'}
         </Button>
       </form>

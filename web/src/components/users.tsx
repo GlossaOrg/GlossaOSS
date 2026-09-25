@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { GlobeIcon, KeyRoundIcon, PlusIcon, ShieldCheckIcon } from 'lucide-react'
+import { PlusIcon } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { cn } from 'cn'
+import { Badge, RoleBadge, Segmented, Select } from '@/components/kit'
 import { OneTimeNote } from '@/components/one-time-note'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,10 +38,10 @@ type Call = { path: string; method: string; done: string }
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
 const states = {
-  ACTIVE: { label: 'Active', tint: 'bg-foreground/5 text-muted-foreground' },
-  INVITED: { label: 'Invited', tint: 'bg-[#fff5a5] text-stone-900 dark:bg-yellow-300/20 dark:text-yellow-50' },
-  DISABLED: { label: 'Disabled', tint: 'bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-100' },
-  DELETED: { label: 'Deleted', tint: 'bg-foreground/5 text-muted-foreground line-through' },
+  ACTIVE: { label: 'Active', dot: 'bg-emerald-500' },
+  INVITED: { label: 'Invited', dot: 'bg-amber-400' },
+  DISABLED: { label: 'Disabled', dot: 'bg-muted-foreground/50' },
+  DELETED: { label: 'Deleted', dot: undefined },
 }
 
 const expiries = [
@@ -143,10 +144,7 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{account.name || account.email}</span>
             {account.administrator && (
-              <span className="bg-brand/10 text-brand inline-flex items-center gap-1 rounded-full px-2 py-px text-xs font-medium">
-                <ShieldCheckIcon className="size-3" />
-                Admin
-              </span>
+              <Badge className="bg-primary text-primary-foreground">Admin</Badge>
             )}
           </div>
           <p className="text-muted-foreground mt-0.5">{account.email}</p>
@@ -154,10 +152,7 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
         <td className="py-4 pr-4">
           <ul className="text-muted-foreground grid gap-1">
             {account.sources.map((source) => (
-              <li key={source} className="inline-flex items-center gap-1.5">
-                {source === 'Password' ? <KeyRoundIcon className="size-3.5" /> : <GlobeIcon className="size-3.5" />}
-                {source}
-              </li>
+              <li key={source}>{source === 'Password' ? 'Password' : `Single sign-on (${source})`}</li>
             ))}
           </ul>
         </td>
@@ -169,15 +164,17 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
               {account.projects.map((m) => (
                 <li key={m.project} className="flex flex-wrap items-center gap-2">
                   <span>{m.name}</span>
-                  <RoleTag role={m.role} locale={m.locale} />
+                  <RoleBadge role={m.role} locale={m.locale} />
                 </li>
               ))}
             </ul>
           )}
         </td>
         <td className="py-4 pr-4">
-          <span className={cn('inline-flex rounded-full px-2 py-px text-xs font-medium whitespace-nowrap', state.tint)}>{state.label}</span>
-          {account.passwordReset && <span className="bg-amber-100 text-amber-900 ml-1 inline-flex rounded-full px-2 py-px text-xs font-medium whitespace-nowrap dark:bg-amber-400/15 dark:text-amber-100">Choosing a password</span>}
+          <span className="flex flex-wrap gap-1">
+            <Badge dot={state.dot} className={cn(account.status === 'DELETED' && 'line-through')}>{state.label}</Badge>
+            {account.passwordReset && <Badge dot="bg-amber-400">Choosing a password</Badge>}
+          </span>
           <p className="text-muted-foreground mt-1 text-xs whitespace-nowrap">
             {account.invitation
               ? account.expiresAt
@@ -224,7 +221,7 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
       {(confirming || act.error) && (
         <tr>
           <td colSpan={5} className="pb-4">
-            <div className="bg-background flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg py-2 pr-2 pl-4 text-sm">
+            <div className="bg-secondary flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl py-3 pr-3 pl-5 text-sm">
               <p className="min-w-60 flex-1">
                 {act.error
                   ? (act.error as { detail?: string }).detail || 'Something went wrong. Reload and try again.'
@@ -281,33 +278,31 @@ function Composer({ onIssued, onCancel }: { onIssued: (invited: Invited) => void
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.22, ease: [0.2, 0, 0, 1] }} className="overflow-hidden">
-      <form onSubmit={submit} className="border-brand mb-10 grid max-w-2xl gap-6 border-l-2 py-1 pl-6">
+      <form onSubmit={submit} className="mb-10 grid max-w-3xl gap-6 rounded-[28px] border p-7">
         <div className="flex flex-wrap gap-x-8 gap-y-6">
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">Email</span>
-            <Input name="email" type="email" required autoFocus className="bg-background w-64" />
+            <Input name="email" type="email" required autoFocus className="w-64" />
           </label>
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">
               Name <span className="text-muted-foreground font-normal">(optional)</span>
             </span>
-            <Input name="name" autoComplete="name" className="bg-background w-48" />
+            <Input name="name" autoComplete="name" className="w-48" />
           </label>
         </div>
 
         <fieldset>
           <legend className="mb-2 text-sm font-medium">Signs in with</legend>
-          <div className="bg-foreground/[0.06] flex w-fit rounded-lg p-0.5">
-            {[
+          <Segmented
+            name="access"
+            options={[
               { label: 'A password link', value: false },
               { label: 'Single sign-on', value: true },
-            ].map((option) => (
-              <label key={option.label} className="has-checked:bg-background has-focus-visible:ring-ring/50 cursor-pointer rounded-md px-3 py-1 text-sm transition-[background-color,box-shadow] duration-200 has-checked:shadow-xs has-focus-visible:ring-3">
-                <input type="radio" name="access" checked={sso === option.value} onChange={() => setSso(option.value)} className="sr-only" />
-                {option.label}
-              </label>
-            ))}
-          </div>
+            ]}
+            value={sso}
+            onChange={setSso}
+          />
           <p className="text-muted-foreground mt-2 text-sm">
             {sso
               ? 'They sign in with your identity provider. Their account is created the first time.'
@@ -320,50 +315,30 @@ function Composer({ onIssued, onCancel }: { onIssued: (invited: Invited) => void
             <span className="text-sm font-medium">
               Project <span className="text-muted-foreground font-normal">(optional)</span>
             </span>
-            <select name="project" className="border-input bg-background h-8 w-56 rounded-lg border px-2 text-sm">
+            <Select name="project" className="w-56">
               <option value="">No project yet</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <fieldset>
             <legend className="mb-2 text-sm font-medium">Role there</legend>
-            <div className="flex flex-wrap gap-2">
-              {roles.map((r) => (
-                <label
-                  key={r.value}
-                  className={cn(
-                    'has-focus-visible:ring-ring/50 has-checked:ring-foreground cursor-pointer rounded-full px-3 py-1 text-sm ring-1 ring-transparent transition-transform duration-200 has-focus-visible:ring-3 motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-95',
-                    r.tint,
-                  )}
-                >
-                  <input type="radio" name="role" value={r.value} defaultChecked={r.value === 'TRANSLATOR'} className="sr-only" />
-                  {r.label}
-                </label>
-              ))}
-            </div>
+            <Segmented name="role" loose options={roles.map((r) => ({ label: r.label, value: r.value }))} defaultValue={'TRANSLATOR' as Role} />
           </fieldset>
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">
               Locale <span className="text-muted-foreground font-normal">(optional)</span>
             </span>
-            <Input name="locale" maxLength={35} placeholder="All locales" className="bg-background w-36" />
+            <Input name="locale" maxLength={35} placeholder="All locales" className="w-36" />
           </label>
         </div>
 
         <fieldset>
           <legend className="mb-2 text-sm font-medium">Invitation expires after</legend>
-          <div className="bg-foreground/[0.06] flex w-fit rounded-lg p-0.5">
-            {expiries.map((e) => (
-              <label key={e.label} className="has-checked:bg-background has-focus-visible:ring-ring/50 cursor-pointer rounded-md px-3 py-1 text-sm transition-[background-color,box-shadow] duration-200 has-checked:shadow-xs has-focus-visible:ring-3">
-                <input type="radio" name="expiry" value={e.days} defaultChecked={e.days === 7} className="sr-only" />
-                {e.label}
-              </label>
-            ))}
-          </div>
+          <Segmented name="expiry" options={expiries.map((e) => ({ label: e.label, value: e.days }))} defaultValue={7} />
         </fieldset>
 
         {invite.error && (
@@ -381,15 +356,5 @@ function Composer({ onIssued, onCancel }: { onIssued: (invited: Invited) => void
         </div>
       </form>
     </motion.div>
-  )
-}
-
-function RoleTag({ role, locale }: { role: Role; locale?: string | null }) {
-  const r = roles.find((x) => x.value === role)!
-  return (
-    <span className={cn('inline-flex rounded-full px-2 py-px text-xs font-medium', r.tint)}>
-      {r.label}
-      {locale && <span className="ml-1 opacity-70">{locale}</span>}
-    </span>
   )
 }

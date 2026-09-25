@@ -12,19 +12,18 @@ export function SettingsDialog({ title, description, icon, tabs, open, onOpenCha
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(44rem,90svh)] max-w-5xl flex-col gap-6 p-6 sm:max-w-5xl">
+      <DialogContent className="flex h-[min(46rem,90svh)] max-w-5xl flex-col gap-6 p-8 sm:max-w-5xl">
         <DialogHeader className="flex-row items-center gap-3 text-left">
           {icon}
           <div className="grid gap-0.5">
-            <DialogTitle className="text-xl">{title}</DialogTitle>
+            <DialogTitle className="text-3xl">{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </div>
         </DialogHeader>
         <Tabs defaultValue={tabs[0].id} className="min-h-0 flex-1">
-          <TabsList variant="line" className="-ml-1.5 max-w-full justify-start overflow-x-auto [scrollbar-width:none]">
-            {tabs.map(({ id, title, icon: Icon }) => (
+          <TabsList variant="line" className="max-w-full justify-start overflow-x-auto [scrollbar-width:none]">
+            {tabs.map(({ id, title }) => (
               <TabsTrigger key={id} value={id}>
-                <Icon />
                 {title}
               </TabsTrigger>
             ))}

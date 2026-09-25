@@ -44,7 +44,7 @@ export function AiFeatures() {
   return (
     <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:gap-14">
       <section className="grid max-w-md content-start gap-6">
-        <div className="flex items-start justify-between gap-6 rounded-xl border p-4">
+        <div className="flex items-start justify-between gap-6 rounded-[20px] border p-5">
           <div className="grid gap-1">
             <p className="font-medium">AI features</p>
             <p className="text-muted-foreground text-sm">Translators can ask for a suggestion.</p>
@@ -97,7 +97,7 @@ export function AiFeatures() {
             </p>
           )}
 
-          <Button type="submit" className="justify-self-start" disabled={save.isPending}>
+          <Button type="submit" size="lg" className="justify-self-start" disabled={save.isPending}>
             {save.isPending && <Spinner />}
             Save
           </Button>
@@ -110,14 +110,14 @@ export function AiFeatures() {
           {available ? 'Suggestions are on.' : 'Suggestions are off.'}
         </p>
         <div className="grid gap-2">
-          <h3 className="font-medium">What it does</h3>
+          <h3 className="text-xl">What it does</h3>
           <p className="text-muted-foreground text-sm leading-relaxed">
             A translator asks for a suggestion on one message and gets it back to accept, change or drop. Nothing is saved
             until they save it, and it counts as their own change.
           </p>
         </div>
         <div className="grid gap-2">
-          <h3 className="font-medium">What it costs</h3>
+          <h3 className="text-xl">What it costs</h3>
           <p className="text-muted-foreground text-sm leading-relaxed">
             Your provider charges for every suggestion. The glossary and the message context are sent with it so the answer
             is worth the call.

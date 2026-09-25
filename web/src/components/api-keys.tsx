@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { BookOpenIcon, PlusIcon, RefreshCwIcon } from 'lucide-react'
+import { PlusIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Flag } from '@/components/locale'
+import { RoleBadge, Segmented } from '@/components/kit'
 import { OneTimeNote } from '@/components/one-time-note'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
@@ -115,7 +115,7 @@ export function ApiKeys() {
             {roles.map((r) => (
               <div key={r.value}>
                 <dt>
-                  <RoleTag role={r.value} />
+                  <RoleBadge role={r.value} />
                 </dt>
                 <dd className="text-muted-foreground mt-1">{r.does}</dd>
               </div>
@@ -125,10 +125,9 @@ export function ApiKeys() {
         <section>
           <h3 className="mb-2 text-base">Using a key</h3>
           <p className="text-muted-foreground mb-3">Send it as a bearer token to the API.</p>
-          <pre className="bg-background mb-3 overflow-x-auto rounded-lg p-3 font-mono text-xs leading-relaxed">{'Authorization: Bearer gk_…'}</pre>
+          <pre className="bg-secondary mb-3 overflow-x-auto rounded-2xl p-4 font-mono text-xs leading-relaxed">{'Authorization: Bearer gk_…'}</pre>
           <Button variant="outline" size="sm" nativeButton={false} render={<a href="/openapi/swagger" target="_blank" rel="noreferrer" />}>
-            <BookOpenIcon className="transition-transform duration-300 motion-safe:group-hover/button:-rotate-6" />
-            API reference
+            API reference →
           </Button>
         </section>
       </aside>
@@ -163,14 +162,13 @@ function KeyRow({ k, path, onIssued, onRevoked }: { k: Key; path: string; onIssu
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate font-medium">{k.name}</span>
-            <RoleTag role={k.role} locale={k.locale} />
+            <RoleBadge role={k.role} locale={k.locale} />
           </div>
           <p className="text-muted-foreground mt-0.5 text-sm">{lifetime(k)}</p>
         </div>
         {isActive(k) && (
           <div className={cn('-mr-2 flex gap-1 transition-opacity', confirming && 'pointer-events-none opacity-0')}>
             <Button variant="ghost" size="sm" onClick={() => setConfirming('rotate')}>
-              <RefreshCwIcon className="transition-transform duration-500 motion-safe:group-hover/button:rotate-180" />
               Rotate
             </Button>
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => setConfirming('revoke')}>
@@ -182,7 +180,7 @@ function KeyRow({ k, path, onIssued, onRevoked }: { k: Key; path: string; onIssu
       <AnimatePresence initial={false}>
         {confirming && (
           <motion.div {...unfold} className="overflow-hidden">
-            <div className="bg-background mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg py-2 pr-2 pl-4 text-sm">
+            <div className="bg-secondary mt-3 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl py-3 pr-3 pl-5 text-sm">
               <p className="min-w-60 flex-1">
                 {confirming === 'rotate'
                   ? 'The old token stops working immediately.'
@@ -226,47 +224,27 @@ function Composer({ path, onIssued, onCancel }: { path: string; onIssued: (key: 
 
   return (
     <motion.div {...unfold} className="overflow-hidden">
-      <form onSubmit={submit} className="border-brand mb-10 grid gap-6 border-l-2 py-1 pl-6">
+      <form onSubmit={submit} className="mb-10 grid gap-6 rounded-[28px] border p-7">
         <label className="grid max-w-sm gap-1.5">
           <span className="text-sm font-medium">Name</span>
-          <Input name="name" required autoFocus maxLength={80} placeholder="CI deploy" className="bg-background" />
+          <Input name="name" required autoFocus maxLength={80} placeholder="CI deploy" />
         </label>
 
         <fieldset>
           <legend className="mb-2 text-sm font-medium">Role</legend>
-          <div className="flex flex-wrap gap-2">
-            {roles.map((r) => (
-              <label
-                key={r.value}
-                className={cn(
-                  'has-focus-visible:ring-ring/50 has-checked:ring-foreground cursor-pointer rounded-full px-3 py-1 text-sm ring-1 ring-transparent transition-transform duration-200 has-focus-visible:ring-3 motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-95',
-                  r.tint,
-                )}
-              >
-                <input type="radio" name="role" value={r.value} defaultChecked={r.value === 'READER'} className="sr-only" />
-                {r.label}
-              </label>
-            ))}
-          </div>
+          <Segmented name="role" loose options={roles.map((r) => ({ label: r.label, value: r.value }))} defaultValue={'READER' as Role} />
         </fieldset>
 
         <div className="flex flex-wrap gap-x-10 gap-y-6">
           <fieldset>
             <legend className="mb-2 text-sm font-medium">Expires after</legend>
-            <div className="bg-foreground/[0.06] flex rounded-lg p-0.5">
-              {expiries.map((e) => (
-                <label key={e.label} className="has-checked:bg-background has-focus-visible:ring-ring/50 cursor-pointer rounded-md px-3 py-1 text-sm transition-[background-color,box-shadow] duration-200 has-checked:shadow-xs has-focus-visible:ring-3">
-                  <input type="radio" name="expiry" value={e.days} defaultChecked={e.days === 90} className="sr-only" />
-                  {e.label}
-                </label>
-              ))}
-            </div>
+            <Segmented name="expiry" options={expiries.map((e) => ({ label: e.label, value: e.days }))} defaultValue={90} />
           </fieldset>
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">
               Locale <span className="text-muted-foreground font-normal">(optional)</span>
             </span>
-            <Input name="locale" maxLength={35} placeholder="All locales" className="bg-background w-40" />
+            <Input name="locale" maxLength={35} placeholder="All locales" className="w-40" />
           </label>
         </div>
 
@@ -285,21 +263,6 @@ function Composer({ path, onIssued, onCancel }: { path: string; onIssued: (key: 
         </div>
       </form>
     </motion.div>
-  )
-}
-
-function RoleTag({ role, locale }: { role: Role; locale?: string | null }) {
-  const r = roles.find((x) => x.value === role)!
-  return (
-    <span className={cn('inline-flex rounded-full px-2 py-px text-xs font-medium', r.tint)}>
-      {r.label}
-      {locale && (
-        <span className="ml-1.5 inline-flex items-center gap-1 opacity-80">
-          <Flag locale={locale} className="size-3.5" />
-          {locale}
-        </span>
-      )}
-    </span>
   )
 }
 

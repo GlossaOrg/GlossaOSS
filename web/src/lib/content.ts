@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useWorkspace } from '@/store/workspace'
 
@@ -61,24 +61,16 @@ export function status(r: Resource): Status {
   return r.stale ? 'outdated' : 'approved'
 }
 
-/** Sticky-note tints, in the vocabulary `lib/projects.ts` already uses for roles. */
-export const states: { value: Status; label: string; says: string; tint: string; dot: string }[] = [
-  { value: 'untranslated', label: 'To translate', says: 'Nothing written in this locale yet.', tint: 'bg-slate-100 text-slate-800 dark:bg-slate-400/15 dark:text-slate-100', dot: 'bg-slate-400' },
-  { value: 'review', label: 'In review', says: 'A proposal is waiting for a reviewer.', tint: 'bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-100', dot: 'bg-amber-500' },
-  { value: 'rejected', label: 'Sent back', says: 'The last proposal was rejected.', tint: 'bg-rose-100 text-rose-900 dark:bg-rose-400/15 dark:text-rose-100', dot: 'bg-rose-500' },
-  { value: 'outdated', label: 'Source moved', says: 'The source changed after this was approved.', tint: 'bg-violet-100 text-violet-900 dark:bg-violet-400/15 dark:text-violet-100', dot: 'bg-violet-500' },
-  { value: 'approved', label: 'Approved', says: 'Live in the next catalog.', tint: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-100', dot: 'bg-emerald-500' },
+/** Where a message stands in one locale. Colour belongs to languages, so a state is a dot. */
+export const states: { value: Status; label: string; says: string; dot: string }[] = [
+  { value: 'untranslated', label: 'To translate', says: 'Nothing written in this locale yet.', dot: 'bg-slate-400' },
+  { value: 'review', label: 'In review', says: 'A proposal is waiting for a reviewer.', dot: 'bg-amber-500' },
+  { value: 'rejected', label: 'Sent back', says: 'The last proposal was rejected.', dot: 'bg-rose-500' },
+  { value: 'outdated', label: 'Source moved', says: 'The source changed after this was approved.', dot: 'bg-violet-500' },
+  { value: 'approved', label: 'Approved', says: 'Live in the next catalog.', dot: 'bg-emerald-500' },
 ]
 
 export const state = (s: Status) => states.find((x) => x.value === s)!
-
-export const typeTint: Record<VariableType, string> = {
-  TEXT: 'bg-slate-100 text-slate-800 dark:bg-slate-400/20 dark:text-slate-100',
-  NUMBER: 'bg-sky-100 text-sky-900 dark:bg-sky-400/20 dark:text-sky-100',
-  TEMPORAL: 'bg-violet-100 text-violet-900 dark:bg-violet-400/20 dark:text-violet-100',
-  SELECT: 'bg-rose-100 text-rose-900 dark:bg-rose-400/20 dark:text-rose-100',
-  BOOLEAN: 'bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100',
-}
 
 export type Kind = 'text' | 'brace' | 'name' | 'type' | 'style' | 'arm' | 'hash' | 'quote' | 'comma'
 type Token = { text: string; kind: Kind; depth: number }
@@ -182,6 +174,7 @@ export function useLocales(projectId: number) {
   return useQuery({
     queryKey: ['locales', projectId],
     queryFn: () => api<Locale[]>(`/api/projects/${projectId}/locales${stored ? `?locale=${encodeURIComponent(stored)}` : ''}`),
+    enabled: !!projectId,
   })
 }
 
@@ -214,5 +207,21 @@ export function useDetail(projectId: number, id: number, locale?: string) {
     queryKey: ['resource', projectId, id, locale],
     queryFn: () => api<Detail>(`/api/projects/${projectId}/resources/${id}?locale=${encodeURIComponent(locale!)}`),
     enabled: !!locale,
+  })
+}
+
+/**
+ * Every locale's list at once, archived resources left out: what a screen needs to say how far each
+ * language has got. It shares `useResources`' cache, so switching to a locale afterwards is instant.
+ * ponytail: one list per locale. Batch it server-side when a project holds thousands of keys and
+ * this becomes N large responses.
+ */
+export function useLocaleLists(projectId: number, locales: Locale[]) {
+  return useQueries({
+    queries: locales.map((l) => ({
+      queryKey: ['resources', projectId, l.locale],
+      queryFn: () => api<Resource[]>(`/api/projects/${projectId}/resources?locale=${encodeURIComponent(l.locale)}`),
+      select: (rows: Resource[]) => rows.filter((r) => !r.archived),
+    })),
   })
 }

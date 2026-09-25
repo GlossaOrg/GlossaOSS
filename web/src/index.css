@@ -1,23 +1,34 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/bricolage-grotesque/standard.css";
+@import "@fontsource-variable/onest";
 @import "@fontsource-variable/geist-mono";
 
 @custom-variant dark (&:is(.dark *));
 
-/* Evernote's green, and the lighter one it uses on dark backgrounds. */
+/* Ink carries the structure; colour belongs to the languages (see `hue` in components/locale.tsx). */
 :root {
-    --brand: oklch(0.62 0.176 148);
-    --brand-bright: oklch(0.78 0.18 152);
+    --brand: var(--foreground);
+    /* A language's pastel, and the stronger shade of it the logo and small marks use. Text on a
+       pastel is always ink, in the dark theme too: the pastels stay light there. */
+    --lang-0: #CFF5D8; --lang-0-v: #6FD68C;
+    --lang-1: #FFD6E0; --lang-1-v: #FF8FAB;
+    --lang-2: #CDE9FF; --lang-2-v: #6CBEFF;
+    --lang-3: #E0DBFF; --lang-3-v: #A596FF;
+    --lang-4: #FFE6B3; --lang-4-v: #FFBE45;
+    --lang-5: #CDF3EE; --lang-5-v: #5FD3C6;
+    --lang-6: #FFDDCF; --lang-6-v: #FF9B6E;
+    --lang-7: #EDF4BC; --lang-7-v: #C4D84A;
+    --on-tint: #0E0E0E;
 }
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --color-brand: var(--brand);
-    --color-brand-bright: var(--brand-bright);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-heading: 'Bricolage Grotesque Variable', sans-serif;
+    --font-sans: 'Onest Variable', sans-serif;
     --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+    --color-brand: var(--brand);
+    --color-on-tint: var(--on-tint);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -59,80 +70,74 @@
 }
 
 :root {
-    /* Extracted from evernote.com: --bg-primary is white, --bg-secondary a warm off-white,
-       text runs primary → secondary → tertiary, and strokes come in two weights (cards are
-       lighter than buttons). Values are that ramp mapped onto shadcn's token names. */
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.22 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.22 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.22 0 0);
-    /* Their primary action is black and turns green on hover — not a coloured button. */
-    --primary: oklch(0.18 0 0);
-    --primary-foreground: oklch(0.99 0 0);
-    --secondary: oklch(0.968 0.003 106);
-    --secondary-foreground: oklch(0.42 0 0);
-    --muted: oklch(0.968 0.003 106);
-    --muted-foreground: oklch(0.55 0 0);
-    --accent: oklch(0.955 0.004 106);
-    --accent-foreground: oklch(0.22 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.921 0.003 106);
-    --input: oklch(0.86 0.003 106);
-    --ring: var(--brand);
-    --chart-1: var(--brand);
-    --chart-2: oklch(0.55 0 0);
-    --chart-3: oklch(0.44 0 0);
-    --chart-4: oklch(0.37 0 0);
-    --chart-5: oklch(0.27 0 0);
-    /* Buttons are ~6px and cards ~8px there; 0.5rem base puts --radius-md and --radius-lg
-       on exactly those. */
-    --radius: 0.5rem;
-    --sidebar: oklch(1 0 0);
-    --sidebar-foreground: oklch(0.22 0 0);
-    --sidebar-primary: oklch(0.18 0 0);
-    --sidebar-primary-foreground: oklch(0.99 0 0);
-    --sidebar-accent: oklch(0.945 0.004 106);
-    --sidebar-accent-foreground: oklch(0.22 0 0);
-    --sidebar-border: oklch(0.921 0.003 106);
-    --sidebar-ring: var(--brand);
+    --background: #FFFFFF;
+    --foreground: #0E0E0E;
+    --card: #FFFFFF;
+    --card-foreground: #0E0E0E;
+    --popover: #FFFFFF;
+    --popover-foreground: #0E0E0E;
+    --primary: #0E0E0E;
+    --primary-foreground: #FFFFFF;
+    /* One warm off-white for every quiet surface: fields, hovers, the project switcher. */
+    --secondary: #F4F3EE;
+    --secondary-foreground: #0E0E0E;
+    --muted: #F4F3EE;
+    --muted-foreground: #6A6A66;
+    --accent: #F4F3EE;
+    --accent-foreground: #0E0E0E;
+    --destructive: #D93A3A;
+    --border: #ECEBE6;
+    --input: #E2E1DB;
+    --ring: #0E0E0E;
+    --chart-1: #0E0E0E;
+    --chart-2: #6A6A66;
+    --chart-3: #A3A39D;
+    --chart-4: #CFCEC8;
+    --chart-5: #ECEBE6;
+    /* Cards are 28px and fields 14px; buttons are always pills (`rounded-full`), whatever this says. */
+    --radius: 0.875rem;
+    --sidebar: #FFFFFF;
+    --sidebar-foreground: #0E0E0E;
+    --sidebar-primary: #0E0E0E;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #F4F3EE;
+    --sidebar-accent-foreground: #0E0E0E;
+    --sidebar-border: #ECEBE6;
+    --sidebar-ring: #0E0E0E;
 }
 
 .dark {
-    /* Their dark theme swaps the black action for the lighter green and replaces card shadows
-       with a hairline border (`dark:border-white-stroke-cards`), which is what --border does. */
-    --background: oklch(0.14 0 0);
-    --foreground: oklch(0.97 0 0);
-    --card: oklch(0.19 0 0);
-    --card-foreground: oklch(0.97 0 0);
-    --popover: oklch(0.19 0 0);
-    --popover-foreground: oklch(0.97 0 0);
-    --primary: var(--brand-bright);
-    --primary-foreground: oklch(0.14 0 0);
-    --secondary: oklch(0.25 0 0);
-    --secondary-foreground: oklch(0.97 0 0);
-    --muted: oklch(0.25 0 0);
-    --muted-foreground: oklch(0.68 0 0);
-    --accent: oklch(0.25 0 0);
-    --accent-foreground: oklch(0.97 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 12%);
-    --input: oklch(1 0 0 / 18%);
-    --ring: var(--brand-bright);
-    --chart-1: var(--brand-bright);
-    --chart-2: oklch(0.68 0 0);
-    --chart-3: oklch(0.55 0 0);
-    --chart-4: oklch(0.44 0 0);
-    --chart-5: oklch(0.33 0 0);
-    --sidebar: oklch(0.16 0 0);
-    --sidebar-foreground: oklch(0.97 0 0);
-    --sidebar-primary: var(--brand-bright);
-    --sidebar-primary-foreground: oklch(0.14 0 0);
-    --sidebar-accent: oklch(0.24 0 0);
-    --sidebar-accent-foreground: oklch(0.97 0 0);
-    --sidebar-border: oklch(1 0 0 / 12%);
-    --sidebar-ring: var(--brand-bright);
+    --background: #0E0E0E;
+    --foreground: #F5F4EF;
+    --card: #171716;
+    --card-foreground: #F5F4EF;
+    --popover: #171716;
+    --popover-foreground: #F5F4EF;
+    --primary: #F5F4EF;
+    --primary-foreground: #0E0E0E;
+    --secondary: #1E1E1C;
+    --secondary-foreground: #F5F4EF;
+    --muted: #1E1E1C;
+    --muted-foreground: #9C9C95;
+    --accent: #1E1E1C;
+    --accent-foreground: #F5F4EF;
+    --destructive: #FF6B6B;
+    --border: rgb(255 255 255 / 10%);
+    --input: rgb(255 255 255 / 16%);
+    --ring: #F5F4EF;
+    --chart-1: #F5F4EF;
+    --chart-2: #9C9C95;
+    --chart-3: #6A6A66;
+    --chart-4: #3A3A37;
+    --chart-5: #1E1E1C;
+    --sidebar: #0E0E0E;
+    --sidebar-foreground: #F5F4EF;
+    --sidebar-primary: #F5F4EF;
+    --sidebar-primary-foreground: #0E0E0E;
+    --sidebar-accent: #1E1E1C;
+    --sidebar-accent-foreground: #F5F4EF;
+    --sidebar-border: rgb(255 255 255 / 10%);
+    --sidebar-ring: #F5F4EF;
 }
 
 @layer base {
@@ -140,46 +145,33 @@
     @apply border-border outline-ring/50;
     }
   body {
-    /* `antialiased` and a 16px/1.5 body are both straight off evernote.com's <body>. */
     @apply bg-background text-foreground antialiased;
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.5;
     }
   html {
     @apply font-sans;
     }
   h1, h2, h3, h4, h5 {
-    /* Their headlines are tight and semibold, never bold-and-loose, and the tracking gets
-       tighter as the size grows. A utility class on the element still wins over these. */
-    @apply font-semibold;
+    @apply font-heading font-bold;
+    font-optical-sizing: auto;
     }
-  h1 {
-    @apply text-4xl md:text-5xl;
-    letter-spacing: -0.03em;
-    line-height: 1.05;
-    }
-  h2 {
-    @apply text-3xl md:text-4xl;
-    letter-spacing: -0.025em;
-    line-height: 1.1;
+  /* A screen's title: big and tight, the one loud thing on the page. */
+  h1, h2 {
+    @apply font-extrabold;
+    font-size: clamp(2.75rem, 5.5vw, 4.5rem);
+    letter-spacing: -0.05em;
+    line-height: 0.95;
     }
   h3 {
     @apply text-2xl;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
     }
 }
 
 @utility eyebrow {
-  /* `text-[10px] font-semibold uppercase tracking-[1px] opacity-50` — the section label they
-     use above every nav column. */
-  @apply text-[10px] font-semibold uppercase tracking-[1px] opacity-60;
-}
-
-@keyframes shake {
-  25% { transform: rotate(-12deg); }
-  50% { transform: rotate(9deg); }
-  75% { transform: rotate(-5deg); }
+  @apply text-muted-foreground text-[12.5px] font-medium;
 }
 
 @keyframes float {
@@ -194,10 +186,9 @@
 @utility page {
   /* The one width every screen's content shares, so edges do not jump between screens. The cap
      only bites on very wide monitors, where lines would otherwise run too long to read. */
-  @apply mx-auto w-full max-w-[96rem];
+  @apply mx-auto w-full max-w-[74rem];
 }
 
 @utility link-bg-animated {
-  /* `link-background-animated`: the nav item's background grows in rather than snapping. */
   @apply transition-colors duration-200 ease-out;
 }

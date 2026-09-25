@@ -1,25 +1,12 @@
-import { useLocation } from 'react-router'
-import { Separator } from '@/components/ui/separator'
+import { Logo } from '@/components/logo'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { useScreens } from '@/screens'
 
+/** Phones only: the sidebar is a drawer there, and this is its handle. Wider, every screen names itself. */
 export function SiteHeader() {
-  const { pathname } = useLocation()
-  // A route with parameters never equals the pathname, so it is matched on its literal prefix —
-  // after every exact match, which a parameterised sibling would otherwise shadow.
-  const screens = useScreens()
-  const title =
-    (screens.find((item) => item.url === pathname) ??
-      screens.find((item) => item.url.includes('/:') && pathname.startsWith(`${item.url.split('/:')[0]}/`)))
-      ?.title ?? 'Glossa'
-
   return (
-    <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
-      <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mx-2 h-4 data-vertical:self-auto" />
-        <h1 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h1>
-      </div>
+    <header className="bg-background/90 sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b px-4 backdrop-blur-md md:hidden">
+      <SidebarTrigger className="-ml-1 rounded-full" />
+      <Logo className="h-5" />
     </header>
   )
 }

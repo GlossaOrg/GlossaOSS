@@ -1,13 +1,12 @@
 import type { Me } from '@/lib/me'
 import { useState } from 'react'
-import { SettingsIcon, SparklesIcon, UsersIcon } from 'lucide-react'
-import { NavMain } from '@/components/nav-main'
+import { SparklesIcon, UsersIcon } from 'lucide-react'
+import { NavMain, navItem } from '@/components/nav-main'
 import { AiFeatures } from '@/components/ai'
+import { Logo } from '@/components/logo'
 import { SettingsDialog } from '@/components/settings'
 import { Users } from '@/components/users'
 import { plugin } from '@/plugin'
-import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
-import { useProject } from '@/lib/projects'
 import { useScreens } from '@/screens'
 import { NavUser } from '@/components/nav-user'
 import { WorkspaceSwitcher } from '@/components/workspace-switcher'
@@ -15,36 +14,34 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
 
-/** shadcn's sidebar-07: project switcher, screens, and the signed-in user. */
+/** The logo, the project, its screens, and the signed-in user. */
 export function AppSidebar({
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { user: Me }) {
   const [settings, setSettings] = useState(false)
-  const { project } = useProject()
 
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
+    <Sidebar collapsible="offcanvas" {...props}>
+      <SidebarHeader className="gap-6 px-4 pt-6">
+        <Logo className="ml-2 h-[26px] self-start" />
         {plugin.switcher ?? <WorkspaceSwitcher />}
       </SidebarHeader>
-      <SidebarContent>
-        {/* Named after the project the screens are scoped to, so the nav never claims a scope it is not in. */}
-        <NavMain label={project?.name} screens={useScreens()} />
+      <SidebarContent className="px-2 pt-2">
+        <NavMain screens={useScreens()} />
         {user.admin && (
           <SidebarGroup className="mt-auto">
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Settings"
-                  onClick={() => setSettings(true)}
-                  className="link-bg-animated h-9 rounded-lg px-3 motion-safe:hover:[&_svg]:animate-[shake_0.45s_ease-in-out]"
-                >
-                  <SettingsIcon />
+                <SidebarMenuButton onClick={() => setSettings(true)} className={navItem}>
                   <span>Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -64,7 +61,7 @@ export function AppSidebar({
           onOpenChange={setSettings}
         />
       )}
-      <SidebarFooter>
+      <SidebarFooter className="px-4 pb-5">
         <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />

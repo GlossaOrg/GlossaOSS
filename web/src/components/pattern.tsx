@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { lex, typeTint, type VariableType } from '@/lib/content'
+import { lex } from '@/lib/content'
 
 /** A message as prose: its arguments as chips, so nobody reads braces to see what a string says. */
 export function Pattern({ text, rtl, className }: { text: string; rtl?: boolean; className?: string }) {
@@ -41,15 +41,12 @@ function segments(pattern: string): Segment[] {
 }
 
 /** Inline, in the flow of the sentence: an argument is part of the text, not an annotation on it. */
-/** The same rule the server infers with, for colour only. */
-const tint: Record<string, VariableType> = { plural: 'NUMBER', selectordinal: 'NUMBER', number: 'NUMBER', date: 'TEMPORAL', time: 'TEMPORAL', select: 'SELECT' }
-
 function Chip({ name, kind }: { name: string; kind?: string }) {
   const branching = kind === 'plural' || kind === 'selectordinal' || kind === 'select'
   return (
-    <span className={cn('mx-px inline-flex items-baseline gap-1 rounded-md px-1.5 py-px align-baseline text-[0.9em] font-medium', typeTint[tint[kind ?? ''] ?? 'TEXT'])}>
+    <span className="bg-foreground/[0.07] mx-px inline-flex items-baseline gap-1 rounded-md px-1.5 py-px align-baseline font-mono text-[0.84em] font-medium">
       {name}
-      {branching && <span className="text-[0.75em] opacity-60">{kind === 'select' ? 'select' : 'plural'}</span>}
+      {branching && <span className="font-sans text-[0.8em] opacity-50">{kind === 'select' ? 'select' : 'plural'}</span>}
     </span>
   )
 }

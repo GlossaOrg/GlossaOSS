@@ -39,7 +39,7 @@ export default defineConfig({
           const url = req.url ?? '/'
           // `/` is the app itself, whatever the Accept header.
           if (url === '/') return url
-          if (/^\/(@|src\/|node_modules\/|favicon\.svg)/.test(url)) return url
+          if (/^\/(@|src\/|node_modules\/|glossa\.svg)/.test(url)) return url
           if (!BACKEND.test(url) && req.headers.accept?.includes('text/html')) return '/index.html'
         },
       },

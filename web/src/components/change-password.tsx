@@ -31,7 +31,7 @@ export function ChangePassword() {
 
   return (
     <AuthCard title="Choose a new password">
-      <p className="text-muted-foreground mb-7 text-sm">An admin reset your password. Choose a new one to continue.</p>
+      <p className="text-muted-foreground mb-7">An admin reset your password. Choose a new one to continue.</p>
       <form onSubmit={submit} noValidate className="grid gap-4">
         <PasswordFields invalid={!!problem} onEdit={() => setProblem(null)} autoFocus />
         {problem && (
@@ -39,7 +39,7 @@ export function ChangePassword() {
             {problem}
           </motion.p>
         )}
-        <Button type="submit" disabled={pending} className="mt-1">
+        <Button type="submit" size="lg" disabled={pending} className="mt-2">
           Set password
         </Button>
       </form>

@@ -4,8 +4,8 @@ import { CheckIcon, CopyIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 /**
- * The one place a secret is ever shown — a token, an invitation link — on the yellow paper the rest
- * of the app keeps its sticky notes on. Closing it drops the last copy the browser holds.
+ * The one place a secret is ever shown — a token, an invitation link — in ink, the loudest thing on
+ * the page. Closing it drops the last copy the browser holds.
  */
 export function OneTimeNote({ title, secret, children, onClose }: { title: string; secret: string; children: React.ReactNode; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
@@ -17,13 +17,15 @@ export function OneTimeNote({ title, secret, children, onClose }: { title: strin
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
       transition={{ type: 'spring', stiffness: 380, damping: 26 }}
-      className="mb-12 rounded-[3px] bg-[#fff5a5] p-6 text-stone-900 shadow-[0_1px_1px_rgb(0_0_0/0.05),0_18px_28px_-18px_rgb(110_85_0/0.45)] dark:bg-[#4d4620] dark:text-yellow-50"
+      className="bg-primary text-primary-foreground mb-12 rounded-[28px] p-7"
     >
-      <p className="font-semibold">{title}</p>
-      <p className="mb-5 text-sm opacity-75">{children}</p>
+      <p className="font-heading text-xl font-bold tracking-[-0.02em]">{title}</p>
+      <p className="mt-1 mb-5 text-sm opacity-70">{children}</p>
       <div className="flex flex-wrap items-center gap-2">
-        <code className="min-w-0 flex-1 rounded bg-white/65 px-3 py-2 font-mono text-sm break-all dark:bg-black/25">{secret}</code>
+        <code className="bg-primary-foreground/10 min-w-0 flex-1 rounded-2xl px-4 py-3 font-mono text-sm break-all">{secret}</code>
         <Button
+          variant="secondary"
+          size="lg"
           onClick={() =>
             navigator.clipboard.writeText(secret).then(() => {
               setCopied(true)
@@ -39,7 +41,7 @@ export function OneTimeNote({ title, secret, children, onClose }: { title: strin
           {copied ? 'Copied' : 'Copy'}
         </Button>
       </div>
-      <button type="button" onClick={onClose} className="mt-5 cursor-pointer text-sm font-medium underline decoration-stone-900/30 underline-offset-4 transition-[text-decoration-color] hover:decoration-current dark:decoration-yellow-50/30">
+      <button type="button" onClick={onClose} className="decoration-primary-foreground/30 mt-5 cursor-pointer text-sm font-semibold underline underline-offset-4 transition-[text-decoration-color] hover:decoration-current">
         I saved it
       </button>
     </motion.section>

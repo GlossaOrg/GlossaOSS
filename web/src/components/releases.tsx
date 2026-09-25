@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query'
-import { CheckIcon, DownloadIcon, UploadIcon } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { cn } from 'cn'
+import { Badge } from '@/components/kit'
 import { Language } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,10 +18,10 @@ export function Releases() {
   const ordered = [...rows].sort((a, b) => Number(b.source) - Number(a.source) || a.locale.localeCompare(b.locale))
 
   return (
-    <div className="page grid gap-8">
+    <div className="page grid gap-12">
       <header>
-        <h2 className="mb-2">Releases</h2>
-        <p className="text-muted-foreground text-[17px]">Each locale publishes on its own, and only what is approved goes in.</p>
+        <h2>Releases</h2>
+        <p className="text-muted-foreground mt-4 max-w-[46ch] text-lg">Each language publishes on its own, and only what is approved goes in.</p>
       </header>
 
       {locales.error ? (
@@ -35,14 +35,14 @@ export function Releases() {
           ))}
         </div>
       ) : (
-        <div className="border-y">
-          <div className={cn('text-muted-foreground hidden border-b py-2 md:grid', columns)}>
+        <div className="border-foreground border-t">
+          <div className={cn('text-muted-foreground hidden border-b py-3 md:grid', columns)}>
             <span className="eyebrow">Language</span>
             <span className="eyebrow">Current release</span>
             <span className="eyebrow">Ready to publish</span>
             <span />
           </div>
-          <ul className="divide-y">
+          <ul className="divide-y border-b">
             {ordered.map((l) => (
               <li key={l.locale}>
                 <Row locale={l} projectId={project.id} />
@@ -92,11 +92,11 @@ function Row({ locale, projectId }: { locale: Locale; projectId: number }) {
   const version = (v: string) => v.replace(/(\.0)+$/, '')
 
   return (
-    <div className="py-3">
-      <div className={cn('grid gap-y-2', columns)}>
+    <div className="py-5">
+      <div className={cn('grid gap-y-3', columns)}>
         <span className="flex min-w-0 flex-wrap items-center gap-2">
           <Language locale={locale.locale} />
-          {locale.source && <span className="bg-brand/10 text-brand rounded-full px-2 py-px text-[11px] font-medium">source</span>}
+          {locale.source && <Badge className="bg-primary text-primary-foreground">Source</Badge>}
         </span>
 
         <span className="grid min-w-0 gap-0.5 text-sm">
@@ -121,19 +121,13 @@ function Row({ locale, projectId }: { locale: Locale; projectId: number }) {
           {!rows.length ? (
             <span className="text-muted-foreground text-sm">Nothing to publish yet</span>
           ) : ready ? (
-            <span className="inline-flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-300">
-              <CheckIcon className="size-3.5" />
-              {rows.length === 1 ? '1 message approved' : `All ${rows.length} messages approved`}
-            </span>
+            <Badge dot="bg-emerald-500">{rows.length === 1 ? '1 message approved' : `All ${rows.length} approved`}</Badge>
           ) : (
             [...new Set(blocked.map(status))].map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => navigate('/content')}
-                className={cn('cursor-pointer rounded-full px-2 py-px text-xs font-medium transition-transform duration-200 motion-safe:hover:-translate-y-0.5', state(s).tint)}
-              >
-                {blocked.filter((b) => status(b) === s).length} {state(s).label.toLowerCase()}
+              <button key={s} type="button" onClick={() => navigate('/content')} className="cursor-pointer transition-transform duration-200 motion-safe:hover:-translate-y-0.5">
+                <Badge dot={state(s).dot}>
+                  {blocked.filter((b) => status(b) === s).length} {state(s).label.toLowerCase()}
+                </Badge>
               </button>
             ))
           )}
@@ -142,13 +136,11 @@ function Row({ locale, projectId }: { locale: Locale; projectId: number }) {
         <span className="flex items-center gap-1.5 md:justify-end">
           {manifest.data && (
             <Button variant="ghost" size="sm" nativeButton={false} render={<a href={`${base}/${manifest.data.hash}`} target="_blank" rel="noreferrer" />}>
-              <DownloadIcon />
-              Catalog
+              Download
             </Button>
           )}
           <Button size="sm" variant={ready ? 'default' : 'outline'} disabled={publish.isPending || !rows.length} onClick={() => publish.mutate()}>
-            <UploadIcon className={cn('size-3.5', publish.isPending && 'motion-safe:animate-bounce')} />
-            {ready ? 'Publish' : 'Publish anyway'}
+            {publish.isPending ? 'Publishing…' : ready ? 'Publish' : 'Publish anyway'}
           </Button>
         </span>
       </div>

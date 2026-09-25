@@ -1,27 +1,6 @@
 import { cn } from 'cn'
 
-/**
- * circle-flags, bundled rather than fetched from its CDN: a self-hosted install must not tell a
- * third party which languages a project speaks, nor break when it cannot reach one. `no-inline`
- * keeps each SVG a file of its own, fetched only when a flag is actually shown.
- */
-const countries = import.meta.glob<string>('../../node_modules/circle-flags/flags/*.svg', { query: '?no-inline', import: 'default', eager: true })
-const languages = import.meta.glob<string>('../../node_modules/circle-flags/flags/language/*.svg', { query: '?no-inline', import: 'default', eager: true })
-const byName = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([path, url]) => [path.slice(path.lastIndexOf('/') + 1, -4), url]))
-const country = byName(countries)
-const language = byName(languages)
-
 const names = new Intl.DisplayNames(['en'], { type: 'language' })
-
-/** The region's flag when the tag names one, the language's own otherwise, a neutral one failing both. */
-function flag(tag: string) {
-  try {
-    const parsed = new Intl.Locale(tag)
-    return country[parsed.region?.toLowerCase() ?? ''] ?? language[parsed.language] ?? country.xx
-  } catch {
-    return country.xx
-  }
-}
 
 /** "Arabic (Saudi Arabia)" for `ar-SA`, the way a person names a language. */
 export function languageName(tag: string) {
@@ -32,15 +11,47 @@ export function languageName(tag: string) {
   }
 }
 
-export function Flag({ locale, className }: { locale: string; className?: string }) {
-  return <img src={flag(locale)} alt="" title={languageName(locale)} draggable={false} className={cn('size-5 shrink-0 rounded-full', className)} />
+/** The best-known languages get a pastel each, so no two of them ever share one. */
+const known: Record<string, number> = { en: 0, it: 1, fr: 2, de: 3, ar: 4, pt: 5, es: 6, nl: 7 }
+
+/**
+ * Which of the eight pastels (`--lang-N` in index.css) a language wears. By tag, not by project:
+ * Italian is the same pink everywhere. A regional variant sits three pastels on from its language,
+ * so French and Canadian French never look like one tile twice.
+ * ponytail: past the eight known languages two can land on the same pastel; the monogram still tells them apart.
+ */
+export function hue(tag: string) {
+  const [language, ...rest] = tag.toLowerCase().split(/[-_]/)
+  const base = known[language] ?? [...language].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 8
+  return rest.length ? (base + 3) % 8 : base
 }
 
-/** The standard way a locale is named anywhere in the app: its flag, its name, and the tag itself. */
+export const tint = (tag: string) => `var(--lang-${hue(tag)})`
+
+/** A language as a small pastel dot, for where its name is written out beside it. */
+export function Dot({ locale, className }: { locale: string; className?: string }) {
+  return <span aria-hidden title={languageName(locale)} className={cn('size-2.5 shrink-0 rounded-full', className)} style={{ background: `var(--lang-${hue(locale)}-v)` }} />
+}
+
+/** A language as its tag on its pastel, where it stands on its own. Size it with `className`. */
+export function Monogram({ locale, className }: { locale: string; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      title={languageName(locale)}
+      className={cn('text-on-tint font-heading grid size-12 shrink-0 place-items-center rounded-2xl font-extrabold tracking-[-0.04em]', locale.length > 3 ? 'text-sm' : 'text-lg', className)}
+      style={{ background: tint(locale) }}
+    >
+      {locale}
+    </span>
+  )
+}
+
+/** The standard way a locale is named anywhere in the app: its colour, its name, and the tag itself. */
 export function Language({ locale, className, tag = true }: { locale: string; className?: string; tag?: boolean }) {
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-2', className)}>
-      <Flag locale={locale} />
+      <Dot locale={locale} />
       <span className="truncate font-medium">{languageName(locale)}</span>
       {tag && <span className="text-muted-foreground font-mono text-[0.8em] whitespace-nowrap">{locale}</span>}
     </span>

@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'motion/react'
+import { motion } from 'motion/react'
 import { useLocation, useRoutes } from 'react-router'
 import { AppSidebar } from '@/components/app-sidebar'
 import { ChangePassword } from '@/components/change-password'
@@ -46,32 +46,22 @@ export default function App() {
   }
 
   return (
-    <SidebarProvider
-      style={
-        {
-          '--sidebar-width': 'calc(var(--spacing) * 68)',
-          /* evernote.com's own nav is h-16 on mobile, h-20 from md. */
-          '--header-height': 'calc(var(--spacing) * 16)',
-        } as React.CSSProperties
-      }
-    >
+    <SidebarProvider style={{ '--sidebar-width': 'calc(var(--spacing) * 64)' } as React.CSSProperties}>
       {/* No `variant="inset"`: that wraps the content area in its own rounded, shadowed panel.
           Sidebar and content sit side by side, neither nested in the other. */}
       <AppSidebar user={me} />
-      <SidebarInset className="bg-secondary">
+      <SidebarInset>
         <SiteHeader />
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={route.pathname}
-            className="@container/main flex flex-1 flex-col p-4 lg:px-6 lg:py-8"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-          >
-            {screen}
-          </motion.div>
-        </AnimatePresence>
+        {/* Enter only: waiting for the old screen to fade out before the new one came in read as lag. */}
+        <motion.div
+          key={route.pathname}
+          className="@container/main flex flex-1 flex-col px-5 pt-8 pb-16 md:px-10 md:pt-14 lg:px-16"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: [0.2, 0.7, 0.2, 1] }}
+        >
+          {screen}
+        </motion.div>
       </SidebarInset>
     </SidebarProvider>
   )
@@ -80,9 +70,9 @@ export default function App() {
 function NotFound() {
   return (
     <section className="flex flex-1 flex-col items-center justify-center p-10 text-center">
-      <p className="eyebrow text-muted-foreground mb-4">404</p>
-      <h2 className="mb-3">No such page</h2>
-      <p className="text-muted-foreground text-[17px]">Page not found.</p>
+      <p className="text-muted-foreground mb-4">404</p>
+      <h2 className="mb-4">No such page</h2>
+      <p className="text-muted-foreground text-lg">Check the address, or pick a screen on the left.</p>
     </section>
   )
 }
