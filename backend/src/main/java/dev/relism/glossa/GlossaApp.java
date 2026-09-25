@@ -1,6 +1,8 @@
 package dev.relism.glossa;
 
 import dev.relism.flash.ext.jackson.json.JsonExtension;
+import dev.relism.flash.ext.jackson.xml.XmlExtension;
+import dev.relism.flash.ext.validation.avaje.AvajeValidationExtension;
 import dev.relism.flash.ext.limiter.LimiterExtension;
 import dev.relism.flash.ext.openapi.OpenApiExtension;
 import dev.relism.flash.ext.openapi.Ui;
@@ -108,6 +110,10 @@ public final class GlossaApp implements FlashApplication {
 
         app.install(db.extension())
                 .install(json)
+                // XML for the delivery formats that are XML; only JSON is marshalled automatically.
+                .install(new XmlExtension())
+                // A body is checked against its own type's rules before a handler sees it.
+                .install(new AvajeValidationExtension())
                 .install(services)
                 // §10: the public delivery API must be rate-limited.
                 .install(new LimiterExtension())
@@ -116,7 +122,6 @@ public final class GlossaApp implements FlashApplication {
                 // The SPA's sign-in page lists every way in, so a browser always lands there.
                 .install(security)
                 .install(services.keys().extension())
-                .use(json.auto())
                 .scan("dev.relism.glossa.api");
     }
 }

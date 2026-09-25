@@ -33,9 +33,14 @@ point; nothing else gets one by analogy.
 
 Glossa is a Flash application, pinned to a published build (`flash.version` in `pom.xml`; source at
 `../../Flash5` when checked out beside this one). Read its source and its `flash-extensions/*/docs/` before writing infrastructure. Rate
-limiting, background jobs, validation, OIDC and the SPA bundler are already installed extensions
-(see `pom.xml`, each with the § it satisfies), and a cache is `flash-ext-cache-caffeine` the day a
-profile asks for one. Use them; don't hand-roll a second mechanism next to one.
+limiting, OIDC, the SPA bundler and the validation engine are already installed extensions (see
+`pom.xml`, each with the § it satisfies), and a cache is `flash-ext-cache-caffeine` the day a profile
+asks for one. Use them; don't hand-roll a second mechanism next to one.
+
+A request body is checked against the rules its own type declares, by `flash-ext-validation-avaje`:
+the adapters are generated at build time, so a validated type carries
+`io.avaje.validation.constraints.Valid` and its rules stay jakarta's. A type used as a body without
+that annotation is refused by name on the first request that carries it.
 
 Every extension, route and service goes in `GlossaApp` so `Main` and every test boot identical
 wiring. Only extensions needing an external resource no test has — the web bundler, OIDC —
@@ -45,11 +50,13 @@ belong in `Main`.
 
 - `api/` — HTTP handlers, discovered by `scan(...)`. One file per resource: a `final` container
   whose routes are `public static final` nested classes, each carrying its own route annotation.
-  The container declares the service every route there works through once, on a private base per
-  handler flavour — `Base extends RequestHandler` and `Body<B> extends JsonHandler<B>`, both with
-  `@Inject protected XxxService`. A route that needs a service the others do not declares it with
-  its own `@Inject`; a container whose routes do not share one has no bases at all. Never `onInit`
-  with `require`: `@Inject` fails at boot naming the field, and costs no method.
+  The container declares the service every route there works through once, on one private base —
+  `Base<I, O> extends JsonHandler<I, O>` with `@Inject protected XxxService`. Every route names
+  what it reads and what it answers: `Base<Void, ProjectView>` reads nothing, `Base<NewProject,
+  ProjectView>` reads a body, and the answer is written by the codec rather than by a middleware.
+  A route that needs a service the others do not declares it with its own `@Inject`; a container
+  whose routes do not share one has no base at all. Never `onInit` with `require`: `@Inject` fails
+  at boot naming the field, and costs no method.
 - `content/` — §3's field types: each validates and renders its own values.
 - `service/` — `XxxService`, the domain logic: lookups, validation, authorization beyond the
   annotation, writes. Request/view records nest on the service. It throws `HttpException`, whose

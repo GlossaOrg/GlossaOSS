@@ -2,6 +2,7 @@ package dev.relism.glossa.schema;
 
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
+import io.avaje.validation.constraints.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AccessLevel;
@@ -15,6 +16,7 @@ public final class Setup {
     public record SetupView(boolean firstUser) {}
 
     @Schema(name = "FirstAccount", description = "The first account, which administers the install. Refused once anyone exists.")
+    @Valid
     public record FirstAccount(
             @SchemaProperty(description = "Shown wherever the account appears. The email when left out.")
             String name,

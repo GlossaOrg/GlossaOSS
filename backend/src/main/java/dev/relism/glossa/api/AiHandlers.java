@@ -6,7 +6,6 @@ import dev.relism.flash.ext.security.Authenticated;
 import dev.relism.flash.ext.security.RolesAllowed;
 import dev.relism.flash.extension.Inject;
 import dev.relism.flash.models.Request;
-import dev.relism.flash.models.RequestHandler;
 import dev.relism.flash.models.Response;
 import dev.relism.flash.routing.GET;
 import dev.relism.flash.routing.PUT;
@@ -23,16 +22,15 @@ import java.util.Map;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class AiHandlers {
 
-    /** Every route here works through AiService; one that also reads a body extends {@link Body}. */
-    private abstract static class Base extends RequestHandler { @Inject protected AiService ai; }
-    private abstract static class Body<B> extends JsonHandler<B> { @Inject protected AiService ai; }
+    /** Every route here works through AiService, and names what it reads and what it answers. */
+    private abstract static class Base<I, O> extends JsonHandler<I, O> { @Inject protected AiService ai; }
 
     /** Not an administrator's: a translator has to know whether to expect AI, and nothing here is private. */
     @GET("/api/ai")
     @Authenticated
     @ApiOperation(summary = "Whether an AI call is allowed.", tags = "Meta")
-    public static final class Available extends Base {
-        @Override public Object handle(Request req, Response res) {
+    public static final class Available extends Base<Void, Object> {
+        @Override public Object handle(Request req, Response res, Void ignored) {
             return Map.of("available", ai.available());
         }
     }
@@ -42,8 +40,8 @@ public final class AiHandlers {
     @ApiOperation(summary = "The AI provider in use.",
                   description = "Whether the features are on, and what is behind them. Never the API key.",
                   tags = "Meta")
-    public static final class Get extends Base {
-        @Override public SettingsView handle(Request req, Response res) {
+    public static final class Get extends Base<Void, SettingsView> {
+        @Override public SettingsView handle(Request req, Response res, Void ignored) {
             return ai.settings();
         }
     }
@@ -51,7 +49,7 @@ public final class AiHandlers {
     @PUT("/api/ai/provider")
     @RolesAllowed(ProjectRoles.ADMINISTRATOR)
     @ApiOperation(summary = "Sets the AI provider.", description = "An absent key keeps the stored one.", tags = "Meta")
-    public static final class Configure extends Body<SettingsUpdate> {
+    public static final class Configure extends Base<SettingsUpdate, SettingsView> {
         @Override public SettingsView handle(Request req, Response res, SettingsUpdate body) throws Exception {
             return ai.configure(body);
         }

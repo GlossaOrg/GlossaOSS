@@ -3,6 +3,7 @@ package dev.relism.glossa.schema;
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import dev.relism.glossa.persistence.entities.Role;
+import io.avaje.validation.constraints.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
@@ -15,6 +16,7 @@ import java.time.Instant;
 public final class Keys {
 
     @Schema(name = "NewApiKey", description = "A key for one project, with one role it can never exceed.")
+    @Valid
     public record KeyRequest(
             @SchemaProperty(description = "What the key is for, so it can be recognised later.", required = true)
             @NotBlank(message = "is required")

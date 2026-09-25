@@ -6,7 +6,6 @@ import dev.relism.flash.ext.openapi.ApiOperation;
 import dev.relism.flash.ext.security.RolesAllowed;
 import dev.relism.flash.extension.Inject;
 import dev.relism.flash.models.Request;
-import dev.relism.flash.models.RequestHandler;
 import dev.relism.flash.models.Response;
 import dev.relism.flash.routing.DELETE;
 import dev.relism.flash.routing.GET;
@@ -25,9 +24,8 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class UserHandlers {
 
-    /** Every route here works through UserService; one that also reads a body extends {@link Body}. */
-    private abstract static class Base extends RequestHandler { @Inject protected UserService users; }
-    private abstract static class Body<B> extends JsonHandler<B> { @Inject protected UserService users; }
+    /** Every route here works through UserService, and names what it reads and what it answers. */
+    private abstract static class Base<I, O> extends JsonHandler<I, O> { @Inject protected UserService users; }
 
     static long id(Request req) {
         return Long.parseLong(req.param("id"));
@@ -42,8 +40,8 @@ public final class UserHandlers {
     @ApiOperation(summary = "Every account and open invitation.",
                   description = "With how each signs in and what it may do.",
                   tags = "Users")
-    public static final class GetAll extends Base {
-        @Override public List<AccountView> handle(Request req, Response res) {
+    public static final class GetAll extends Base<Void, List<AccountView>> {
+        @Override public List<AccountView> handle(Request req, Response res, Void ignored) {
             return users.list();
         }
     }
@@ -55,7 +53,7 @@ public final class UserHandlers {
                   tags = "Users")
     @APIResponse(responseCode = "201", description = "Invited. The link is in this answer and nowhere else")
     @APIResponse(responseCode = "409", description = "That address already has an account here")
-    public static final class Invite extends Body<InviteRequest> {
+    public static final class Invite extends Base<InviteRequest, Invited> {
         @Override public Invited handle(Request req, Response res, InviteRequest body) throws Exception {
             res.status(201);
             return users.invite(body);
@@ -65,8 +63,8 @@ public final class UserHandlers {
     @DELETE("/api/users/invites/{id}")
     @RolesAllowed(ProjectRoles.ADMINISTRATOR)
     @ApiOperation(summary = "Withdraws an invitation.", description = "One that has not been taken up.", tags = "Users")
-    public static final class CancelInvite extends Base {
-        @Override public Object handle(Request req, Response res) {
+    public static final class CancelInvite extends Base<Void, Object> {
+        @Override public Object handle(Request req, Response res, Void ignored) {
             users.cancelInvite(id(req));
             res.status(204);
             return null;
@@ -80,8 +78,8 @@ public final class UserHandlers {
                   tags = "Users")
     @APIResponse(responseCode = "201", description = "A new link, and the current password stops working")
     @APIResponse(responseCode = "404", description = "No such account")
-    public static final class ResetPassword extends Base {
-        @Override public Invited handle(Request req, Response res) {
+    public static final class ResetPassword extends Base<Void, Invited> {
+        @Override public Invited handle(Request req, Response res, Void ignored) {
             res.status(201);
             return users.resetPassword(id(req), days(req));
         }
@@ -94,8 +92,8 @@ public final class UserHandlers {
                   tags = "Users")
     @APIResponse(responseCode = "204", description = "Suspended: every request of theirs is refused until it is undone")
     @APIResponse(responseCode = "404", description = "No such account")
-    public static final class Disable extends Base {
-        @Override public Object handle(Request req, Response res) {
+    public static final class Disable extends Base<Void, Object> {
+        @Override public Object handle(Request req, Response res, Void ignored) {
             users.disable(id(req), true);
             res.status(204);
             return null;
@@ -107,8 +105,8 @@ public final class UserHandlers {
     @ApiOperation(summary = "Lets a suspended account back in.", tags = "Users")
     @APIResponse(responseCode = "204", description = "Back in use")
     @APIResponse(responseCode = "404", description = "No such account")
-    public static final class Enable extends Base {
-        @Override public Object handle(Request req, Response res) {
+    public static final class Enable extends Base<Void, Object> {
+        @Override public Object handle(Request req, Response res, Void ignored) {
             users.disable(id(req), false);
             res.status(204);
             return null;
@@ -122,8 +120,8 @@ public final class UserHandlers {
                   tags = "Users")
     @APIResponse(responseCode = "204", description = "Removed. The row stays for what it wrote (§8)")
     @APIResponse(responseCode = "404", description = "No such account")
-    public static final class Delete extends Base {
-        @Override public Object handle(Request req, Response res) {
+    public static final class Delete extends Base<Void, Object> {
+        @Override public Object handle(Request req, Response res, Void ignored) {
             users.delete(id(req));
             res.status(204);
             return null;
