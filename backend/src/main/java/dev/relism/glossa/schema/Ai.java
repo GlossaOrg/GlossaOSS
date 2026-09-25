@@ -2,6 +2,7 @@ package dev.relism.glossa.schema;
 
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
+import io.avaje.validation.constraints.Valid;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -18,6 +19,7 @@ public final class Ai {
             boolean configured) {}
 
     @Schema(name = "AiProvider", description = "Any OpenAI-compatible provider. An absent key keeps the stored one.")
+    @Valid
     public record SettingsUpdate(
             boolean enabled,
             @SchemaProperty(description = "Where /chat/completions lives.")

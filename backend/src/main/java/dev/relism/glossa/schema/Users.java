@@ -3,6 +3,7 @@ package dev.relism.glossa.schema;
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import dev.relism.glossa.persistence.entities.Role;
+import io.avaje.validation.constraints.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AccessLevel;
@@ -41,6 +42,7 @@ public final class Users {
     public record Membership(long project, String name, Role role, String locale) {}
 
     @Schema(name = "Invitation", description = "Invites an address. Nobody signs themselves up (§11).")
+    @Valid
     public record InviteRequest(
             @SchemaProperty(required = true)
             @NotBlank(message = "is required")
@@ -68,6 +70,7 @@ public final class Users {
             boolean reset) {}
 
     @Schema(name = "Chosen", description = "The password the invited person chose, and the name they go by.")
+    @Valid
     public record Chosen(
             String name,
             @SchemaProperty(required = true)
@@ -88,6 +91,7 @@ public final class Users {
             boolean mustChangePassword) {}
 
     @Schema(name = "NewPassword", description = "A password to replace the current one. It must differ from it.")
+    @Valid
     public record NewPassword(
             @SchemaProperty(required = true)
             @NotBlank(message = "is required")

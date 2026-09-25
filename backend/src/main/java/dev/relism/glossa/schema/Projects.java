@@ -3,6 +3,7 @@ package dev.relism.glossa.schema;
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import dev.relism.glossa.persistence.entities.Role;
+import io.avaje.validation.constraints.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -20,6 +21,7 @@ public final class Projects {
             Role role) {}
 
     @Schema(name = "NewProject", description = "A project. The slug is made from the name when not given.")
+    @Valid
     public record NewProject(
             @SchemaProperty(description = "Lowercase, in URLs. Derived from the name when left out.")
             String slug,

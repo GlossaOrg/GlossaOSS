@@ -3,6 +3,7 @@ package dev.relism.glossa.schema;
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import dev.relism.glossa.content.FieldType.Variable;
+import io.avaje.validation.constraints.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -18,6 +19,7 @@ import java.util.Map;
 public final class Localization {
 
     @Schema(name = "LocaleConfig", description = "Enables a locale, or changes what it falls back to.")
+    @Valid
     public record LocaleConfig(
             @SchemaProperty(description = "Makes this the locale everything is translated from. Only one project locale is.")
             boolean source,
@@ -41,6 +43,7 @@ public final class Localization {
             Map<String, List<String>> ordinal) {}
 
     @Schema(name = "NewResource", description = "A resource and the source value it starts with, approved at once.")
+    @Valid
     public record CreateResource(
             @SchemaProperty(description = "Unique in the project. Dots group keys without a namespace of their own: checkout.items.", required = true)
             @Pattern(regexp = "[A-Za-z0-9_][A-Za-z0-9_.-]{0,254}", message = "uses up to 255 letters, digits, _, . and -")
@@ -58,6 +61,7 @@ public final class Localization {
             Map<String, Variable> contract) {}
 
     @Schema(name = "NewRevision", description = "A new value for one locale: approved from a reviewer, a proposal from a translator.")
+    @Valid
     public record Edit(
             @SchemaProperty(description = "The revision this edit was written against. The write is refused if the variant moved on.")
             Long expectedHeadRevisionId,
@@ -69,6 +73,7 @@ public final class Localization {
             Map<String, Variable> contract) {}
 
     @Schema(name = "Decision", description = "A reviewer's answer to the pending proposal.")
+    @Valid
     public record Decision(
             @SchemaProperty(description = "The proposal being answered, so two reviewers cannot answer different things.")
             long revisionId,
@@ -76,6 +81,7 @@ public final class Localization {
             boolean approve) {}
 
     @Schema(name = "Revert", description = "Writes an earlier value again, as a new revision. Nothing is rewritten.")
+    @Valid
     public record Revert(long revisionId, Long expectedHeadRevisionId, Long sourceRevisionId) {}
 
     @Schema(name = "Resource", description = "A resource with its state in one locale.")
@@ -125,6 +131,7 @@ public final class Localization {
     public record ReleaseView(long version, String locale, String hash, Instant createdAt) {}
 
     @Schema(name = "Message", description = "A message to check or render, with the values to render it with.")
+    @Valid
     public record MessageRequest(
             @SchemaProperty(required = true)
             @NotNull(message = "is required")
@@ -136,6 +143,7 @@ public final class Localization {
             boolean complete) {}
 
     @Schema(name = "SuggestionRequest", description = "What to translate (§9). Nothing is stored and nothing is written.")
+    @Valid
     public record Suggest(
             @NotNull(message = "is required")
             Map<String, Object> payload,
@@ -151,10 +159,12 @@ public final class Localization {
             long revisionId) {}
 
     @Schema(name = "RenderValues", description = "One value per variable the message declares.")
+    @Valid
     public record Values(
             @NotNull(message = "is required")
             Map<String, Object> values) {}
 
     @Schema(name = "Archived", description = "Keeps a resource out of new catalogs, or puts it back.")
+    @Valid
     public record Archived(boolean archived) {}
 }

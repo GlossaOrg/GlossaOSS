@@ -6,7 +6,6 @@ import dev.relism.flash.ext.openapi.ApiOperation;
 import dev.relism.flash.ext.security.PermitAll;
 import dev.relism.flash.extension.Inject;
 import dev.relism.flash.models.Request;
-import dev.relism.flash.models.RequestHandler;
 import dev.relism.flash.models.Response;
 import dev.relism.flash.routing.GET;
 import dev.relism.flash.routing.POST;
@@ -21,9 +20,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class InviteHandlers {
 
-    /** Every route here works through UserService; one that also reads a body extends {@link Body}. */
-    private abstract static class Base extends RequestHandler { @Inject protected UserService users; }
-    private abstract static class Body<B> extends JsonHandler<B> { @Inject protected UserService users; }
+    /** Every route here works through UserService, and names what it reads and what it answers. */
+    private abstract static class Base<I, O> extends JsonHandler<I, O> { @Inject protected UserService users; }
 
     @GET("/api/invite/{token}")
     @PermitAll
@@ -31,8 +29,8 @@ public final class InviteHandlers {
                   description = "So its page can address the right person.",
                   tags = "Users")
     @APIResponse(responseCode = "404", description = "No such invitation, or it has expired or been taken up")
-    public static final class Get extends Base {
-        @Override public InviteView handle(Request req, Response res) {
+    public static final class Get extends Base<Void, InviteView> {
+        @Override public InviteView handle(Request req, Response res, Void ignored) {
             return users.peek(req.param("token"));
         }
     }
@@ -44,7 +42,7 @@ public final class InviteHandlers {
                   tags = "Users")
     @APIResponse(responseCode = "201", description = "The account is theirs, and the answer says who they turned out to be")
     @APIResponse(responseCode = "404", description = "No such invitation, or it has expired or been taken up")
-    public static final class Accept extends Body<Chosen> {
+    public static final class Accept extends Base<Chosen, Accepted> {
         @Override public Accepted handle(Request req, Response res, Chosen body) throws Exception {
             Chosen chosen = body;
             res.status(201);
