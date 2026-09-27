@@ -85,7 +85,7 @@ function Source({ locale }: { locale: Locale }) {
           <Badge className="bg-foreground text-background">Source</Badge>
         </span>
         <span className="text-muted-foreground mt-0.5 block text-sm">
-          <span className="font-mono">{locale.locale}</span> · Every message is written here first · {counting(locale.cardinal).join(', ')}
+          <span className="font-mono">{locale.locale}</span> · Every message is written here first · {counting(locale.cardinal).join(', ')} · Ordinal: {counting(locale.ordinal).join(', ')}
         </span>
       </span>
     </div>

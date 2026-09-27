@@ -346,10 +346,12 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
         </div>
 
         <footer className={cn('flex items-start gap-2.5 border-t px-5 py-3 text-sm', problem && !blank ? 'bg-destructive/6 text-destructive' : 'text-muted-foreground')}>
-          <span className={cn('mt-2 size-1.5 shrink-0 rounded-full', blank ? 'bg-muted-foreground/40' : problem ? 'bg-destructive' : missing.length ? 'bg-amber-500' : 'bg-emerald-500', checking && 'motion-safe:animate-pulse')} />
+          <span className={cn('mt-2 size-1.5 shrink-0 rounded-full', blank || (checking && !problem) ? 'bg-muted-foreground/40' : problem ? 'bg-destructive' : missing.length ? 'bg-amber-500' : 'bg-emerald-500', checking && 'motion-safe:animate-pulse')} />
           <span className="min-w-0">
             {problem ??
-              (missing.length
+              (checking
+                ? 'Checking…'
+                : missing.length
                 ? `Saves fine. ${locale.locale} also needs ${missing.join(', ')} before the catalog publishes.`
                 : 'Every form this locale needs is here. Ready to publish.')}
           </span>

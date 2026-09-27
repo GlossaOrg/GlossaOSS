@@ -72,6 +72,9 @@ export const states: { value: Status; label: string; says: string; dot: string }
 
 export const state = (s: Status) => states.find((x) => x.value === s)!
 
+/** A locale the caller's role may not read (§8) answers 403; any other failure is not a refusal. */
+export const denied = (error: unknown) => (error as { status?: number } | null)?.status === 403
+
 export type Kind = 'text' | 'brace' | 'name' | 'type' | 'style' | 'arm' | 'hash' | 'quote' | 'comma'
 type Token = { text: string; kind: Kind; depth: number }
 type Frame = { arg: false; plural: boolean } | { arg: true; part: number; choice: boolean; plural: boolean }

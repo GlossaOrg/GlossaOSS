@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router'
 import { PlusIcon, SearchIcon } from 'lucide-react'
 import { cn } from 'cn'
@@ -10,7 +10,7 @@ import { Flag, languageName, shade } from '@/components/locale'
 import { Pattern } from '@/components/pattern'
 import { Skeleton } from '@/components/ui/skeleton'
 import { covers, useProject, type Project } from '@/lib/projects'
-import { state, states, status, useLocale, useLocaleLists, useResources, type Locale, type Resource, type Status } from '@/lib/content'
+import { denied, state, states, status, useLocale, useLocaleLists, useResources, type Locale, type Resource, type Status } from '@/lib/content'
 
 /** Height-and-fade, the same disclosure the rest of the app uses. */
 const unfold = {
@@ -53,7 +53,7 @@ function Board({ project }: { project: Project }) {
   // The source first, then by name; a locale the caller may not read is not offered at all.
   const ordered = [...locales]
     .sort((a, b) => Number(b.source) - Number(a.source) || languageName(a.locale).localeCompare(languageName(b.locale)))
-    .filter((l) => !lists[locales.indexOf(l)]?.error)
+    .filter((l) => !denied(lists[locales.indexOf(l)]?.error))
 
   const shown = all.filter((r) => {
     if (group && !(group === 'ungrouped' ? !r.key.includes('.') : r.key.startsWith(`${group}.`))) return false
@@ -171,6 +171,7 @@ function Board({ project }: { project: Project }) {
 function LocaleTab({ locale, rows, active, onSelect }: { locale: Locale; rows?: Resource[]; active: boolean; onSelect: () => void }) {
   const done = rows?.filter((r) => status(r) === 'approved').length ?? 0
   const percent = rows?.length ? Math.floor((done / rows.length) * 100) : 0
+  const still = useReducedMotion()
   return (
     <button
       type="button"
@@ -189,7 +190,7 @@ function LocaleTab({ locale, rows, active, onSelect }: { locale: Locale; rows?: 
         </span>
         {!locale.source && (
           <span className="bg-secondary mt-1.5 block h-1 w-24 overflow-hidden rounded-full">
-            <motion.span className="block h-full rounded-full" style={{ background: shade(locale.locale) }} initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }} />
+            <motion.span className="block h-full rounded-full" style={{ background: shade(locale.locale) }} initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: still ? 0 : 0.6, ease: [0.2, 0, 0, 1] }} />
           </span>
         )}
       </span>
@@ -214,7 +215,7 @@ function Row({ resource, locale, source, onOpen }: { resource: Resource; locale:
           <span className="text-foreground font-medium">{resource.key.slice(dot + 1)}</span>
         </span>
         <span className="mt-1 block text-[0.9375rem] leading-snug">
-          <Pattern text={resource.sourcePayload.pattern} locale={source.locale} />
+          <Pattern text={resource.sourcePayload.pattern} rtl={source.rtl} locale={source.locale} />
         </span>
         {!locale.source && resource.payload && (
           <span className="text-muted-foreground mt-1 flex items-baseline gap-2 text-[0.9375rem] leading-snug">

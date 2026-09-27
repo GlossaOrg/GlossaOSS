@@ -66,7 +66,7 @@ function Pitch() {
       <div className="flex flex-wrap items-center gap-4">
         <span className="flex items-center gap-1.5">
           {words.map(([, t], i) => (
-            <button key={t} type="button" aria-label={languageName(t)} onClick={() => setAt(i)} className="cursor-pointer rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/30">
+            <button key={t} type="button" aria-label={languageName(t)} aria-pressed={i === at} onClick={() => setAt(i)} className="cursor-pointer rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/30">
               <Flag locale={t} className={cn('size-6 transition-[opacity,filter,transform] duration-300', i === at ? 'scale-125' : 'opacity-40 grayscale hover:opacity-90 hover:grayscale-0')} />
             </button>
           ))}

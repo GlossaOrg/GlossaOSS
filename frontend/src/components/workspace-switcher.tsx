@@ -17,7 +17,8 @@ import { useWorkspace } from '@/store/workspace'
 export function WorkspaceSwitcher() {
   const { projects, project } = useProject()
   const select = useWorkspace((state) => state.select)
-  const locales = useLocales(project?.id ?? 0).data ?? []
+  const loaded = useLocales(project?.id ?? 0).data
+  const locales = loaded ?? []
 
   return (
     <SidebarMenu>
@@ -38,7 +39,7 @@ export function WorkspaceSwitcher() {
                     ))}
                   </span>
                 )}
-                <span className="truncate">{locales.length === 1 ? '1 language' : `${locales.length} languages`}</span>
+                {loaded && <span className="truncate">{locales.length === 1 ? '1 language' : `${locales.length} languages`}</span>}
               </span>
             </span>
             <ChevronsUpDownIcon className="text-muted-foreground ml-auto size-4" />

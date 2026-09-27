@@ -8,7 +8,7 @@ import { Badge } from '@/components/kit'
 import { Flag, languageName, shade, tint } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
-import { day, status, useLocale, useLocaleLists, type Locale, type Release, type Resource } from '@/lib/content'
+import { day, denied, status, useLocale, useLocaleLists, type Locale, type Release, type Resource } from '@/lib/content'
 import { useMe } from '@/lib/me'
 import { covers, useProject, type Project } from '@/lib/projects'
 
@@ -58,7 +58,9 @@ function Overview({ project }: { project: Project }) {
   const targets = rows.filter((l) => !l.source).sort((a, b) => languageName(a.locale).localeCompare(languageName(b.locale)))
   const listOf = (l: Locale) => lists[rows.indexOf(l)]?.data
   // A caller whose role is one locale's may read no other: those languages are spoken, not shown.
-  const readable = targets.filter((l) => !lists[rows.indexOf(l)]?.error)
+  const readable = targets.filter((l) => !denied(lists[rows.indexOf(l)]?.error))
+  // A language that failed for any other reason stays listed, and the totals say they are incomplete.
+  const failing = readable.some((l) => lists[rows.indexOf(l)]?.isError)
 
   if (locales.error) return <Statement eyebrow={<Hello />} text="This project could not be loaded. Reload the page." />
   if (!locales.data) return null
@@ -123,7 +125,7 @@ function Overview({ project }: { project: Project }) {
               ))}
             </div>
             <p className="text-muted-foreground mt-2 flex justify-between gap-4 text-xs tabular-nums">
-              <span>{loaded ? `${approved} of ${total} translations` : 'Counting…'}</span>
+              <span>{loaded ? `${approved} of ${total} translations` : failing ? 'Some languages could not be loaded.' : 'Counting…'}</span>
               <span>{messages ?? '–'} {messages === 1 ? 'message' : 'messages'}</span>
             </p>
 
@@ -185,9 +187,10 @@ function Latest({ projectId, locales, manager }: { projectId: number; locales: L
     queries: locales.map((l) => ({
       queryKey: ['manifest', projectId, l.locale],
       queryFn: () => api<Release>(`/api/projects/${projectId}/catalogs/${encodeURIComponent(l.locale)}`),
-      retry: false,
     })),
   })
+  // A 404 is a language with nothing published yet; any other failure leaves the answer unknown.
+  const failed = manifests.some((m) => m.error && (m.error as { status?: number }).status !== 404)
   const releases = manifests.flatMap((m) => (m.data ? [m.data] : []))
   const latest = releases.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
   const settled = manifests.every((m) => !m.isPending)
@@ -196,7 +199,7 @@ function Latest({ projectId, locales, manager }: { projectId: number; locales: L
     <section className="bg-ink flex flex-col rounded-xl p-5 text-white">
       <p className="text-xs text-white/60">Releases</p>
       <p className="font-heading mt-2 text-xl leading-tight font-bold tracking-[-0.02em]">
-        {!settled ? 'Checking…' : latest ? <>{languageName(latest.locale)} v{latest.version}<br />is live.</> : 'Nothing published yet.'}
+        {!settled ? 'Checking…' : failed ? 'Release status unavailable.' : latest ? <>{languageName(latest.locale)} v{latest.version}<br />is live.</> : 'Nothing published yet.'}
       </p>
       {/* One ring per language, solid once it has a catalog out. */}
       <div className="mt-5 flex">
