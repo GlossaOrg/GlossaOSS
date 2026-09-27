@@ -13,6 +13,7 @@ import dev.relism.flash.ext.security.form.FormLoginExtension;
 import dev.relism.flash.extension.FlashApp;
 import dev.relism.flash.extension.FlashApplication;
 import dev.relism.glossa.auth.ProjectRoles;
+import dev.relism.glossa.auth.Sessions;
 import dev.relism.glossa.persistence.Database;
 import dev.relism.glossa.persistence.entities.AppUser;
 import dev.relism.glossa.service.AiService;
@@ -104,7 +105,7 @@ public final class GlossaApp implements FlashApplication {
     public void configure(FlashApp app) {
         JsonExtension json = new JsonExtension();
         GlossaServices services = new GlossaServices(db.data(), localLogin, selfAdministered, users, ai);
-        SecurityExtension security = new SecurityExtension().users(services.users()).roles(roles).loginPage("/login");
+        SecurityExtension security = new SecurityExtension().users(services.users()).roles(roles).sessions(new Sessions(db.data())).loginPage("/login");
         if (origin != null) security.origin(origin);
         if (localLogin) app.install(new FormLoginExtension(services.users()));
 

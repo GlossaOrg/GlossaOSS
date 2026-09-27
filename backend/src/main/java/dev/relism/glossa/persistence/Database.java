@@ -9,6 +9,7 @@ import dev.relism.flash.ext.data.hibernate.HibernateData;
 import dev.relism.flash.ext.data.hibernate.HibernateTxManager;
 import dev.relism.glossa.Env;
 import dev.relism.glossa.persistence.entities.AiSettings;
+import dev.relism.glossa.persistence.entities.AppSession;
 import dev.relism.glossa.persistence.entities.AppUser;
 import dev.relism.glossa.persistence.entities.CatalogRelease;
 import dev.relism.glossa.persistence.entities.ContentEvent;
@@ -61,7 +62,7 @@ public final class Database {
     private static final List<Class<?>> CORE_ENTITIES = List.of(
             AppUser.class, UserIdentity.class, LocalCredential.class, Project.class, ProjectMember.class, ProjectApiKey.class, Invitation.class,
             ProjectLocale.class, LocalizedResource.class, ContentVariant.class, ContentRevision.class, ContentEvent.class, CatalogRelease.class,
-            AiSettings.class, GlossaryTerm.class);
+            AiSettings.class, GlossaryTerm.class, AppSession.class);
 
     /**
      * Schema a module built on top of this one adds: its migrations, and the entities they create.

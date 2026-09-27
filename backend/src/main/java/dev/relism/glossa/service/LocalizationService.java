@@ -186,10 +186,16 @@ public final class LocalizationService {
                     .forEach(row -> variants.computeIfAbsent((String) row[0], l -> new HashMap<>())
                             .put((Long) row[1], new Long[] {(Long) row[2], (Long) row[3], (Long) row[4], (Long) row[5]}));
             Map<Long, Long[]> sources = variants.getOrDefault(origin, Map.of());
-            Map<String, ReleaseView> releases = new HashMap<>();
+            Map<String, CatalogRelease> newest = new HashMap<>();
+            Map<String, Long> published = new HashMap<>();
             session().createQuery("from CatalogRelease where projectId = :project order by id desc", CatalogRelease.class)
                     .setParameter("project", project).getResultStream()
-                    .forEach(release -> releases.putIfAbsent(release.getLocale(), releaseViewOf(release)));
+                    .forEach(release -> {
+                        newest.putIfAbsent(release.getLocale(), release);
+                        published.merge(release.getLocale(), 1L, Long::sum);
+                    });
+            Map<String, ReleaseView> releases = newest.values().stream().collect(Collectors.toMap(CatalogRelease::getLocale,
+                    r -> new ReleaseView(published.get(r.getLocale()), r.getLocale(), r.getHash(), r.getCreatedAt())));
             return locales.stream().map(locale -> {
                 Map<Long, Long[]> here = variants.getOrDefault(locale.getLocale(), Map.of());
                 int untranslated = 0, review = 0, rejected = 0, outdated = 0, approved = 0;
@@ -643,7 +649,10 @@ public final class LocalizationService {
         return new EventView(e.getId(), e.getRevisionId(), e.getBeforeRevisionId(), e.getAfterRevisionId(), e.getAction(), e.getActor(), e.getCreatedAt());
     }
 
-    private static ReleaseView releaseViewOf(CatalogRelease r) {
-        return new ReleaseView(r.getId(), r.getLocale(), r.getHash(), r.getCreatedAt());
+    /** A release's version counts its own locale's releases, not every locale's. */
+    private ReleaseView releaseViewOf(CatalogRelease r) {
+        long version = session().createQuery("select count(*) from CatalogRelease where projectId = :project and locale = :locale and id <= :id", Long.class)
+                .setParameter("project", r.getProjectId()).setParameter("locale", r.getLocale()).setParameter("id", r.getId()).getSingleResult();
+        return new ReleaseView(version, r.getLocale(), r.getHash(), r.getCreatedAt());
     }
 }
