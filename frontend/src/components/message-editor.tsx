@@ -7,6 +7,7 @@ import { cn } from 'cn'
 import { Highlight, IcuEditor, ink } from '@/components/icu-editor'
 import { Badge, Select } from '@/components/kit'
 import { toast } from '@/components/ui/sonner'
+import { useGlossary } from '@/components/glossary'
 import { Flag, languageName } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -202,6 +203,7 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
       </header>
 
       {resource.context && <p className="text-muted-foreground max-w-[72ch] px-1">{resource.context}</p>}
+      {!origin && <Terms projectId={project.id} locale={target} source={sourceRevision.payload.pattern} written={pattern} />}
 
       <IcuEditor
         role={origin ? 'Source' : 'Translation'}
@@ -321,6 +323,33 @@ function LocaleSwitch({ project, locale, dirty }: { project: Project; locale: Lo
         </option>
       ))}
     </Select>
+  )
+}
+
+/** §6: the glossary's terms this source uses, and whether the translation so far honours each. */
+function Terms({ projectId, locale, source, written }: { projectId: number; locale: string; source: string; written: string }) {
+  const terms = useGlossary(projectId, locale).data ?? []
+  const has = (text: string, word: string) => new RegExp(`(^|[^\\p{L}])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}])`, 'iu').test(text)
+  // A locale's own entry wins over the one for every language.
+  const used = terms
+    .filter((t) => has(source, t.term))
+    .filter((t, _, all) => t.locale === locale || !all.some((o) => o.locale === locale && o.term.toLowerCase() === t.term.toLowerCase()))
+  if (!used.length) return null
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-1 text-sm">
+      <span className="eyebrow mr-1">Glossary</span>
+      {used.map((t) => {
+        const expected = t.translation ?? t.term
+        const honoured = !written.trim() || has(written, expected)
+        return (
+          <span key={t.id} title={honoured ? undefined : `The translation does not use “${expected}” yet.`}>
+            <Badge dot={honoured ? undefined : 'bg-rose-500'} className="bg-card">
+              {t.term} → {t.translation ?? <i className="font-normal">keep as is</i>}
+            </Badge>
+          </span>
+        )
+      })}
+    </div>
   )
 }
 

@@ -1,5 +1,5 @@
 import { lazy, type ReactNode } from 'react'
-import { HouseIcon, KeyRoundIcon, LanguagesIcon, MessagesSquareIcon, RocketIcon, type LucideIcon } from 'lucide-react'
+import { BookOpenIcon, HouseIcon, KeyRoundIcon, LanguagesIcon, MessagesSquareIcon, RocketIcon, type LucideIcon } from 'lucide-react'
 import { Content } from '@/components/content-board'
 import { Home } from '@/components/home'
 import { covers, useProject, type Role } from '@/lib/projects'
@@ -18,6 +18,7 @@ export type SettingsTab = { id: string; title: string; icon: LucideIcon; element
 // Home and Content are where a session starts; everything else loads the first time it is opened.
 const ApiKeys = lazy(() => import('@/components/api-keys').then((m) => ({ default: m.ApiKeys })))
 const Locales = lazy(() => import('@/components/locales').then((m) => ({ default: m.Locales })))
+const Glossary = lazy(() => import('@/components/glossary').then((m) => ({ default: m.Glossary })))
 const Releases = lazy(() => import('@/components/releases').then((m) => ({ default: m.Releases })))
 const MessageEditor = lazy(() => import('@/components/message-editor').then((m) => ({ default: m.MessageEditor })))
 const NewMessage = lazy(() => import('@/components/message-editor').then((m) => ({ default: m.NewMessage })))
@@ -28,6 +29,7 @@ const core: Screen[] = [
   { title: 'New message', url: '/content/new', icon: MessagesSquareIcon, element: <NewMessage />, role: 'MANAGER', hidden: true },
   { title: 'Message', url: '/content/:resource', icon: MessagesSquareIcon, element: <MessageEditor />, hidden: true },
   { title: 'Locales', url: '/locales', icon: LanguagesIcon, element: <Locales />, role: 'MANAGER' },
+  { title: 'Glossary', url: '/glossary', icon: BookOpenIcon, element: <Glossary />, role: 'MANAGER' },
   { title: 'Releases', url: '/releases', icon: RocketIcon, element: <Releases />, role: 'MANAGER' },
   { title: 'API keys', url: '/keys', icon: KeyRoundIcon, element: <ApiKeys />, role: 'MANAGER' },
 ]
