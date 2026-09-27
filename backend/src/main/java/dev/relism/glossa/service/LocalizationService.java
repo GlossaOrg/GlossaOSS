@@ -27,7 +27,10 @@ import dev.relism.glossa.schema.Localization.EventView;
 import dev.relism.glossa.schema.Localization.LocaleRequest;
 import dev.relism.glossa.schema.Localization.LocaleView;
 import dev.relism.glossa.schema.Localization.MessageRequest;
+import dev.relism.glossa.schema.Localization.Import;
+import dev.relism.glossa.schema.Localization.Imported;
 import dev.relism.glossa.schema.Localization.Progress;
+import dev.relism.glossa.schema.Localization.Skipped;
 import dev.relism.glossa.schema.Localization.ReleaseView;
 import dev.relism.glossa.schema.Localization.Rendered;
 import dev.relism.glossa.schema.Localization.ResourceView;
@@ -211,6 +214,47 @@ public final class LocalizationService {
                 return new Progress(locale.getLocale(), live.size(), untranslated, review, rejected, outdated, approved, releases.get(locale.getLocale()));
             }).toList();
         });
+    }
+
+    /**
+     * Brings a file's messages in, one ordinary write per entry: into the source, new keys become
+     * resources; elsewhere, each becomes the caller's own change (§8), a proposal unless they review.
+     * An entry that cannot be written is reported and the rest still go in.
+     */
+    public Imported importMessages(long project, String locale, Import request) {
+        List<ProjectLocale> locales = inProject(project, false, () -> localesOf(project));
+        enabled(locales, locale);
+        boolean origin = source(locales).getLocale().equals(locale);
+        if (origin && !allows(project, null, "MANAGER")) throw HttpException.forbidden("Only a manager can import into the source.");
+        Map<String, ResourceView> known = list(project, locale, null).stream().collect(Collectors.toMap(ResourceView::key, r -> r));
+        int created = 0, updated = 0, unchanged = 0;
+        List<Skipped> skipped = new java.util.ArrayList<>();
+        for (Map.Entry<String, String> entry : new TreeMap<>(request.entries()).entrySet()) {
+            ResourceView current = known.get(entry.getKey());
+            Map<String, Object> payload = Map.of("pattern", entry.getValue() == null ? "" : entry.getValue());
+            try {
+                if (current == null) {
+                    if (!origin) {
+                        skipped.add(new Skipped(entry.getKey(), "No such key in the source."));
+                        continue;
+                    }
+                    create(project, new CreateResource(entry.getKey(), null, messages.name(), payload, null));
+                    created++;
+                } else if (current.archived()) {
+                    skipped.add(new Skipped(entry.getKey(), "Archived."));
+                } else if (payload.equals(current.payload())) {
+                    unchanged++;
+                } else if (current.pendingRevisionId() != null) {
+                    skipped.add(new Skipped(entry.getKey(), "A proposal is waiting for review."));
+                } else {
+                    edit(project, current.id(), locale, new Edit(Objects.requireNonNullElse(current.headRevisionId(), 0L), current.sourceRevisionId(), payload, null));
+                    updated++;
+                }
+            } catch (HttpException refused) {
+                skipped.add(new Skipped(entry.getKey(), refused.getMessage()));
+            }
+        }
+        return new Imported(created, updated, unchanged, skipped);
     }
 
     /** The resource and its first source revision, approved at once. */

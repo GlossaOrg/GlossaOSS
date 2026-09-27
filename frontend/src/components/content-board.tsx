@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { PlusIcon, SearchIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { BulkSuggest } from '@/components/bulk-suggest'
+import { Importer } from '@/components/importer'
 import { Badge } from '@/components/kit'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -86,12 +87,15 @@ function Board({ project }: { project: Project }) {
             Every message in {project.name}, and where each one stands.
           </p>
         </div>
-        {manager && (
-          <Button onClick={() => navigate('/content/new')}>
-            <PlusIcon />
-            New message
-          </Button>
-        )}
+        <span className="flex flex-wrap gap-2">
+          {locale && (locale.source ? manager : covers(project.role, 'TRANSLATOR')) && <Importer projectId={project.id} locale={locale} reviewer={covers(project.role, 'REVIEWER')} />}
+          {manager && (
+            <Button onClick={() => navigate('/content/new')}>
+              <PlusIcon />
+              New message
+            </Button>
+          )}
+        </span>
       </header>
 
       {/* Every tab as wide as the groups column below, so the two line up. */}

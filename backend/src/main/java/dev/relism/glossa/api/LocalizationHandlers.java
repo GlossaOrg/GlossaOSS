@@ -109,6 +109,18 @@ public final class LocalizationHandlers {
         }
     }
 
+    @POST("/api/projects/{project}/imports/{locale}")
+    @RolesAllowed(value = "TRANSLATOR", on = {"project", "locale"})
+    @ApiOperation(summary = "Imports messages into one locale.",
+                  description = "Into the source, new keys become resources (managers only). Elsewhere each entry is the caller's own write, "
+                          + "a proposal unless they review. Entries that cannot be written are listed, the rest still go in.",
+                  tags = "Localization")
+    public static final class ImportMessages extends Base<Localization.Import, Localization.Imported> {
+        @Override public Localization.Imported handle(Request req, Response res, Localization.Import body) {
+            return content.importMessages(project(req), req.param("locale"), body);
+        }
+    }
+
     @POST("/api/projects/{project}/resources")
     @RolesAllowed(value = "MANAGER", on = "project")
     @ApiOperation(summary = "Creates a resource.",

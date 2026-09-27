@@ -130,6 +130,19 @@ public final class Localization {
     @Schema(name = "Release", description = "A published catalog. The hash addresses the catalog itself.")
     public record ReleaseView(long version, String locale, String hash, Instant createdAt) {}
 
+    @Schema(name = "Import", description = "Messages to bring in, each key to its ICU pattern.")
+    @Valid
+    public record Import(
+            @SchemaProperty(required = true, description = "Up to 2000 entries: key to pattern.")
+            @NotNull(message = "is required")
+            @Size(max = 2000, message = "holds up to 2000 entries per call")
+            Map<String, String> entries) {}
+
+    @Schema(name = "Imported", description = "What an import did, entry by entry.")
+    public record Imported(int created, int updated, int unchanged, List<Skipped> skipped) {}
+
+    public record Skipped(String key, String reason) {}
+
     @Schema(name = "Progress", description = "Where one locale stands: its resources counted by state, archived ones left out.")
     public record Progress(
             String locale,

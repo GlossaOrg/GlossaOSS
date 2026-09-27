@@ -249,6 +249,27 @@ class LocalizationTest {
         app.request().with(as(outsider)).get("/api/projects/" + project + "/progress").expectStatus(403);
     }
 
+    /** An import is one ordinary write per entry: new source keys become resources, a translator's lines become proposals. */
+    @Test
+    @Order(7)
+    void anImportWritesEachEntryThroughTheWorkflow() {
+        String imports = "/api/projects/" + project + "/imports/";
+        post(manager, imports + "en", "{\"entries\":{\"import.one\":\"One\",\"import.two\":\"Two {n}\"}}")
+                .expectStatus(200).expectBodyContains("\"created\":2");
+        post(manager, imports + "en", "{\"entries\":{\"import.one\":\"One\",\"import.two\":\"Two, now {n}\"}}")
+                .expectBodyContains("\"updated\":1").expectBodyContains("\"unchanged\":1");
+
+        // A translator cannot add keys, and their lines wait for a reviewer.
+        post(translator, imports + "en", "{\"entries\":{\"import.three\":\"Three\"}}").expectStatus(403);
+        String result = post(translator, imports + "it", "{\"entries\":{\"import.one\":\"Uno\",\"import.nope\":\"No\",\"import.two\":\"Due {missing}\"}}")
+                .expectStatus(200).body();
+        assertTrue(result.contains("\"updated\":1"), result);
+        assertTrue(result.contains("\"key\":\"import.nope\",\"reason\":\"No such key in the source.\""), result);
+        assertTrue(result.contains("\"key\":\"import.two\""), result);
+        String list = app.request().with(as(translator)).get("/api/projects/" + project + "/resources?locale=it&prefix=import.one").body();
+        assertTrue(list.matches("(?s).*\"pendingRevisionId\":\\d+.*"), list);
+    }
+
     private static String path(long resource) {
         return "/api/projects/" + project + "/resources/" + resource;
     }
