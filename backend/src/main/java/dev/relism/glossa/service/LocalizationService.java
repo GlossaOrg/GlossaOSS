@@ -27,6 +27,7 @@ import dev.relism.glossa.schema.Localization.EventView;
 import dev.relism.glossa.schema.Localization.LocaleRequest;
 import dev.relism.glossa.schema.Localization.LocaleView;
 import dev.relism.glossa.schema.Localization.MessageRequest;
+import dev.relism.glossa.schema.Localization.Progress;
 import dev.relism.glossa.schema.Localization.ReleaseView;
 import dev.relism.glossa.schema.Localization.Rendered;
 import dev.relism.glossa.schema.Localization.ResourceView;
@@ -162,6 +163,47 @@ public final class LocalizationService {
                         return view(resource, source.approved(), here.variant(), here.approved());
                     })
                     .toList();
+        });
+    }
+
+    /**
+     * Every locale the caller may read, counted by state in one pass over ids alone: what a
+     * dashboard needs without a list of payloads per locale.
+     */
+    public List<Progress> progress(long project) {
+        return inProject(project, false, () -> {
+            List<ProjectLocale> locales = localesOf(project).stream().filter(l -> allows(project, l.getLocale(), "READER")).toList();
+            if (locales.isEmpty()) throw HttpException.forbidden("No locale of this project is yours to read.");
+            String origin = source(localesOf(project)).getLocale();
+            Set<Long> live = new HashSet<>(session().createQuery("select id from LocalizedResource where projectId = :project and archived = false", Long.class)
+                    .setParameter("project", project).getResultList());
+            // locale -> resource -> [head, approved, pending, basedOnSource]
+            Map<String, Map<Long, Long[]>> variants = new HashMap<>();
+            session().createQuery("select v.locale, v.resourceId, v.headRevisionId, v.approvedRevisionId, v.pendingRevisionId, r.basedOnSourceRevisionId"
+                            + " from ContentVariant v left join ContentRevision r on r.id = v.approvedRevisionId where v.projectId = :project", Object[].class)
+                    .setParameter("project", project).getResultStream()
+                    .filter(row -> live.contains((Long) row[1]))
+                    .forEach(row -> variants.computeIfAbsent((String) row[0], l -> new HashMap<>())
+                            .put((Long) row[1], new Long[] {(Long) row[2], (Long) row[3], (Long) row[4], (Long) row[5]}));
+            Map<Long, Long[]> sources = variants.getOrDefault(origin, Map.of());
+            Map<String, ReleaseView> releases = new HashMap<>();
+            session().createQuery("from CatalogRelease where projectId = :project order by id desc", CatalogRelease.class)
+                    .setParameter("project", project).getResultStream()
+                    .forEach(release -> releases.putIfAbsent(release.getLocale(), releaseViewOf(release)));
+            return locales.stream().map(locale -> {
+                Map<Long, Long[]> here = variants.getOrDefault(locale.getLocale(), Map.of());
+                int untranslated = 0, review = 0, rejected = 0, outdated = 0, approved = 0;
+                for (Long id : live) {
+                    Long[] v = here.get(id);
+                    Long source = sources.containsKey(id) ? sources.get(id)[1] : null;
+                    if (v != null && v[2] != null) review++;
+                    else if (v == null || v[0] == null) untranslated++;
+                    else if (!v[0].equals(v[1])) rejected++;
+                    else if (v[3] != null && !v[3].equals(source)) outdated++;
+                    else approved++;
+                }
+                return new Progress(locale.getLocale(), live.size(), untranslated, review, rejected, outdated, approved, releases.get(locale.getLocale()));
+            }).toList();
         });
     }
 

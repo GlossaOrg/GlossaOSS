@@ -233,6 +233,22 @@ class LocalizationTest {
                 .expectBodyContains("\"sourcePayload\":{\"pattern\":\"Alpha\"},\"payload\":{\"pattern\":\"Alpha\"}");
     }
 
+    /** One call counts every readable locale by state; a locale-scoped role sees its own locale only. */
+    @Test
+    @Order(6)
+    void progressCountsEveryReadableLocaleByState() {
+        String all = app.request().with(as(manager)).get("/api/projects/" + project + "/progress").expectStatus(200).body();
+        assertTrue(all.contains("\"locale\":\"en\""), all);
+        assertTrue(all.contains("\"locale\":\"it\""), all);
+        // list.alpha has a pending Italian proposal, list.beta nothing yet.
+        assertTrue(all.matches("(?s).*\"locale\":\"it\",\"total\":\\d+,\"untranslated\":[1-9]\\d*,\"review\":[1-9].*"), all);
+
+        String mine = app.request().with(as(translator)).get("/api/projects/" + project + "/progress").expectStatus(200).body();
+        assertTrue(mine.contains("\"locale\":\"it\""), mine);
+        assertFalse(mine.contains("\"locale\":\"en\""), mine);
+        app.request().with(as(outsider)).get("/api/projects/" + project + "/progress").expectStatus(403);
+    }
+
     private static String path(long resource) {
         return "/api/projects/" + project + "/resources/" + resource;
     }

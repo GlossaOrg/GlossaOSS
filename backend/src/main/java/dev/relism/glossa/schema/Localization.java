@@ -130,6 +130,21 @@ public final class Localization {
     @Schema(name = "Release", description = "A published catalog. The hash addresses the catalog itself.")
     public record ReleaseView(long version, String locale, String hash, Instant createdAt) {}
 
+    @Schema(name = "Progress", description = "Where one locale stands: its resources counted by state, archived ones left out.")
+    public record Progress(
+            String locale,
+            int total,
+            int untranslated,
+            @SchemaProperty(description = "A proposal is waiting for a reviewer.")
+            int review,
+            @SchemaProperty(description = "The last proposal was rejected.")
+            int rejected,
+            @SchemaProperty(description = "Approved, but the source moved on since.")
+            int outdated,
+            int approved,
+            @SchemaProperty(description = "The newest published catalog. Null until one is.")
+            ReleaseView release) {}
+
     @Schema(name = "Message", description = "A message to check or render, with the values to render it with.")
     @Valid
     public record MessageRequest(

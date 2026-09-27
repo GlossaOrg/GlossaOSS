@@ -7,6 +7,7 @@ import dev.relism.flash.ext.openapi.ApiOperation;
 import dev.relism.flash.ext.openapi.Content;
 import dev.relism.flash.ext.openapi.Parameter;
 import dev.relism.flash.ext.openapi.ParameterIn;
+import dev.relism.flash.ext.security.Authenticated;
 import dev.relism.flash.ext.security.RolesAllowed;
 import dev.relism.flash.extension.Inject;
 import dev.relism.flash.http.ContentType;
@@ -93,6 +94,18 @@ public final class LocalizationHandlers {
     public static final class Resources extends Base<Void, List<Localization.ResourceView>> {
         @Override public List<Localization.ResourceView> handle(Request req, Response res, Void ignored) {
             return content.list(project(req), req.query("locale"), req.query("prefix"));
+        }
+    }
+
+    @GET("/api/projects/{project}/progress")
+    @Authenticated
+    @ApiOperation(summary = "Where every locale stands.",
+                  description = "Each locale the caller may read, its resources counted by state, and its newest release.",
+                  tags = "Localization")
+    @APIResponse(responseCode = "403", description = "No locale of this project is the caller's to read")
+    public static final class Progress extends Base<Void, List<Localization.Progress>> {
+        @Override public List<Localization.Progress> handle(Request req, Response res, Void ignored) {
+            return content.progress(project(req));
         }
     }
 
