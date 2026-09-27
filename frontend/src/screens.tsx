@@ -1,11 +1,7 @@
-import type { ReactNode } from 'react'
+import { lazy, type ReactNode } from 'react'
 import { HouseIcon, KeyRoundIcon, LanguagesIcon, MessagesSquareIcon, RocketIcon, type LucideIcon } from 'lucide-react'
-import { ApiKeys } from '@/components/api-keys'
 import { Content } from '@/components/content-board'
 import { Home } from '@/components/home'
-import { Locales } from '@/components/locales'
-import { MessageEditor, NewMessage } from '@/components/message-editor'
-import { Releases } from '@/components/releases'
 import { covers, useProject, type Role } from '@/lib/projects'
 import { plugin } from '@/plugin'
 
@@ -18,6 +14,13 @@ export type Screen = { title: string; url: string; icon: LucideIcon; element: Re
 
 /** A tab of the Settings dialog: what the installation holds outside a single project. */
 export type SettingsTab = { id: string; title: string; icon: LucideIcon; element: ReactNode }
+
+// Home and Content are where a session starts; everything else loads the first time it is opened.
+const ApiKeys = lazy(() => import('@/components/api-keys').then((m) => ({ default: m.ApiKeys })))
+const Locales = lazy(() => import('@/components/locales').then((m) => ({ default: m.Locales })))
+const Releases = lazy(() => import('@/components/releases').then((m) => ({ default: m.Releases })))
+const MessageEditor = lazy(() => import('@/components/message-editor').then((m) => ({ default: m.MessageEditor })))
+const NewMessage = lazy(() => import('@/components/message-editor').then((m) => ({ default: m.NewMessage })))
 
 const core: Screen[] = [
   { title: 'Home', url: '/', icon: HouseIcon, element: <Home /> },

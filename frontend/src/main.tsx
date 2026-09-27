@@ -9,7 +9,11 @@ import '@/index.css'
 import App from './App.tsx'
 
 // A refusal is an answer, not a hiccup: only a failed connection or a 5xx is worth asking again.
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: (failures, error) => failures < 3 && !((error as { status?: number }).status! < 500) } } })
+// Every write invalidates what it changed, so data a screen fetched moments ago is served as is
+// instead of asked for again on every mount and every return to the tab.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000, retry: (failures, error) => failures < 3 && !((error as { status?: number }).status! < 500) } },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

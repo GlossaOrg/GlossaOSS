@@ -43,8 +43,8 @@ function Pitch() {
         <br />
         <motion.span
           layout
-          transition={{ type: 'spring', stiffness: 380, damping: 34 }}
-          className="inline-flex items-center gap-[0.22em] overflow-hidden rounded-[0.2em] bg-white px-[0.2em] pb-[0.06em] whitespace-nowrap shadow-[0_8px_30px_-12px_rgb(0_0_0/0.25)]"
+          transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+          className="inline-flex items-center gap-[0.22em] overflow-hidden rounded-[0.2em] bg-white px-[0.3em] pt-[0.02em] pb-[0.14em] leading-[1.1] whitespace-nowrap shadow-[0_8px_30px_-12px_rgb(0_0_0/0.25)]"
         >
           <AnimatePresence mode="wait" initial={false}>
             <motion.span
@@ -83,9 +83,9 @@ export function AuthCard({ title, children }: { title: string; children: React.R
     <div className="flex min-h-svh flex-col gap-14 p-6 md:p-10 lg:grid lg:grid-cols-[1.15fr_1fr] lg:gap-0 lg:p-0">
       <Pitch />
       <motion.main
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
         className="w-full max-w-sm lg:self-center lg:justify-self-center"
       >
         <h3 className="mb-2 text-[1.75rem] tracking-[-0.035em]">{title}</h3>

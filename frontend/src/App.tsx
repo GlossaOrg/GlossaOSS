@@ -1,4 +1,5 @@
-import { motion } from 'motion/react'
+import { Suspense } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useLocation, useRoutes } from 'react-router'
 import { AppSidebar } from '@/components/app-sidebar'
 import { ChangePassword } from '@/components/change-password'
@@ -52,16 +53,18 @@ export default function App() {
       <AppSidebar />
       <SidebarInset>
         <SiteHeader />
-        {/* Enter only: waiting for the old screen to fade out before the new one came in read as lag. */}
-        <motion.div
-          key={route.pathname}
-          className="@container/main flex flex-1 flex-col px-4 pt-2 pb-12 md:px-6"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, ease: [0.2, 0.7, 0.2, 1] }}
-        >
-          {screen}
-        </motion.div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={route.pathname}
+            className="@container/main flex flex-1 flex-col px-4 pt-2 pb-12 md:px-6"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+          >
+            <Suspense>{screen}</Suspense>
+          </motion.div>
+        </AnimatePresence>
       </SidebarInset>
     </SidebarProvider>
   )

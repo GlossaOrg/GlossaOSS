@@ -23,7 +23,6 @@ const unfold = {
 export function Locales() {
   const project = useProject().project!
   const { rows, source, locales } = useLocale(project.id)
-  const ordered = [...rows].sort((a, b) => Number(b.source) - Number(a.source) || a.locale.localeCompare(b.locale))
   const [adding, setAdding] = useState(false)
 
   return (
@@ -61,7 +60,7 @@ export function Locales() {
           {source && <Source locale={source} />}
           <ul className="card px-5">
             <AnimatePresence initial={false}>
-              {ordered.filter((l) => !l.source).map((l) => (
+              {rows.filter((l) => !l.source).map((l) => (
                 <motion.li key={l.locale} layout="position" {...unfold} className="overflow-hidden border-t first:border-t-0">
                   <Row locale={l} all={rows} projectId={project.id} />
                 </motion.li>

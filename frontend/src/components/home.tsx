@@ -5,10 +5,10 @@ import { useNavigate } from 'react-router'
 import { ArrowRightIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Badge } from '@/components/kit'
-import { Flag, languageName, shade, tint } from '@/components/locale'
+import { Flag, languageName, shade } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
-import { day, denied, status, useLocale, useLocaleLists, type Locale, type Release, type Resource } from '@/lib/content'
+import { day, denied, status, useLocale, useLocaleLists, type Locale, type Release, type Resource, type Status } from '@/lib/content'
 import { useMe } from '@/lib/me'
 import { covers, useProject, type Project } from '@/lib/projects'
 
@@ -55,7 +55,7 @@ function Overview({ project }: { project: Project }) {
   const { rows, source, select, locales } = useLocale(project.id)
   const lists = useLocaleLists(project.id, rows)
   const manager = covers(project.role, 'MANAGER')
-  const targets = rows.filter((l) => !l.source).sort((a, b) => languageName(a.locale).localeCompare(languageName(b.locale)))
+  const targets = rows.filter((l) => !l.source)
   const listOf = (l: Locale) => lists[rows.indexOf(l)]?.data
   // A caller whose role is one locale's may read no other: those languages are spoken, not shown.
   const readable = targets.filter((l) => !denied(lists[rows.indexOf(l)]?.error))
@@ -81,9 +81,9 @@ function Overview({ project }: { project: Project }) {
   const loaded = messages !== undefined && counts.every((c) => c.loaded)
   const spoken = targets.length > 4 ? [...targets.slice(0, 3).map((l) => <Spoken key={l.locale} locale={l.locale} />), `${targets.length - 3} more`] : targets.map((l) => <Spoken key={l.locale} locale={l.locale} />)
   const waiting = readable.map((l, i) => ({ locale: l, review: counts[i].review })).filter((w) => w.review).sort((a, b) => b.review - a.review)
-  const open = (l: Locale) => {
+  const open = (l: Locale, next?: Status) => {
     select(l.locale)
-    navigate('/content')
+    navigate(next ? `/content?status=${next}` : '/content')
   }
 
   return (
@@ -148,7 +148,7 @@ function Overview({ project }: { project: Project }) {
                 )}
               </div>
               {waiting.length > 0 && (
-                <Button onClick={() => open(waiting[0].locale)}>
+                <Button onClick={() => open(waiting[0].locale, 'review')}>
                   Start reviewing <ArrowRightIcon />
                 </Button>
               )}
@@ -171,7 +171,7 @@ function Overview({ project }: { project: Project }) {
         <ul>
           {readable.map((l, i) => (
             <li key={l.locale} className="border-t first:border-t-0">
-              <Tile locale={l} count={counts[i]} delay={i * 0.04} onOpen={() => open(l)} />
+              <Tile locale={l} count={counts[i]} delay={i * 0.04} onOpen={(next) => open(l, next)} />
             </li>
           ))}
         </ul>
@@ -201,10 +201,10 @@ function Latest({ projectId, locales, manager }: { projectId: number; locales: L
       <p className="font-heading mt-2 text-xl leading-tight font-bold tracking-[-0.02em]">
         {!settled ? 'Checking…' : failed ? 'Release status unavailable.' : latest ? <>{languageName(latest.locale)} v{latest.version}<br />is live.</> : 'Nothing published yet.'}
       </p>
-      {/* One ring per language, solid once it has a catalog out. */}
+      {/* One flag per language, faded until it has a catalog out. */}
       <div className="mt-5 flex">
         {locales.map((l, i) => (
-          <span key={l.locale} className={cn('-ml-2 size-7 rounded-full border first:ml-0', manifests[i]?.data ? 'border-white' : 'border-white/25')} title={languageName(l.locale)} />
+          <Flag key={l.locale} locale={l.locale} className={cn('ring-ink -ml-1.5 size-7 ring-2 first:ml-0', !manifests[i]?.data && 'opacity-35')} />
         ))}
       </div>
       <div className="mt-5 border-t border-white/15 pt-3 text-xs">
@@ -247,25 +247,25 @@ function Count({ to, suffix = '' }: { to: number; suffix?: string }) {
   return <span ref={ref}>{`${still ? to : 0}${suffix}`}</span>
 }
 
-/** A language's row: where it stands, and the way into its content. */
-function Tile({ locale, count, delay, onOpen }: { locale: Locale; count: Count; delay: number; onOpen: () => void }) {
+/** A language's row: where it stands, and the one thing to do next in it. */
+function Tile({ locale, count, delay, onOpen }: { locale: Locale; count: Count; delay: number; onOpen: (status?: Status) => void }) {
   const { total, approved, review, loaded } = count
+  const todo = total - approved - review
   const done = loaded && total > 0 && approved === total
   const fresh = loaded && approved === 0 && review === 0
+  const [action, next] = !loaded ? ['Open', undefined] : review ? [`Review ${review}`, 'review' as const] : todo ? [`Translate ${todo}`, undefined] : ['Open', undefined]
 
   return (
     <motion.button
       type="button"
-      onClick={onOpen}
+      onClick={() => onOpen(next)}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.15 + delay, duration: 0.35, ease: [0.2, 0.7, 0.2, 1] }}
-      // The row takes on its language's pastel under the pointer: the one place it wears it whole.
-      style={{ '--tint': tint(locale.locale) } as React.CSSProperties}
-      className="group/tile hover:text-on-tint focus-visible:text-on-tint grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-lg px-3 py-3 text-left transition-colors duration-300 outline-none hover:bg-(--tint) focus-visible:bg-(--tint) md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_8rem_5.5rem]"
+      transition={{ delay: 0.1 + delay, duration: 0.3, ease: 'easeOut' }}
+      className="group/tile hover:bg-secondary/70 focus-visible:bg-secondary grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-lg px-3 py-3 text-left transition-colors outline-none md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_8rem_7rem]"
     >
       <span className="flex min-w-0 items-center gap-3">
-        <Flag locale={locale.locale} className="size-6 transition-transform duration-300 group-hover/tile:scale-110 group-hover/tile:-rotate-6" />
+        <Flag locale={locale.locale} className="size-6" />
         <span className="min-w-0">
           <span className="block truncate text-[0.875rem] leading-tight font-bold">{languageName(locale.locale)}</span>
           <span className="text-muted-foreground block font-mono text-[11.5px]">
@@ -275,7 +275,7 @@ function Tile({ locale, count, delay, onOpen }: { locale: Locale; count: Count; 
         </span>
       </span>
       <span className="col-span-2 row-start-2 flex items-center gap-3 md:col-span-1 md:col-start-2 md:row-start-1">
-        <span className="bg-secondary block h-1.5 flex-1 overflow-hidden rounded-full transition-colors group-hover/tile:bg-black/10">
+        <span className="bg-secondary block h-1.5 flex-1 overflow-hidden rounded-full">
           <motion.span
             className="block h-full rounded-full"
             style={{ background: shade(locale.locale) }}
@@ -290,7 +290,7 @@ function Tile({ locale, count, delay, onOpen }: { locale: Locale; count: Count; 
         {review ? <Badge dot="bg-amber-400">{review} to review</Badge> : done ? <Badge dot="bg-emerald-500">Done</Badge> : fresh ? <Badge>New</Badge> : null}
       </span>
       <span className="col-start-2 row-start-1 text-[0.8125rem] font-bold whitespace-nowrap md:col-start-4 md:text-right">
-        {done ? 'Open' : fresh ? 'Start' : 'Continue'}{' '}
+        {action}{' '}
         <span aria-hidden className="inline-block transition-transform duration-200 group-hover/tile:translate-x-1">→</span>
       </span>
     </motion.button>

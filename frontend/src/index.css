@@ -8,23 +8,13 @@
 
 /* Three roles, never mixed: ink, white cards on a grey canvas carry the structure, one lilac marks
    whatever acts (buttons, the current entry, focus), and every other colour belongs to a language —
-   its flag, and its pastel (see `hue` in components/locale.tsx). */
+   its flag, and the colour sampled from it (see `shade` in components/locale.tsx). */
 :root {
     /* The lilac fill of whatever acts, and its stronger tone for thin marks: focus, bars, links. */
     --brand: #DFC7F0;
     --brand-strong: #A06CD5;
     /* The dark card: the one surface that inverts. */
     --ink: #1E2027;
-    /* A language's pastel, and the stronger shade of it the logo and small marks use. Text on a
-       pastel is always ink, in the dark theme too: the pastels stay light there. */
-    --lang-0: #CFF5D8; --lang-0-v: #6FD68C;
-    --lang-1: #FFD6E0; --lang-1-v: #FF8FAB;
-    --lang-2: #CDE9FF; --lang-2-v: #6CBEFF;
-    --lang-3: #E0DBFF; --lang-3-v: #A596FF;
-    --lang-4: #FFE6B3; --lang-4-v: #FFBE45;
-    --lang-5: #CDF3EE; --lang-5-v: #5FD3C6;
-    --lang-6: #FFDDCF; --lang-6-v: #FF9B6E;
-    --lang-7: #EDF4BC; --lang-7-v: #C4D84A;
     --on-tint: #0A0A0A;
 }
 
@@ -214,56 +204,21 @@
   @apply transition-colors duration-200 ease-out;
 }
 
-/* Each glyph moves in its own way when what holds it is hovered or focused: the house hops, the
-   rocket lifts off, the gear turns. Keyed on lucide's own `lucide-<name>` class, so no component
-   has to opt in. */
+/* A glyph leans toward where its control goes when hovered or focused: arrows move, the gear and
+   the plus turn. Nothing hops or wiggles. */
 @layer base {
   svg.lucide {
-    transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
+    transition: transform 200ms ease-out;
+  }
   @media (prefers-reduced-motion: no-preference) {
     :is(a, button, label, [role=menuitem], [role=tab]):is(:hover, :focus-visible) > svg {
-      &.lucide-house { animation: glyph-hop 480ms ease-out; }
-      &.lucide-messages-square { animation: glyph-wiggle 480ms ease-in-out; }
-      &.lucide-languages { transform: rotate(-12deg) scale(1.08); }
-      &.lucide-rocket { transform: translate(2px, -2px) rotate(-6deg); }
-      &.lucide-key-round { transform: rotate(-30deg); }
-      &.lucide-settings { transform: rotate(90deg); }
+      &.lucide-settings { transform: rotate(45deg); }
       &.lucide-plus { transform: rotate(90deg); }
       &.lucide-x { transform: rotate(90deg); }
       &.lucide-arrow-right { transform: translateX(3px); }
       &.lucide-arrow-left { transform: translateX(-3px); }
-      &.lucide-sparkles { animation: glyph-twinkle 600ms ease-in-out; }
-      &.lucide-search { transform: rotate(-12deg) scale(1.1); }
-      &.lucide-copy { transform: translate(1px, -1px); }
-      &.lucide-users { animation: glyph-hop 480ms ease-out; }
-      &.lucide-chevrons-up-down { animation: glyph-squeeze 420ms ease-in-out; }
-      &.lucide-chevron-down { transform: translateY(2px); }
-      &.lucide-panel-left { transform: translateX(-2px); }
-      &.lucide-layout-template { transform: scale(1.12); }
-      &.lucide-book-open { transform: rotate(-6deg); }
-      }
+      &.lucide-chevron-down { transform: translateY(1px); }
     }
+  }
 }
 
-@keyframes glyph-hop {
-  35% { transform: translateY(-3px); }
-  60% { transform: translateY(0); }
-  80% { transform: translateY(-1px); }
-}
-
-@keyframes glyph-wiggle {
-  25% { transform: rotate(-10deg); }
-  50% { transform: rotate(8deg); }
-  75% { transform: rotate(-4deg); }
-}
-
-@keyframes glyph-twinkle {
-  40% { transform: scale(1.2) rotate(12deg); }
-  70% { transform: scale(0.95) rotate(-4deg); }
-}
-
-@keyframes glyph-squeeze {
-  40% { transform: scaleY(0.7); }
-  70% { transform: scaleY(1.1); }
-}

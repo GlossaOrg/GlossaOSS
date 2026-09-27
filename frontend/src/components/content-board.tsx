@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { PlusIcon, SearchIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Badge } from '@/components/kit'
@@ -33,7 +33,8 @@ function Board({ project }: { project: Project }) {
   const lists = useLocaleLists(project.id, locales)
   const resources = useResources(project.id, locale?.locale)
   const [group, setGroup] = useState<string | null>(null)
-  const [filter, setFilter] = useState<Status | null>(null)
+  const [params] = useSearchParams()
+  const [filter, setFilter] = useState<Status | null>(() => states.find((s) => s.value === params.get('status'))?.value ?? null)
   const [search, setSearch] = useState('')
   const navigate = useNavigate()
   const manager = covers(project.role, 'MANAGER')
@@ -50,10 +51,8 @@ function Board({ project }: { project: Project }) {
     return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b))
   }, [all])
 
-  // The source first, then by name; a locale the caller may not read is not offered at all.
-  const ordered = [...locales]
-    .sort((a, b) => Number(b.source) - Number(a.source) || languageName(a.locale).localeCompare(languageName(b.locale)))
-    .filter((l) => !denied(lists[locales.indexOf(l)]?.error))
+  // A locale the caller may not read is not offered at all.
+  const ordered = locales.filter((l) => !denied(lists[locales.indexOf(l)]?.error))
 
   const shown = all.filter((r) => {
     if (group && !(group === 'ungrouped' ? !r.key.includes('.') : r.key.startsWith(`${group}.`))) return false
@@ -78,7 +77,7 @@ function Board({ project }: { project: Project }) {
         <div>
           <h2>Content</h2>
           <p className="text-muted-foreground mt-1.5 max-w-[46ch] text-[0.9375rem]">
-            {locale?.source ? `Every message in ${project.name}, as it is written.` : `Every message in ${project.name}, and how far ${languageName(locale!.locale)} has got.`}
+            Every message in {project.name}, and where each one stands.
           </p>
         </div>
         {manager && (
@@ -89,7 +88,7 @@ function Board({ project }: { project: Project }) {
         )}
       </header>
 
-      <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
+      <div className="flex flex-wrap gap-2">
         {ordered.map((l) => (
           <LocaleTab key={l.locale} locale={l} rows={lists[locales.indexOf(l)].data} active={locale?.locale === l.locale} onSelect={() => select(l.locale)} />
         ))}
@@ -182,19 +181,18 @@ function LocaleTab({ locale, rows, active, onSelect }: { locale: Locale; rows?: 
         active ? 'text-foreground' : 'bg-card text-muted-foreground hover:text-foreground',
       )}
     >
-      <Flag locale={locale.locale} className={cn('size-6 transition-[filter,opacity]', !active && 'opacity-70 grayscale-[0.4]')} />
+      <Flag locale={locale.locale} className="size-6" />
       <span className="grid leading-tight">
         <span className="text-[0.8438rem] font-bold">{languageName(locale.locale)}</span>
         <span className="text-muted-foreground text-xs tabular-nums">
           {locale.source ? 'Source' : rows ? `${percent}% approved` : 'Counting…'}
         </span>
-        {!locale.source && (
-          <span className="bg-secondary mt-1.5 block h-1 w-24 overflow-hidden rounded-full">
-            <motion.span className="block h-full rounded-full" style={{ background: shade(locale.locale) }} initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: still ? 0 : 0.6, ease: [0.2, 0, 0, 1] }} />
-          </span>
-        )}
+        {/* The source's bar is there but unseen, so every tab is the same height. */}
+        <span className={cn('bg-secondary mt-1.5 block h-1 w-24 overflow-hidden rounded-full', locale.source && 'invisible')}>
+          <motion.span className="block h-full rounded-full" style={{ background: shade(locale.locale) }} initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: still ? 0 : 0.6, ease: [0.2, 0, 0, 1] }} />
+        </span>
       </span>
-      {active && <motion.span layoutId="locale-tab" aria-hidden className="bg-brand absolute inset-0 -z-10 rounded-lg" transition={{ type: 'spring', stiffness: 520, damping: 42 }} />}
+      {active && <motion.span layoutId="locale-tab" aria-hidden className="bg-brand absolute inset-0 -z-10 rounded-lg" transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }} />}
     </button>
   )
 }

@@ -11,7 +11,7 @@ export const navItem =
   'relative isolate h-9 gap-2.5 rounded-lg px-3 text-[0.875rem] font-semibold text-muted-foreground transition-colors duration-200 hover:bg-secondary hover:text-foreground active:bg-secondary data-active:bg-transparent data-active:text-foreground data-active:hover:bg-transparent data-active:active:bg-transparent [&>svg]:size-[1.0625rem]'
 
 function Pill() {
-  return <motion.span layoutId="nav-pill" aria-hidden className="bg-brand absolute inset-0 -z-10 rounded-lg" transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 0.8 }} />
+  return <motion.span layoutId="nav-pill" aria-hidden className="bg-brand absolute inset-0 -z-10 rounded-lg" transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }} />
 }
 
 /**

@@ -32,25 +32,47 @@ export function languageName(tag: string) {
   }
 }
 
-/** The best-known languages get a pastel each, so no two of them ever share one. */
-const known: Record<string, number> = { en: 0, it: 1, fr: 2, de: 3, ar: 4, pt: 5, es: 6, nl: 7 }
+const sampled = new Set<string>()
 
 /**
- * Which of the eight pastels (`--lang-N` in index.css) a language wears. By tag, not by project:
- * Italian is the same pink everywhere. A regional variant sits three to seven pastels on from its
- * language, by its region, so French and Canadian French, or two Englishes, never share one.
- * ponytail: past the eight known languages two can land on the same pastel; the flag still tells them apart.
+ * Samples a flag's dominant colour into `--flag-<tag>` on the root, once per tag: every language wears
+ * its own flag's colour, whatever the language. Greys, whites and blacks never win, so Germany is red
+ * or gold, not black. Until the flag has loaded the fallback grey stands in.
  */
-export function hue(tag: string) {
-  const [language, ...rest] = tag.toLowerCase().split(/[-_]/)
-  const sum = (text: string) => [...text].reduce((total, c) => total + c.charCodeAt(0), 0)
-  const base = known[language] ?? sum(language) % 8
-  return rest.length ? (base + 3 + (sum(rest.join('-')) % 5)) % 8 : base
+function sample(tag: string) {
+  if (sampled.has(tag) || typeof document === 'undefined') return
+  sampled.add(tag)
+  const img = new Image()
+  img.onload = () => {
+    const size = 32
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = size
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return
+    ctx.drawImage(img, 0, 0, size, size)
+    const px = ctx.getImageData(0, 0, size, size).data
+    const buckets = new Map<number, [number, number, number, number]>()
+    for (let i = 0; i < px.length; i += 4) {
+      const [r, g, b, a] = [px[i], px[i + 1], px[i + 2], px[i + 3]]
+      if (a < 200 || Math.max(r, g, b) - Math.min(r, g, b) < 48) continue
+      const key = ((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5)
+      const bucket = buckets.get(key) ?? [0, 0, 0, 0]
+      buckets.set(key, [bucket[0] + 1, bucket[1] + r, bucket[2] + g, bucket[3] + b])
+    }
+    const top = [...buckets.values()].sort((a, b) => b[0] - a[0])[0]
+    if (top) document.documentElement.style.setProperty(variable(tag), `rgb(${top.slice(1).map((c) => Math.round(c / top[0])).join(' ')})`)
+  }
+  img.src = flag(tag)
 }
 
-/** A language's pastel, for what sits behind text; `shade` is its stronger tone, for thin marks. */
-export const tint = (tag: string) => `var(--lang-${hue(tag)})`
-export const shade = (tag: string) => `var(--lang-${hue(tag)}-v)`
+const variable = (tag: string) => `--flag-${tag.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+
+/** A language's colour, sampled from its flag: `shade` for thin marks, `tint` its pastel for what sits behind text. */
+export function shade(tag: string) {
+  sample(tag)
+  return `var(${variable(tag)}, #A1A1AA)`
+}
+export const tint = (tag: string) => `color-mix(in oklab, ${shade(tag)} 20%, white)`
 
 /** A language as its flag: the one mark that names it wherever its name is not written out. */
 export function Flag({ locale, className }: { locale: string; className?: string }) {

@@ -1,4 +1,6 @@
+import { useMemo } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
+import { languageName } from '@/components/locale'
 import { api } from '@/lib/api'
 import { useWorkspace } from '@/store/workspace'
 
@@ -186,7 +188,8 @@ export function useLocale(projectId: number) {
   const locales = useLocales(projectId)
   const select = useWorkspace((s) => s.select)
   const remembered = useWorkspace((s) => s.locale)
-  const rows = locales.data ?? []
+  // The source first, then by name as a person reads it: every screen lists languages in this order.
+  const rows = useMemo(() => [...(locales.data ?? [])].sort((a, b) => Number(b.source) - Number(a.source) || languageName(a.locale).localeCompare(languageName(b.locale))), [locales.data])
   const source = rows.find((l) => l.source)
   return {
     locales,

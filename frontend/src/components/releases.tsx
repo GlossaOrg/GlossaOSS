@@ -15,7 +15,6 @@ type Catalog = { profile: string; icuVersion: string; cldrVersion: string }
 export function Releases() {
   const project = useProject().project!
   const { rows, locales } = useLocale(project.id)
-  const ordered = [...rows].sort((a, b) => Number(b.source) - Number(a.source) || a.locale.localeCompare(b.locale))
 
   return (
     <div className="page grid gap-5">
@@ -43,7 +42,7 @@ export function Releases() {
             <span />
           </div>
           <ul className="divide-y">
-            {ordered.map((l) => (
+            {rows.map((l) => (
               <li key={l.locale}>
                 <Row locale={l} projectId={project.id} />
               </li>
