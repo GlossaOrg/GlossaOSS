@@ -4,12 +4,14 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { PlusIcon, SearchIcon } from 'lucide-react'
 import { cn } from 'cn'
+import { BulkSuggest } from '@/components/bulk-suggest'
 import { Badge } from '@/components/kit'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Flag, languageName, shade } from '@/components/locale'
 import { Pattern } from '@/components/pattern'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAi } from '@/lib/ai'
 import { covers, useProject, type Project } from '@/lib/projects'
 import { readable, state, states, status, resourcesQuery, useLocale, useProgress, useResources, type Locale, type Progress, type Resource, type Status } from '@/lib/content'
 
@@ -42,6 +44,7 @@ function Board({ project }: { project: Project }) {
   const [search, setSearch] = useState('')
   const navigate = useNavigate()
   const manager = covers(project.role, 'MANAGER')
+  const ai = useAi().data?.available
 
   // Archived resources are out of every catalog, so they are out of the counts too.
   const all = useMemo(() => (resources.data ?? []).filter((r) => !r.archived), [resources.data])
@@ -133,6 +136,11 @@ function Board({ project }: { project: Project }) {
                 </button>
               )
             })}
+            {ai && locale && !locale.source && covers(project.role, 'TRANSLATOR') && (
+              <span className="ml-auto">
+                <BulkSuggest projectId={project.id} locale={locale} source={source!} rows={all} reviewer={covers(project.role, 'REVIEWER')} />
+              </span>
+            )}
           </div>
 
           {resources.error ? (
