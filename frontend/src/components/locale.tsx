@@ -72,7 +72,7 @@ export function shade(tag: string) {
   sample(tag)
   return `var(${variable(tag)}, #A1A1AA)`
 }
-export const tint = (tag: string) => `color-mix(in oklab, ${shade(tag)} 20%, white)`
+export const tint = (tag: string) => `color-mix(in oklab, ${shade(tag)} 12%, white)`
 
 /** A language as its flag: the one mark that names it wherever its name is not written out. */
 export function Flag({ locale, className }: { locale: string; className?: string }) {

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { animate, motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router'
 import { ArrowRightIcon } from 'lucide-react'
@@ -6,7 +7,7 @@ import { cn } from 'cn'
 import { Badge } from '@/components/kit'
 import { Flag, languageName, shade } from '@/components/locale'
 import { Button } from '@/components/ui/button'
-import { day, useLocale, useProgress, type Locale, type Progress, type Status } from '@/lib/content'
+import { day, resourcesQuery, status, useLocale, useProgress, waiting as needsWork, type Locale, type Progress, type Status } from '@/lib/content'
 import { useMe } from '@/lib/me'
 import { covers, useProject, type Project } from '@/lib/projects'
 
@@ -52,6 +53,7 @@ function Overview({ project }: { project: Project }) {
   const navigate = useNavigate()
   const { rows, source, select, locales } = useLocale(project.id)
   const progress = useProgress(project.id)
+  const client = useQueryClient()
   const manager = covers(project.role, 'MANAGER')
   const targets = rows.filter((l) => !l.source)
   const of = (l: Locale) => progress.data?.find((p) => p.locale === l.locale)
@@ -78,9 +80,12 @@ function Overview({ project }: { project: Project }) {
   const loaded = messages !== undefined && counts.every((c) => c.loaded)
   const spoken = targets.length > 4 ? [...targets.slice(0, 3).map((l) => <Spoken key={l.locale} locale={l.locale} />), `${targets.length - 3} more`] : targets.map((l) => <Spoken key={l.locale} locale={l.locale} />)
   const waiting = readable.map((l, i) => ({ locale: l, review: counts[i].review })).filter((w) => w.review).sort((a, b) => b.review - a.review)
-  const open = (l: Locale, next?: Status) => {
+  // Straight into the first message that needs doing; the list when there is none, or it cannot be read.
+  const open = async (l: Locale, next?: Status | 'translate') => {
     select(l.locale)
-    navigate(next ? `/content?status=${next}` : '/content')
+    const rows = next ? await client.fetchQuery(resourcesQuery(project.id, l.locale)).catch(() => []) : []
+    const first = rows.find((r) => !r.archived && (next === 'review' ? status(r) === 'review' : needsWork(r, false)))
+    navigate(first ? `/content/${first.id}` : '/content')
   }
 
   return (
@@ -237,12 +242,12 @@ function Count({ to, suffix = '' }: { to: number; suffix?: string }) {
 }
 
 /** A language's row: where it stands, and the one thing to do next in it. */
-function Tile({ locale, count, delay, onOpen }: { locale: Locale; count: Count; delay: number; onOpen: (status?: Status) => void }) {
+function Tile({ locale, count, delay, onOpen }: { locale: Locale; count: Count; delay: number; onOpen: (next?: 'review' | 'translate') => void }) {
   const { total, approved, review, loaded } = count
   const todo = total - approved - review
   const done = loaded && total > 0 && approved === total
   const fresh = loaded && approved === 0 && review === 0
-  const [action, next] = !loaded ? ['Open', undefined] : review ? [`Review ${review}`, 'review' as const] : todo ? [`Translate ${todo}`, undefined] : ['Open', undefined]
+  const [action, next] = !loaded ? ['Open', undefined] : review ? [`Review ${review}`, 'review' as const] : todo ? [`Translate ${todo}`, 'translate' as const] : ['Open', undefined]
 
   return (
     <motion.button

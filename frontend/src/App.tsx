@@ -1,7 +1,8 @@
-import { Suspense } from 'react'
+import { Component, Suspense } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useLocation, useRoutes } from 'react-router'
 import { AppSidebar } from '@/components/app-sidebar'
+import { Button } from '@/components/ui/button'
 import { ChangePassword } from '@/components/change-password'
 import { SiteHeader } from '@/components/site-header'
 import { Invite } from '@/components/invite'
@@ -62,12 +63,32 @@ export default function App() {
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
           >
-            <Suspense>{screen}</Suspense>
+            <Failsafe>
+              <Suspense>{screen}</Suspense>
+            </Failsafe>
           </motion.div>
         </AnimatePresence>
       </SidebarInset>
     </SidebarProvider>
   )
+}
+
+/** A screen that throws says so in its own place, and the sidebar stays usable. Remounted per route, so leaving clears it. */
+class Failsafe extends Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  render() {
+    if (!this.state.failed) return this.props.children
+    return (
+      <section className="flex flex-1 flex-col items-center justify-center p-10 text-center">
+        <h2 className="mb-4">Something went wrong here</h2>
+        <p className="text-muted-foreground mb-6 text-lg">Reload the page, or pick another screen on the left.</p>
+        <Button onClick={() => location.reload()}>Reload</Button>
+      </section>
+    )
+  }
 }
 
 function NotFound() {

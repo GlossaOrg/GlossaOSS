@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useNavigate, useParams } from 'react-router'
-import { ArrowLeftIcon } from 'lucide-react'
+import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Highlight, IcuEditor, ink } from '@/components/icu-editor'
 import { Badge, Select } from '@/components/kit'
@@ -14,7 +14,7 @@ import { Splash } from '@/components/splash'
 import { api } from '@/lib/api'
 import { covers, useProject, type Project } from '@/lib/projects'
 import {
-  day, state, status, useDetail, useLocale, useProgress,
+  after, day, state, status, useDetail, useLocale, useProgress, useResources, waiting,
   type Analysis, type Contract, type Detail, type Locale, type Revision, type Variable,
 } from '@/lib/content'
 
@@ -151,6 +151,29 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
   const s = state(status(resource))
   const dirty = pattern !== stored
 
+  // The way through a language: the next message waiting on the caller, one keystroke away.
+  const navigate = useNavigate()
+  const list = useResources(project.id, target)
+  const next = origin ? undefined : after(list.data ?? [], resource.key, reviewer)
+  const left = origin ? 0 : (list.data ?? []).filter((r) => waiting(r, reviewer) && r.id !== resource.id).length
+  const go = () => next && navigate(`/content/${next.id}`)
+  const canSave = !check.problem && !save.isPending && !pending && dirty && !(origin && !manager)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault()
+        if (pending && reviewer && !decide.isPending) decide.mutateAsync(true).then(go, () => {})
+        else if (canSave) save.mutateAsync().then(go, () => {})
+        else if (!dirty) go()
+      } else if (e.altKey && e.key === 'ArrowRight' && !dirty) {
+        e.preventDefault()
+        go()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   return (
     <div className="page flex flex-col gap-3">
       {/* Back on the left, what acts on the message on the right. */}
@@ -162,6 +185,12 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
         <div className="flex flex-wrap items-center gap-2">
           <Badge dot={s.dot} className="bg-card h-9 px-3 text-[0.8125rem]">{s.label}</Badge>
           <LocaleSwitch project={project} locale={locale} dirty={dirty} />
+          {!origin && (
+            <Button variant="outline" disabled={!next || dirty} title={dirty ? 'Save or discard your change first.' : 'Next message (⌥→)'} onClick={go}>
+              {left ? `Next · ${left} left` : 'All done'}
+              {next && <ArrowRightIcon />}
+            </Button>
+          )}
           {manager && (
             <Button variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => archive.mutate(!resource.archived)}>
               {resource.archived ? 'Restore' : 'Archive'}
@@ -232,15 +261,25 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
               <Button disabled={decide.isPending} onClick={() => decide.mutate(true)}>
                 Approve
               </Button>
+              {next && (
+                <Button disabled={decide.isPending} title="⌘↵" onClick={() => decide.mutateAsync(true).then(go, () => {})}>
+                  Approve and next
+                </Button>
+              )}
             </div>
           )}
         </motion.div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={!!check.problem || save.isPending || pending || !dirty || (origin && !manager)} onClick={() => save.mutate()}>
+        <Button disabled={!canSave} onClick={() => save.mutate()}>
           {reviewer ? 'Save' : 'Propose'}
         </Button>
+        {next && (
+          <Button variant="outline" disabled={!canSave} title="⌘↵" onClick={() => save.mutateAsync().then(go, () => {})}>
+            {reviewer ? 'Save' : 'Propose'} and next
+          </Button>
+        )}
         {dirty && <Button variant="ghost" onClick={() => setPattern(stored)}>Discard</Button>}
         {origin && !manager && <span className="text-muted-foreground text-sm">Only a manager edits the source.</span>}
         {!reviewer && !origin && <span className="text-muted-foreground text-sm">Saved as a proposal for review.</span>}
