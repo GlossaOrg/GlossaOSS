@@ -27,7 +27,8 @@ export function BulkSuggest({ projectId, locale, source, rows, reviewer }: { pro
   const [saving, setSaving] = useState(false)
   const run = useRef(0)
   const todo = rows.filter((r) => !r.archived && r.headRevisionId == null).slice(0, LIMIT)
-  if (!todo.length) return null
+  // Open, the dialog outlives its last message: saving everything must still show what was saved.
+  if (!todo.length && !open) return null
 
   const patch = (id: number, change: Partial<Draft>) => setDrafts((all) => all.map((d) => (d.resource.id === id ? { ...d, ...change } : d)))
 

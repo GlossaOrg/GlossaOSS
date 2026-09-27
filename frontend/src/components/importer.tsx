@@ -58,7 +58,14 @@ export function Importer({ projectId, locale, reviewer }: { projectId: number; l
       setResult(total)
       setFile(null)
     } catch (error) {
-      setProblem((error as { detail?: string }).detail ?? 'The import failed.')
+      const reason = (error as { detail?: string }).detail ?? 'The import failed.'
+      // Earlier chunks are already written: show them, and say where it stopped.
+      const done = total.created + total.updated + total.unchanged + total.skipped.length
+      setProblem(done ? `${reason} Only the first ${done} entries went in.` : reason)
+      if (done) {
+        setResult(total)
+        setFile(null)
+      }
     } finally {
       setBusy(false)
       await client.invalidateQueries({ queryKey: ['resources', projectId] })
@@ -111,6 +118,7 @@ export function Importer({ projectId, locale, reviewer }: { projectId: number; l
                   </ul>
                 </div>
               )}
+              {problem && <p role="alert" className="text-destructive">{problem}</p>}
               <Button className="justify-self-end" onClick={() => close(false)}>Done</Button>
             </div>
           ) : (

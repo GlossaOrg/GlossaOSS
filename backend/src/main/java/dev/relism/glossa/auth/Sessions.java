@@ -26,7 +26,7 @@ public final class Sessions implements SessionStore {
     private static final Map<String, Class<? extends Principal>> KINDS = Map.of(
             "local", Users.LocalUser.class,
             "oidc", OidcPrincipal.class);
-    /** How long past its expiry a session stays refreshable. ponytail: rows past it are ignored, never swept; add a sweep if the table grows. */
+    /** How long past its expiry a session stays refreshable; after it, the next save deletes the row. */
     private static final Duration GRACE = Duration.ofDays(1);
 
     private final Data data;
@@ -47,8 +47,13 @@ public final class Sessions implements SessionStore {
         row.setKind(kind);
         row.setPrincipal(principal);
         row.setExpiresAt(session.expiresAt());
-        // merge: a refresh rewrites the row a sign-in created.
-        data.write(() -> hibernate().merge(row));
+        data.write(() -> {
+            // Sweeps on every sign-in and refresh rather than on a timer: indexed on expires_at, and nothing else writes here.
+            hibernate().createMutationQuery("delete from AppSession where expiresAt < :cutoff")
+                    .setParameter("cutoff", Instant.now().minus(GRACE)).executeUpdate();
+            // merge: a refresh rewrites the row a sign-in created.
+            return hibernate().merge(row);
+        });
     }
 
     @Override
