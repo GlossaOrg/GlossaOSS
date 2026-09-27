@@ -11,10 +11,14 @@ import dev.relism.flash.models.Request;
 import dev.relism.flash.models.Response;
 import dev.relism.flash.routing.GET;
 import dev.relism.flash.routing.POST;
+import dev.relism.flash.routing.PUT;
 import dev.relism.glossa.auth.ProjectRoles;
 import dev.relism.glossa.schema.Projects.NewProject;
 import dev.relism.glossa.schema.Projects.ProjectView;
+import dev.relism.glossa.schema.Projects.WebhookUpdate;
+import dev.relism.glossa.schema.Projects.WebhookView;
 import dev.relism.glossa.service.ProjectService;
+import dev.relism.glossa.service.WebhookService;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -45,6 +49,28 @@ public final class ProjectHandlers {
         @Override public ProjectView handle(Request req, Response res, NewProject body) throws Exception {
             res.status(201);
             return projects.create(body);
+        }
+    }
+
+    @GET("/api/projects/{project}/webhook")
+    @RolesAllowed(value = "MANAGER", on = "project")
+    @ApiOperation(summary = "Where the project announces a new release.", tags = "Projects")
+    public static final class Webhook extends JsonHandler<Void, WebhookView> {
+        @Inject private WebhookService webhooks;
+        @Override public WebhookView handle(Request req, Response res, Void ignored) {
+            return webhooks.view(Long.parseLong(req.param("project")));
+        }
+    }
+
+    @PUT("/api/projects/{project}/webhook")
+    @RolesAllowed(value = "MANAGER", on = "project")
+    @ApiOperation(summary = "Sets or removes the webhook.",
+                  description = "Each new release is POSTed to it as JSON, signed as sha256=HMAC(secret, body) in X-Glossa-Signature. The secret is answered only here.",
+                  tags = "Projects")
+    public static final class ConfigureWebhook extends JsonHandler<WebhookUpdate, WebhookView> {
+        @Inject private WebhookService webhooks;
+        @Override public WebhookView handle(Request req, Response res, WebhookUpdate body) {
+            return webhooks.configure(Long.parseLong(req.param("project")), body.url());
         }
     }
 }

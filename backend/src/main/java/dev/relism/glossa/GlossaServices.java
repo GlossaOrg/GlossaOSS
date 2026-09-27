@@ -16,6 +16,7 @@ import dev.relism.glossa.service.LocalizationService;
 import dev.relism.glossa.service.ProjectService;
 import dev.relism.glossa.service.SetupService;
 import dev.relism.glossa.service.UserService;
+import dev.relism.glossa.service.WebhookService;
 
 /**
  * Glossa's application-service graph, in one place rather than spread through {@link GlossaApp}:
@@ -67,7 +68,9 @@ public final class GlossaServices implements FlashExtension {
         ctx.provide(SetupService.class, new SetupService(data, localLogin, selfAdministered));
         ctx.provide(GlossaryService.class, new GlossaryService(data));
         ctx.supply(AiService.class, Json.class, json -> new AiService(data, json.mapper(), ai));
+        ctx.supply(WebhookService.class, Json.class, json -> new WebhookService(data, json.mapper()));
         ctx.supply(LocalizationService.class, c -> new LocalizationService(data, c.require(Json.class).mapper(),
-                c.require(AiService.class), c.require(GlossaryService.class)), Json.class, AiService.class, GlossaryService.class);
+                c.require(AiService.class), c.require(GlossaryService.class), c.require(WebhookService.class)),
+                Json.class, AiService.class, GlossaryService.class, WebhookService.class);
     }
 }

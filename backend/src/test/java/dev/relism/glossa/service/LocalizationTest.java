@@ -14,13 +14,21 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.sun.net.httpserver.HttpServer;
+
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -288,6 +296,41 @@ class LocalizationTest {
         put(translator, path(id) + "/context", "{\"context\":\"Mine now\"}").expectStatus(403);
         put(manager, path(id) + "/context", "{\"context\":\" Opens a file \"}").expectStatus(200).expectBodyContains("\"context\":\"Opens a file\"");
         put(manager, path(id) + "/context", "{\"context\":\"\"}").expectStatus(200).expectBodyContains("\"context\":null");
+    }
+
+    /** A new release is POSTed to the webhook, signed with the secret answered once; an unchanged one is not. */
+    @Test
+    @Order(9)
+    void aNewReleaseIsAnnouncedSignedToTheWebhook() throws Exception {
+        BlockingQueue<String[]> received = new ArrayBlockingQueue<>(4);
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/hook", exchange -> {
+            received.add(new String[] {exchange.getRequestHeaders().getFirst("X-Glossa-Signature"),
+                    new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)});
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String webhook = "/api/projects/" + project + "/webhook";
+            put(translator, webhook, "{\"url\":\"http://127.0.0.1/\"}").expectStatus(403);
+            put(manager, webhook, "{\"url\":\"ftp://nope\"}").expectStatus(400);
+            String set = put(manager, webhook, "{\"url\":\"http://127.0.0.1:" + server.getAddress().getPort() + "/hook\"}").expectStatus(200).body();
+            String secret = text(set, "secret");
+            app.request().with(as(manager)).get(webhook).expectStatus(200).expectBodyContains("\"secret\":null");
+
+            post(manager, "/api/projects/" + project + "/catalogs/en", "{}").expectStatus(201);
+            String[] call = received.poll(10, TimeUnit.SECONDS);
+            assertNotNull(call, "no webhook call");
+            assertTrue(call[1].contains("\"event\":\"release.published\"") && call[1].contains("\"locale\":\"en\"") && call[1].contains("\"version\":1"), call[1]);
+            assertEquals("sha256=" + WebhookService.sign(secret, call[1]), call[0]);
+
+            post(manager, "/api/projects/" + project + "/catalogs/en", "{}").expectStatus(201);
+            assertEquals(null, received.poll(1, TimeUnit.SECONDS));
+            put(manager, webhook, "{\"url\":null}").expectStatus(200).expectBodyContains("\"url\":null");
+        } finally {
+            server.stop(0);
+        }
     }
 
     private static String path(long resource) {

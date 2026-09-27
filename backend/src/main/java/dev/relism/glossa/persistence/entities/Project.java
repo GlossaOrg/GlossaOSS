@@ -24,4 +24,8 @@ public class Project {
     private String slug;
     private String name;
     private Instant createdAt = Instant.now();
+    /** Called with every new release, or null. */
+    private String webhookUrl;
+    /** Sealed with {@code Secrets}: Glossa signs with it, so it has to read it back. */
+    private String webhookSecret;
 }

@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { AnimatePresence } from 'motion/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { cn } from 'cn'
 import { Badge } from '@/components/kit'
 import { Language, languageName } from '@/components/locale'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { OneTimeNote } from '@/components/one-time-note'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
 import { useProject } from '@/lib/projects'
@@ -52,7 +55,66 @@ export function Releases() {
           </ul>
         </div>
       )}
+
+      <Webhook projectId={project.id} />
     </div>
+  )
+}
+
+type WebhookView = { url: string | null; secret: string | null }
+
+/** Where a new release is announced, so an app can fetch it instead of polling the manifest. */
+function Webhook({ projectId }: { projectId: number }) {
+  const client = useQueryClient()
+  const path = `/api/projects/${projectId}/webhook`
+  const current = useQuery({ queryKey: ['webhook', projectId], queryFn: () => api<WebhookView>(path) })
+  const [draft, setDraft] = useState<string | null>(null)
+  const [secret, setSecret] = useState<string | null>(null)
+  const save = useMutation({
+    mutationFn: (url: string | null) => api<WebhookView>(path, { method: 'PUT', json: { url } }),
+    onSuccess: (saved) => {
+      setDraft(null)
+      setSecret(saved.secret)
+      client.setQueryData(['webhook', projectId], { ...saved, secret: null })
+    },
+  })
+  const url = current.data?.url ?? null
+  return (
+    <section className="grid gap-3">
+      <AnimatePresence>
+        {secret && (
+          <OneTimeNote key={secret} title="Copy the webhook secret" secret={secret} onClose={() => setSecret(null)}>
+            Each call carries X-Glossa-Signature: sha256= and the HMAC of its body under this secret. It is shown once; saving the URL again makes a new one.
+          </OneTimeNote>
+        )}
+      </AnimatePresence>
+      <div className="card grid gap-3 p-5">
+        <header>
+          <h3>Webhook</h3>
+          <p className="text-muted-foreground mt-1 text-sm">Every new release is POSTed here as JSON, with its language, version and hash.</p>
+        </header>
+        {draft !== null ? (
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              save.mutate(draft.trim() || null)
+            }}
+          >
+            <Input type="url" value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus required placeholder="https://example.com/hooks/glossa" className="min-w-60 flex-1 font-mono text-[0.8125rem]" />
+            <Button type="submit" size="sm" disabled={save.isPending}>Save</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
+          </form>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={cn('min-w-0 flex-1 font-mono text-[0.8125rem] break-all', !url && 'text-muted-foreground font-sans text-sm')}>{url ?? 'Not set'}</span>
+            <Button size="sm" variant="outline" disabled={!current.data} onClick={() => setDraft(url ?? '')}>{url ? 'Change' : 'Set URL'}</Button>
+            {url && <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive" disabled={save.isPending} onClick={() => save.mutate(null)}>Remove</Button>}
+          </div>
+        )}
+        {save.error ? <p role="alert" className="text-destructive text-xs">{(save.error as { detail?: string }).detail ?? 'Could not save the webhook.'}</p> : null}
+      </div>
+    </section>
   )
 }
 

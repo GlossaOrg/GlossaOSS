@@ -76,6 +76,7 @@ public final class LocalizationService {
     private final ObjectMapper json;
     private final AiService ai;
     private final GlossaryService glossary;
+    private final WebhookService webhooks;
     private final MessageType messages = new MessageType();
     /** §3's registry: the field types a resource may name. */
     private final Map<String, FieldType> types = Map.of(messages.name(), messages);
@@ -461,7 +462,8 @@ public final class LocalizationService {
 
     /** Every active resource resolved for {@code locale}; publishing an unchanged catalog returns the current release. */
     public ReleaseView publish(long project, String locale) {
-        return inProject(project, true, () -> {
+        boolean[] fresh = {false};
+        ReleaseView published = inProject(project, true, () -> {
             enabled(project, locale);
             Map<String, Object> entries = new TreeMap<>();
             List<LocalizedResource> resources = session().createQuery("from LocalizedResource where projectId = :project and archived = false", LocalizedResource.class)
@@ -483,8 +485,12 @@ public final class LocalizationService {
             release.setHash(hash);
             release.setArtifact(artifact);
             session().persist(release);
+            fresh[0] = true;
             return releaseViewOf(release);
         });
+        // After the commit, so whoever the webhook tells can already fetch the release.
+        if (fresh[0]) webhooks.published(project, published);
+        return published;
     }
 
     public ReleaseView manifest(long project, String locale) {
