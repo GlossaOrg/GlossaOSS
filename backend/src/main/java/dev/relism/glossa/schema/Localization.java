@@ -130,6 +130,23 @@ public final class Localization {
     @Schema(name = "Release", description = "A published catalog. The hash addresses the catalog itself.")
     public record ReleaseView(long version, String locale, String hash, Instant createdAt) {}
 
+    @Schema(name = "Comment", description = "One message of the thread about a resource in one locale.")
+    public record CommentView(long id, String locale, String author, String body, Instant createdAt) {}
+
+    @Schema(name = "NewComment", description = "A message for the thread about a resource in one locale.")
+    @Valid
+    public record NewComment(
+            @SchemaProperty(required = true)
+            @NotNull(message = "is required")
+            @Size(min = 1, max = 2000, message = "is 1 to 2000 characters")
+            String body) {}
+
+    @Schema(name = "Context", description = "What a translator needs to know about a resource.")
+    @Valid
+    public record Context(
+            @Size(max = 255, message = "stays under 256 characters")
+            String context) {}
+
     @Schema(name = "Import", description = "Messages to bring in, each key to its ICU pattern.")
     @Valid
     public record Import(

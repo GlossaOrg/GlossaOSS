@@ -202,7 +202,7 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
         </div>
       </header>
 
-      {resource.context && <p className="text-muted-foreground max-w-[72ch] px-1">{resource.context}</p>}
+      <Context projectId={project.id} resourceId={resource.id} context={resource.context} manager={manager} onSaved={settled} />
       {!origin && <Terms projectId={project.id} locale={target} source={sourceRevision.payload.pattern} written={pattern} />}
 
       <IcuEditor
@@ -289,6 +289,8 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
         {!reviewer && !origin && <span className="text-muted-foreground text-sm">Saved as a proposal for review.</span>}
       </div>
 
+      <Comments projectId={project.id} resourceId={resource.id} locale={target} canWrite={covers(project.role, 'TRANSLATOR')} />
+
       <History
         locale={target}
         revisions={revisions.filter((r) => r.locale === target)}
@@ -323,6 +325,97 @@ function LocaleSwitch({ project, locale, dirty }: { project: Project; locale: Lo
         </option>
       ))}
     </Select>
+  )
+}
+
+/** What a translator is told about the message; the manager edits it in place, and it has no history. */
+function Context({ projectId, resourceId, context, manager, onSaved }: { projectId: number; resourceId: number; context: string | null; manager: boolean; onSaved: () => Promise<unknown> }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const save = useMutation({
+    mutationFn: () => api(`/api/projects/${projectId}/resources/${resourceId}/context`, { method: 'PUT', json: { context: draft } }),
+    onSuccess: () => onSaved().then(() => setDraft(null)),
+  })
+  if (draft !== null)
+    return (
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          save.mutate()
+        }}
+      >
+        <Input value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus maxLength={255} placeholder="What a translator needs to know" className="max-w-[72ch] min-w-60 flex-1" />
+        <Button type="submit" size="sm" disabled={save.isPending}>Save</Button>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
+      </form>
+    )
+  if (!context && !manager) return null
+  return (
+    <p className="text-muted-foreground max-w-[72ch] px-1">
+      {context}{' '}
+      {manager && (
+        <button type="button" onClick={() => setDraft(context ?? '')} className="text-foreground cursor-pointer text-sm font-medium underline-offset-4 hover:underline">
+          {context ? 'Edit' : 'Add context for translators'}
+        </button>
+      )}
+    </p>
+  )
+}
+
+type Comment = { id: number; author: string; body: string; createdAt: string }
+
+/** The thread about this message in this language: a translator's question, the manager's answer. */
+function Comments({ projectId, resourceId, locale, canWrite }: { projectId: number; resourceId: number; locale: string; canWrite: boolean }) {
+  const client = useQueryClient()
+  const key = ['comments', projectId, resourceId, locale]
+  const path = `/api/projects/${projectId}/resources/${resourceId}/comments?locale=${encodeURIComponent(locale)}`
+  const thread = useQuery({ queryKey: key, queryFn: () => api<Comment[]>(path) })
+  const [body, setBody] = useState('')
+  const post = useMutation({
+    mutationFn: () => api(path, { method: 'POST', json: { body } }),
+    onSuccess: () => client.invalidateQueries({ queryKey: key }).then(() => setBody('')),
+  })
+  const comments = thread.data ?? []
+  const send = () => body.trim() && !post.isPending && post.mutate()
+  return (
+    <details className="group card mt-3 px-5 py-4">
+      <summary className="font-heading flex w-fit cursor-pointer list-none items-baseline gap-2 text-base font-bold tracking-[-0.02em] select-none [&::-webkit-details-marker]:hidden">
+        <span aria-hidden className="inline-block w-4 transition-transform group-open:rotate-45">+</span>
+        Comments <span className="text-muted-foreground font-sans text-sm font-medium tracking-normal">{comments.length || 'none yet'}</span>
+      </summary>
+      <ul className="mt-4 grid gap-2">
+        {comments.map((c) => (
+          <li key={c.id} className="rounded-lg border px-4 py-3">
+            <p className="text-muted-foreground flex flex-wrap gap-x-2 text-xs">
+              <span className="text-foreground font-medium">{c.author}</span>
+              {day.format(new Date(c.createdAt))}
+            </p>
+            <p className="mt-1 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{c.body}</p>
+          </li>
+        ))}
+      </ul>
+      {canWrite && (
+        <div className="mt-3 grid gap-2">
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(e) => {
+              // ⌘↵ posts here, rather than saving the message and moving on.
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault()
+                e.stopPropagation()
+                send()
+              }
+            }}
+            maxLength={2000}
+            placeholder="Ask or answer something about this message"
+            className="border-input bg-card focus-visible:ring-ring/10 max-h-40 min-h-16 resize-y rounded-lg [field-sizing:content] border px-3 py-2 text-sm outline-none focus-visible:ring-3"
+          />
+          {post.error ? <p role="alert" className="text-destructive text-xs">{(post.error as { detail?: string }).detail ?? 'Could not post the comment.'}</p> : null}
+          <Button size="sm" className="w-fit" disabled={!body.trim() || post.isPending} onClick={send}>Comment</Button>
+        </div>
+      )}
+    </details>
   )
 }
 

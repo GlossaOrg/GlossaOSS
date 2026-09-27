@@ -23,6 +23,7 @@ import dev.relism.glossa.persistence.entities.Project;
 import dev.relism.glossa.persistence.entities.ProjectApiKey;
 import dev.relism.glossa.persistence.entities.ProjectLocale;
 import dev.relism.glossa.persistence.entities.ProjectMember;
+import dev.relism.glossa.persistence.entities.ResourceComment;
 import dev.relism.glossa.persistence.entities.UserIdentity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -62,7 +63,7 @@ public final class Database {
     private static final List<Class<?>> CORE_ENTITIES = List.of(
             AppUser.class, UserIdentity.class, LocalCredential.class, Project.class, ProjectMember.class, ProjectApiKey.class, Invitation.class,
             ProjectLocale.class, LocalizedResource.class, ContentVariant.class, ContentRevision.class, ContentEvent.class, CatalogRelease.class,
-            AiSettings.class, GlossaryTerm.class, AppSession.class);
+            AiSettings.class, GlossaryTerm.class, AppSession.class, ResourceComment.class);
 
     /**
      * Schema a module built on top of this one adds: its migrations, and the entities they create.

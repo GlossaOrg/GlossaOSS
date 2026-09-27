@@ -19,6 +19,8 @@ import dev.relism.glossa.persistence.entities.ContentVariant;
 import dev.relism.glossa.persistence.entities.LocalizedResource;
 import dev.relism.glossa.persistence.entities.Project;
 import dev.relism.glossa.persistence.entities.ProjectLocale;
+import dev.relism.glossa.persistence.entities.ResourceComment;
+import dev.relism.glossa.schema.Localization.CommentView;
 import dev.relism.glossa.schema.Localization.CreateResource;
 import dev.relism.glossa.schema.Localization.Decision;
 import dev.relism.glossa.schema.Localization.Detail;
@@ -27,6 +29,7 @@ import dev.relism.glossa.schema.Localization.EventView;
 import dev.relism.glossa.schema.Localization.LocaleRequest;
 import dev.relism.glossa.schema.Localization.LocaleView;
 import dev.relism.glossa.schema.Localization.MessageRequest;
+import dev.relism.glossa.schema.Localization.NewComment;
 import dev.relism.glossa.schema.Localization.Import;
 import dev.relism.glossa.schema.Localization.Imported;
 import dev.relism.glossa.schema.Localization.Progress;
@@ -255,6 +258,45 @@ public final class LocalizationService {
             }
         }
         return new Imported(created, updated, unchanged, skipped);
+    }
+
+    /** The thread about a resource in one locale, oldest first. */
+    public List<CommentView> comments(long project, long id, String locale) {
+        return inProject(project, false, () -> {
+            enabled(project, locale);
+            resource(project, id);
+            return session().createQuery("from ResourceComment where resourceId = :resource and locale = :locale order by id", ResourceComment.class)
+                    .setParameter("resource", id).setParameter("locale", locale).getResultStream().map(LocalizationService::commentViewOf).toList();
+        });
+    }
+
+    public CommentView comment(long project, long id, String locale, NewComment request) {
+        if (request.body().isBlank()) throw HttpException.badRequest("Write something first.");
+        return inProject(project, true, () -> {
+            enabled(project, locale);
+            resource(project, id);
+            ResourceComment comment = new ResourceComment();
+            comment.setProjectId(project);
+            comment.setResourceId(id);
+            comment.setLocale(locale);
+            comment.setAuthor(actor());
+            comment.setBody(request.body().strip());
+            session().persist(comment);
+            return commentViewOf(comment);
+        });
+    }
+
+    /** The translator context is guidance, not content: it changes in place and has no revisions. */
+    public ResourceView context(long project, long id, String context) {
+        return inProject(project, true, () -> {
+            LocalizedResource resource = resource(project, id);
+            resource.setContext(context == null || context.isBlank() ? null : context.strip());
+            return view(resource, source(project).getLocale());
+        });
+    }
+
+    private static CommentView commentViewOf(ResourceComment c) {
+        return new CommentView(c.getId(), c.getLocale(), c.getAuthor(), c.getBody(), c.getCreatedAt());
     }
 
     /** The resource and its first source revision, approved at once. */

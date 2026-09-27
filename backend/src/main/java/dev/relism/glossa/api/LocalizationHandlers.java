@@ -148,6 +148,37 @@ public final class LocalizationHandlers {
         }
     }
 
+    @GET("/api/projects/{project}/resources/{resource}/comments")
+    @RolesAllowed(value = "READER", on = {"project", "locale"})
+    @ApiOperation(summary = "The thread about a resource in one locale.", tags = "Localization")
+    @Parameter(name = "locale", in = ParameterIn.QUERY, required = true, description = "Whose thread.")
+    public static final class Comments extends Base<Void, List<Localization.CommentView>> {
+        @Override public List<Localization.CommentView> handle(Request req, Response res, Void ignored) {
+            return content.comments(project(req), resource(req), req.query("locale"));
+        }
+    }
+
+    @POST("/api/projects/{project}/resources/{resource}/comments")
+    @RolesAllowed(value = "TRANSLATOR", on = {"project", "locale"})
+    @ApiOperation(summary = "Adds to the thread about a resource in one locale.", tags = "Localization")
+    @Parameter(name = "locale", in = ParameterIn.QUERY, required = true, description = "Whose thread.")
+    @APIResponse(responseCode = "201", description = "Added")
+    public static final class Comment extends Base<Localization.NewComment, Localization.CommentView> {
+        @Override public Localization.CommentView handle(Request req, Response res, Localization.NewComment body) {
+            res.status(201);
+            return content.comment(project(req), resource(req), req.query("locale"), body);
+        }
+    }
+
+    @PUT("/api/projects/{project}/resources/{resource}/context")
+    @RolesAllowed(value = "MANAGER", on = "project")
+    @ApiOperation(summary = "Changes what translators are told about a resource.", tags = "Localization")
+    public static final class Context extends Base<Localization.Context, Localization.ResourceView> {
+        @Override public Localization.ResourceView handle(Request req, Response res, Localization.Context body) {
+            return content.context(project(req), resource(req), body.context());
+        }
+    }
+
     @PUT("/api/projects/{project}/resources/{resource}/variants/{locale}")
     @RolesAllowed(value = "TRANSLATOR", on = {"project", "locale"})
     @ApiOperation(summary = "Writes a revision.",

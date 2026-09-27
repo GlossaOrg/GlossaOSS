@@ -270,6 +270,26 @@ class LocalizationTest {
         assertTrue(list.matches("(?s).*\"pendingRevisionId\":\\d+.*"), list);
     }
 
+    /** A thread is per locale, so a locale-scoped role reads and writes its own; the context is the manager's. */
+    @Test
+    @Order(8)
+    void commentsAreThreadedPerLocaleAndTheContextIsTheManagers() {
+        long id = number(post(manager, "/api/projects/" + project + "/resources",
+                "{\"key\":\"thread.one\",\"fieldType\":\"message\",\"payload\":{\"pattern\":\"Open\"}}").expectStatus(201).body(), "id");
+        post(translator, path(id) + "/comments?locale=it", "{\"body\":\"  A door or a file?  \"}").expectStatus(201)
+                .expectBodyContains("\"body\":\"A door or a file?\"");
+        post(manager, path(id) + "/comments?locale=it", "{\"body\":\"A file.\"}").expectStatus(201);
+        post(translator, path(id) + "/comments?locale=en", "{\"body\":\"Not my locale\"}").expectStatus(403);
+        post(translator, path(id) + "/comments?locale=it", "{\"body\":\"   \"}").expectStatus(400);
+        String thread = app.request().with(as(reviewer)).get(path(id) + "/comments?locale=it").expectStatus(200).body();
+        assertTrue(thread.indexOf("A door") < thread.indexOf("A file."), thread);
+        app.request().with(as(manager)).get(path(id) + "/comments?locale=en").expectStatus(200).expectBody("[]");
+
+        put(translator, path(id) + "/context", "{\"context\":\"Mine now\"}").expectStatus(403);
+        put(manager, path(id) + "/context", "{\"context\":\" Opens a file \"}").expectStatus(200).expectBodyContains("\"context\":\"Opens a file\"");
+        put(manager, path(id) + "/context", "{\"context\":\"\"}").expectStatus(200).expectBodyContains("\"context\":null");
+    }
+
     private static String path(long resource) {
         return "/api/projects/" + project + "/resources/" + resource;
     }
