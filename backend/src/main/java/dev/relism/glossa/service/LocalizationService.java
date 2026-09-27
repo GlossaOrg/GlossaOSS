@@ -12,6 +12,7 @@ import dev.relism.flash.ext.security.apikey.ApiKeyPrincipal;
 import dev.relism.glossa.content.FieldType.Variable;
 import dev.relism.glossa.content.FieldType;
 import dev.relism.glossa.content.MessageType;
+import dev.relism.glossa.persistence.entities.AppUser;
 import dev.relism.glossa.persistence.entities.CatalogRelease;
 import dev.relism.glossa.persistence.entities.ContentEvent;
 import dev.relism.glossa.persistence.entities.ContentRevision;
@@ -280,7 +281,8 @@ public final class LocalizationService {
             comment.setProjectId(project);
             comment.setResourceId(id);
             comment.setLocale(locale);
-            comment.setAuthor(actor());
+            // A name to show, not an audit trail: an OIDC subject means nothing to the reader. An API key signs as itself.
+            comment.setAuthor(machine() ? actor() : SecurityIdentity.current().user(AppUser.class).getName());
             comment.setBody(request.body().strip());
             session().persist(comment);
             return commentViewOf(comment);

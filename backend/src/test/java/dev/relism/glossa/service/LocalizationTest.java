@@ -291,6 +291,7 @@ class LocalizationTest {
         post(translator, path(id) + "/comments?locale=it", "{\"body\":\"   \"}").expectStatus(400);
         String thread = app.request().with(as(reviewer)).get(path(id) + "/comments?locale=it").expectStatus(200).body();
         assertTrue(thread.indexOf("A door") < thread.indexOf("A file."), thread);
+        assertTrue(thread.contains("\"author\":\"content-translator@example.test\""), thread);
         app.request().with(as(manager)).get(path(id) + "/comments?locale=en").expectStatus(200).expectBody("[]");
 
         put(translator, path(id) + "/context", "{\"context\":\"Mine now\"}").expectStatus(403);
