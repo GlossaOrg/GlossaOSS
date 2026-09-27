@@ -14,7 +14,7 @@ import { Splash } from '@/components/splash'
 import { api } from '@/lib/api'
 import { covers, useProject, type Project } from '@/lib/projects'
 import {
-  day, denied, state, status, useDetail, useLocale, useLocaleLists,
+  day, state, status, useDetail, useLocale, useProgress,
   type Analysis, type Contract, type Detail, type Locale, type Revision, type Variable,
 } from '@/lib/content'
 
@@ -261,9 +261,9 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
 /** The language being edited, switchable in place: the editor remounts on the other locale's revisions. */
 function LocaleSwitch({ project, locale, dirty }: { project: Project; locale: Locale; dirty: boolean }) {
   const { rows, select } = useLocale(project.id)
-  const lists = useLocaleLists(project.id, rows)
+  const progress = useProgress(project.id)
   // Only what the caller may read: a role limited to one locale is refused the others.
-  const readable = rows.filter((_, i) => !denied(lists[i]?.error))
+  const readable = rows.filter((l) => progress.data?.some((p) => p.locale === l.locale))
   if (readable.length < 2) return null
   return (
     // Switching remounts the editor on the other locale, so unsaved text is saved or discarded first.

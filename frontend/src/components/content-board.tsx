@@ -10,7 +10,7 @@ import { Flag, languageName, shade } from '@/components/locale'
 import { Pattern } from '@/components/pattern'
 import { Skeleton } from '@/components/ui/skeleton'
 import { covers, useProject, type Project } from '@/lib/projects'
-import { denied, state, states, status, useLocale, useLocaleLists, useResources, type Locale, type Resource, type Status } from '@/lib/content'
+import { state, states, status, useLocale, useProgress, useResources, type Locale, type Progress, type Resource, type Status } from '@/lib/content'
 
 /** Height-and-fade, the same disclosure the rest of the app uses. */
 const unfold = {
@@ -30,7 +30,7 @@ export function Content() {
 
 function Board({ project }: { project: Project }) {
   const { rows: locales, locale, source, locales: query, select } = useLocale(project.id)
-  const lists = useLocaleLists(project.id, locales)
+  const progress = useProgress(project.id)
   const resources = useResources(project.id, locale?.locale)
   const [group, setGroup] = useState<string | null>(null)
   const [params] = useSearchParams()
@@ -52,7 +52,7 @@ function Board({ project }: { project: Project }) {
   }, [all])
 
   // A locale the caller may not read is not offered at all.
-  const ordered = locales.filter((l) => !denied(lists[locales.indexOf(l)]?.error))
+  const ordered = locales.filter((l) => progress.data?.some((p) => p.locale === l.locale))
 
   const shown = all.filter((r) => {
     if (group && !(group === 'ungrouped' ? !r.key.includes('.') : r.key.startsWith(`${group}.`))) return false
@@ -90,7 +90,7 @@ function Board({ project }: { project: Project }) {
 
       <div className="flex flex-wrap gap-2">
         {ordered.map((l) => (
-          <LocaleTab key={l.locale} locale={l} rows={lists[locales.indexOf(l)].data} active={locale?.locale === l.locale} onSelect={() => select(l.locale)} />
+          <LocaleTab key={l.locale} locale={l} progress={progress.data?.find((p) => p.locale === l.locale)} active={locale?.locale === l.locale} onSelect={() => select(l.locale)} />
         ))}
       </div>
 
@@ -167,9 +167,8 @@ function Board({ project }: { project: Project }) {
 }
 
 /** A locale to switch to, filled when it is the one being looked at; the fill slides between them. */
-function LocaleTab({ locale, rows, active, onSelect }: { locale: Locale; rows?: Resource[]; active: boolean; onSelect: () => void }) {
-  const done = rows?.filter((r) => status(r) === 'approved').length ?? 0
-  const percent = rows?.length ? Math.floor((done / rows.length) * 100) : 0
+function LocaleTab({ locale, progress, active, onSelect }: { locale: Locale; progress?: Progress; active: boolean; onSelect: () => void }) {
+  const percent = progress?.total ? Math.floor((progress.approved / progress.total) * 100) : 0
   const still = useReducedMotion()
   return (
     <button
@@ -185,7 +184,7 @@ function LocaleTab({ locale, rows, active, onSelect }: { locale: Locale; rows?: 
       <span className="grid leading-tight">
         <span className="text-[0.8438rem] font-bold">{languageName(locale.locale)}</span>
         <span className="text-muted-foreground text-xs tabular-nums">
-          {locale.source ? 'Source' : rows ? `${percent}% approved` : 'Counting…'}
+          {locale.source ? 'Source' : progress ? `${percent}% approved` : 'Counting…'}
         </span>
         {/* The source's bar is there but unseen, so every tab is the same height. */}
         <span className={cn('bg-secondary mt-1.5 block h-1 w-24 overflow-hidden rounded-full', locale.source && 'invisible')}>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { languageName } from '@/components/locale'
 import { api } from '@/lib/api'
 import { useWorkspace } from '@/store/workspace'
@@ -216,18 +216,16 @@ export function useDetail(projectId: number, id: number, locale?: string) {
   })
 }
 
+export type Progress = { locale: string; total: number; untranslated: number; review: number; rejected: number; outdated: number; approved: number; release: Release | null }
+
 /**
- * Every locale's list at once, archived resources left out: what a screen needs to say how far each
- * language has got. It shares `useResources`' cache, so switching to a locale afterwards is instant.
- * ponytail: one list per locale. Batch it server-side when a project holds thousands of keys and
- * this becomes N large responses.
+ * Where every locale the caller may read stands, in one request. Keyed under `resources`, so every
+ * write that invalidates the lists invalidates this too; a locale missing from it is not the caller's to read.
  */
-export function useLocaleLists(projectId: number, locales: Locale[]) {
-  return useQueries({
-    queries: locales.map((l) => ({
-      queryKey: ['resources', projectId, l.locale],
-      queryFn: () => api<Resource[]>(`/api/projects/${projectId}/resources?locale=${encodeURIComponent(l.locale)}`),
-      select: (rows: Resource[]) => rows.filter((r) => !r.archived),
-    })),
+export function useProgress(projectId: number) {
+  return useQuery({
+    queryKey: ['resources', projectId, 'progress'],
+    queryFn: () => api<Progress[]>(`/api/projects/${projectId}/progress`),
+    enabled: !!projectId,
   })
 }

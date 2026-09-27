@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useRef } from 'react'
-import { useQueries } from '@tanstack/react-query'
 import { animate, motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router'
 import { ArrowRightIcon } from 'lucide-react'
@@ -7,8 +6,7 @@ import { cn } from 'cn'
 import { Badge } from '@/components/kit'
 import { Flag, languageName, shade } from '@/components/locale'
 import { Button } from '@/components/ui/button'
-import { api } from '@/lib/api'
-import { day, denied, status, useLocale, useLocaleLists, type Locale, type Release, type Resource, type Status } from '@/lib/content'
+import { day, useLocale, useProgress, type Locale, type Progress, type Status } from '@/lib/content'
 import { useMe } from '@/lib/me'
 import { covers, useProject, type Project } from '@/lib/projects'
 
@@ -53,14 +51,13 @@ function Hello() {
 function Overview({ project }: { project: Project }) {
   const navigate = useNavigate()
   const { rows, source, select, locales } = useLocale(project.id)
-  const lists = useLocaleLists(project.id, rows)
+  const progress = useProgress(project.id)
   const manager = covers(project.role, 'MANAGER')
   const targets = rows.filter((l) => !l.source)
-  const listOf = (l: Locale) => lists[rows.indexOf(l)]?.data
+  const of = (l: Locale) => progress.data?.find((p) => p.locale === l.locale)
   // A caller whose role is one locale's may read no other: those languages are spoken, not shown.
-  const readable = targets.filter((l) => !denied(lists[rows.indexOf(l)]?.error))
-  // A language that failed for any other reason stays listed, and the totals say they are incomplete.
-  const failing = readable.some((l) => lists[rows.indexOf(l)]?.isError)
+  const readable = progress.data ? targets.filter(of) : targets
+  const failing = progress.isError
 
   if (locales.error) return <Statement eyebrow={<Hello />} text="This project could not be loaded. Reload the page." />
   if (!locales.data) return null
@@ -72,12 +69,12 @@ function Overview({ project }: { project: Project }) {
     )
   }
 
-  const counts = readable.map((l) => tally(listOf(l)))
+  const counts = readable.map((l) => tally(of(l)))
   const total = counts.reduce((sum, c) => sum + c.total, 0)
   const approved = counts.reduce((sum, c) => sum + c.approved, 0)
   const review = counts.reduce((sum, c) => sum + c.review, 0)
-  // Every list holds every resource, so any one that has arrived counts the messages.
-  const messages = lists.find((q) => q.data)?.data?.length
+  // Every locale counts every resource, so any one of them counts the messages.
+  const messages = progress.data?.[0]?.total
   const loaded = messages !== undefined && counts.every((c) => c.loaded)
   const spoken = targets.length > 4 ? [...targets.slice(0, 3).map((l) => <Spoken key={l.locale} locale={l.locale} />), `${targets.length - 3} more`] : targets.map((l) => <Spoken key={l.locale} locale={l.locale} />)
   const waiting = readable.map((l, i) => ({ locale: l, review: counts[i].review })).filter((w) => w.review).sort((a, b) => b.review - a.review)
@@ -156,7 +153,7 @@ function Overview({ project }: { project: Project }) {
           </motion.div>
         </section>
 
-        <Latest projectId={project.id} locales={readable} manager={manager} />
+        <Latest locales={readable} progress={progress.data} failed={progress.isError} manager={manager} />
       </div>
 
       <section className="card px-2 py-1.5">
@@ -181,31 +178,29 @@ function Overview({ project }: { project: Project }) {
 }
 
 /** The dark card: the newest catalog any language has published (§10). */
-function Latest({ projectId, locales, manager }: { projectId: number; locales: Locale[]; manager: boolean }) {
+function Latest({ locales, progress, failed, manager }: { locales: Locale[]; progress?: Progress[]; failed: boolean; manager: boolean }) {
   const navigate = useNavigate()
-  const manifests = useQueries({
-    queries: locales.map((l) => ({
-      queryKey: ['manifest', projectId, l.locale],
-      queryFn: () => api<Release>(`/api/projects/${projectId}/catalogs/${encodeURIComponent(l.locale)}`),
-    })),
-  })
-  // A 404 is a language with nothing published yet; any other failure leaves the answer unknown.
-  const failed = manifests.some((m) => m.error && (m.error as { status?: number }).status !== 404)
-  const releases = manifests.flatMap((m) => (m.data ? [m.data] : []))
-  const latest = releases.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
-  const settled = manifests.every((m) => !m.isPending)
+  const release = (l: Locale) => progress?.find((p) => p.locale === l.locale)?.release
+  const releases = locales.flatMap((l) => release(l) ?? [])
+  const latest = [...releases].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
 
   return (
     <section className="bg-ink flex flex-col rounded-xl p-5 text-white">
       <p className="text-xs text-white/60">Releases</p>
       <p className="font-heading mt-2 text-xl leading-tight font-bold tracking-[-0.02em]">
-        {!settled ? 'Checking…' : failed ? 'Release status unavailable.' : latest ? <>{languageName(latest.locale)} v{latest.version}<br />is live.</> : 'Nothing published yet.'}
+        {failed ? 'Release status unavailable.' : !progress ? 'Checking…' : latest ? <>{languageName(latest.locale)} v{latest.version}<br />is live.</> : 'Nothing published yet.'}
       </p>
-      {/* One flag per language, faded until it has a catalog out. */}
-      <div className="mt-5 flex">
-        {locales.map((l, i) => (
-          <Flag key={l.locale} locale={l.locale} className={cn('ring-ink -ml-1.5 size-7 ring-2 first:ml-0', !manifests[i]?.data && 'opacity-35')} />
-        ))}
+      {/* One flag per language: in colour once it has a catalog out, a quiet outline until then. */}
+      <div className="mt-5 flex flex-wrap gap-1.5">
+        {locales.map((l) =>
+          release(l) ? (
+            <Flag key={l.locale} locale={l.locale} className="size-6" />
+          ) : (
+            <span key={l.locale} title={`${languageName(l.locale)}: not published`} className="grid size-6 place-items-center rounded-full border border-dashed border-white/30">
+              <Flag locale={l.locale} className="size-3.5 opacity-50 grayscale" />
+            </span>
+          ),
+        )}
       </div>
       <div className="mt-5 border-t border-white/15 pt-3 text-xs">
         <div className="flex gap-8">
@@ -224,14 +219,8 @@ function Latest({ projectId, locales, manager }: { projectId: number; locales: L
 
 type Count = { total: number; approved: number; review: number; loaded: boolean }
 
-function tally(rows?: Resource[]): Count {
-  const all = rows ?? []
-  return {
-    total: all.length,
-    approved: all.filter((r) => status(r) === 'approved').length,
-    review: all.filter((r) => status(r) === 'review').length,
-    loaded: !!rows,
-  }
+function tally(p?: Progress): Count {
+  return { total: p?.total ?? 0, approved: p?.approved ?? 0, review: p?.review ?? 0, loaded: !!p }
 }
 
 /** A number that counts up to itself when it arrives, and straight to the end for reduced motion. */
