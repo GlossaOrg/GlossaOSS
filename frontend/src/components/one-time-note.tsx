@@ -4,7 +4,7 @@ import { CheckIcon, CopyIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 /**
- * The one place a secret is ever shown — a token, an invitation link — in blue, the loudest thing on
+ * The one place a secret is ever shown — a token, an invitation link — in lilac, the loudest thing on
  * the page. Closing it drops the last copy the browser holds.
  */
 export function OneTimeNote({ title, secret, children, onClose }: { title: string; secret: string; children: React.ReactNode; onClose: () => void }) {
