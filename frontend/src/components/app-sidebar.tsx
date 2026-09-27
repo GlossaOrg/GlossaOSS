@@ -1,72 +1,21 @@
-import type { Me } from '@/lib/me'
-import { useState } from 'react'
-import { SettingsIcon, SparklesIcon, UsersIcon } from 'lucide-react'
 import { NavMain } from '@/components/nav-main'
-import { AiFeatures } from '@/components/ai'
-import { SettingsDialog } from '@/components/settings'
-import { Users } from '@/components/users'
+import { Logo } from '@/components/logo'
 import { plugin } from '@/plugin'
-import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
-import { useProject } from '@/lib/projects'
 import { useScreens } from '@/screens'
-import { NavUser } from '@/components/nav-user'
 import { WorkspaceSwitcher } from '@/components/workspace-switcher'
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarRail,
-} from '@/components/ui/sidebar'
+import { Sidebar, SidebarContent, SidebarHeader, SidebarRail } from '@/components/ui/sidebar'
 
-/** shadcn's sidebar-07: project switcher, screens, and the signed-in user. */
-export function AppSidebar({
-  user,
-  ...props
-}: React.ComponentProps<typeof Sidebar> & { user: Me }) {
-  const [settings, setSettings] = useState(false)
-  const { project } = useProject()
-
+/** The logo, the project and its screens: a white card on the canvas. */
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
+    <Sidebar collapsible="offcanvas" variant="floating" {...props}>
+      <SidebarHeader className="gap-5 px-3 pt-5">
+        <Logo className="ml-2 h-5 self-start" />
         {plugin.switcher ?? <WorkspaceSwitcher />}
       </SidebarHeader>
-      <SidebarContent>
-        {/* Named after the project the screens are scoped to, so the nav never claims a scope it is not in. */}
-        <NavMain label={project?.name} screens={useScreens()} />
-        {user.admin && (
-          <SidebarGroup className="mt-auto">
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Settings"
-                  onClick={() => setSettings(true)}
-                  className="link-bg-animated h-9 rounded-lg px-3 motion-safe:hover:[&_svg]:animate-[shake_0.45s_ease-in-out]"
-                >
-                  <SettingsIcon />
-                  <span>Settings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-        )}
+      <SidebarContent className="px-1 pt-1">
+        <NavMain screens={useScreens()} />
       </SidebarContent>
-      {user.admin && (
-        <SettingsDialog
-          title="Settings"
-          description="Accounts and AI for this server."
-          tabs={[
-            { id: 'users', title: 'Users', icon: UsersIcon, element: <Users /> },
-            { id: 'ai', title: 'AI', icon: SparklesIcon, element: <AiFeatures /> },
-          ]}
-          open={settings}
-          onOpenChange={setSettings}
-        />
-      )}
-      <SidebarFooter>
-        <NavUser user={user} />
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

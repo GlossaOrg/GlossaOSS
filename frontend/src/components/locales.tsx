@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { PlusIcon, Trash2Icon } from 'lucide-react'
 import { cn } from 'cn'
-import { Language, languageName } from '@/components/locale'
+import { Badge, Select } from '@/components/kit'
+import { Flag, languageName } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,17 +27,19 @@ export function Locales() {
   const [adding, setAdding] = useState(false)
 
   return (
-    <div className="page grid gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <div className="page">
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-6">
         <div>
-          <h2 className="mb-2">Locales</h2>
-          <p className="text-muted-foreground text-[17px]">
-            {source ? `Content is authored in ${languageName(source.locale)} and translated into the rest.` : 'Start with the language content is authored in.'}
+          <h2>Locales</h2>
+          <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem]">
+            {source
+              ? `Content is written in ${languageName(source.locale)}, then translated. Where a translation is missing, its fallback shows instead.`
+              : 'Start with the language content is written in.'}
           </p>
         </div>
         <Button onClick={() => setAdding(true)} disabled={adding}>
-          <PlusIcon className="transition-transform duration-300 motion-safe:group-hover/button:rotate-90" />
-          Add locale
+          <PlusIcon />
+          Add a language
         </Button>
       </header>
 
@@ -47,40 +50,50 @@ export function Locales() {
       {locales.error ? (
         <p role="alert" className="text-destructive">Could not load the locales. Reload the page.</p>
       ) : !locales.data ? (
-        <div className="divide-y border-y" aria-busy>
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="py-3.5" style={{ opacity: 1 - i * 0.3 }}>
-              <Skeleton className="h-5 w-64" />
-            </div>
-          ))}
+        <div className="grid gap-4" aria-busy>
+          <Skeleton className="h-24" />
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16" style={{ opacity: 1 - i * 0.3 }} />)}
         </div>
       ) : rows.length === 0 ? (
-        <p className="text-muted-foreground border-y py-10">No locales yet. The first one you add is the source.</p>
+        <p className="card text-muted-foreground p-6">No languages yet. The first one you add is the one content is written in.</p>
       ) : (
-        <div className="border-y">
-          <div className={cn('text-muted-foreground hidden border-b py-2 md:grid', columns)}>
-            <span className="eyebrow">Language</span>
-            <span className="eyebrow">Falls back to</span>
-            <span className="eyebrow">Plural forms</span>
-            <span className="eyebrow">Ordinal forms</span>
-          </div>
-          <ul className="divide-y">
+        <>
+          {source && <Source locale={source} />}
+          <ul className="card px-5">
             <AnimatePresence initial={false}>
-              {ordered.map((l) => (
-                <motion.li key={l.locale} layout="position" {...unfold} className="overflow-hidden">
+              {ordered.filter((l) => !l.source).map((l) => (
+                <motion.li key={l.locale} layout="position" {...unfold} className="overflow-hidden border-t first:border-t-0">
                   <Row locale={l} all={rows} projectId={project.id} />
                 </motion.li>
               ))}
             </AnimatePresence>
           </ul>
-        </div>
+        </>
       )}
     </div>
   )
 }
 
-/** One grid for the header and every row, so the columns line up whatever a language is called. */
-const columns = 'md:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(0,1fr)_2rem] md:items-center gap-x-6'
+/** The language everything is written in first: not a row among the others. */
+function Source({ locale }: { locale: Locale }) {
+  return (
+    <div className="card mb-3 flex flex-wrap items-center gap-x-5 gap-y-3 p-5">
+      <Flag locale={locale.locale} className="size-12" />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2.5">
+          <span className="text-2xl leading-tight font-semibold tracking-[-0.025em]">{languageName(locale.locale)}</span>
+          <Badge className="bg-foreground text-background">Source</Badge>
+        </span>
+        <span className="text-muted-foreground mt-0.5 block text-sm">
+          <span className="font-mono">{locale.locale}</span> · Every message is written here first · {counting(locale.cardinal).join(', ')}
+        </span>
+      </span>
+    </div>
+  )
+}
+
+/** One grid for every row, so the columns line up whatever a language is called. */
+const columns = 'md:grid-cols-[2.5rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)_2.5rem]'
 
 function Row({ locale, all, projectId }: { locale: Locale; all: Locale[]; projectId: number }) {
   const client = useQueryClient()
@@ -105,54 +118,52 @@ function Row({ locale, all, projectId }: { locale: Locale; all: Locale[]; projec
   const failure = (save.error ?? remove.error) as { detail?: string } | null
 
   return (
-    <div className="group/row py-3">
-      <div className={cn('grid gap-y-2', columns)}>
-        <span className="flex min-w-0 flex-wrap items-center gap-2">
-          <Language locale={locale.locale} />
-          {locale.source && <span className="bg-brand/10 text-brand rounded-full px-2 py-px text-[11px] font-medium">source</span>}
-          {locale.rtl && <span className="bg-muted text-muted-foreground rounded-full px-2 py-px text-[11px] font-medium">rtl</span>}
+    <div className="group/row py-5">
+      <div className={cn('grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-x-5 gap-y-3', columns)}>
+        <Flag locale={locale.locale} className="size-10" />
+        <span className="min-w-0">
+          <span className="block truncate text-lg leading-tight font-medium tracking-[-0.015em]">{languageName(locale.locale)}</span>
+          <span className="text-muted-foreground block font-mono text-xs">{locale.locale}{locale.rtl && ' · right to left'}</span>
         </span>
-        {locale.source ? (
-          <span className="text-muted-foreground text-sm">Written here first</span>
-        ) : (
-          <select
+        <span className="col-span-2 col-start-2 row-start-2 md:col-span-1 md:col-start-auto md:row-start-auto">
+          <span className="eyebrow mb-1 block">Falls back to</span>
+          <Select
+            lead={locale.fallbackLocale && <Flag locale={locale.fallbackLocale} className="size-4" />}
             value={locale.fallbackLocale ?? ''}
             disabled={save.isPending}
             aria-label={`${languageName(locale.locale)} falls back to`}
             onChange={(e) => save.mutate(e.target.value || null)}
-            className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-8 w-full max-w-64 rounded-lg border px-2 text-sm outline-none focus-visible:ring-3"
           >
-            <option value="">No fallback</option>
-            {options.map((l) => <option key={l.locale} value={l.locale}>{languageName(l.locale)} ({l.locale})</option>)}
-          </select>
-        )}
-        <Forms title="Plural forms" forms={counting(locale.cardinal)} samples={locale.cardinal} />
-        <Forms title="Ordinal forms" forms={counting(locale.ordinal)} samples={locale.ordinal} />
-        <span className="flex justify-end">
-          {!locale.source && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Remove ${languageName(locale.locale)}`}
-              onClick={() => setConfirming(true)}
-              className={cn('text-muted-foreground hover:text-destructive transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:focus-visible:opacity-100', confirming && 'md:opacity-100')}
-            >
-              <Trash2Icon />
-            </Button>
-          )}
+            <option value="">Nothing</option>
+            {options.map((l) => <option key={l.locale} value={l.locale}>{languageName(l.locale)}</option>)}
+          </Select>
+        </span>
+        <span className="col-span-2 col-start-2 row-start-3 md:col-span-1 md:col-start-auto md:row-start-auto">
+          <Forms cardinal={locale.cardinal} ordinal={locale.ordinal} />
+        </span>
+        <span className="col-start-3 row-start-1 flex justify-end md:col-start-auto md:row-start-auto">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Remove ${languageName(locale.locale)}`}
+            onClick={() => setConfirming(true)}
+            className={cn('text-muted-foreground hover:text-destructive transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:focus-visible:opacity-100', confirming && 'md:opacity-100')}
+          >
+            <Trash2Icon />
+          </Button>
         </span>
       </div>
 
       <AnimatePresence initial={false}>
         {confirming && (
           <motion.div {...unfold} className="overflow-hidden">
-            <div className="bg-destructive/5 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg py-2 pr-2 pl-4 text-sm">
+            <div className="border-destructive/30 bg-destructive/5 mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border py-3 pr-3 pl-4 text-sm">
               <p className="min-w-60 flex-1">
                 Every translation, release and history entry in {languageName(locale.locale)} goes with it. This cannot be undone.
               </p>
-              <div className="flex gap-1">
+              <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>Cancel</Button>
-                <Button variant="destructive" size="sm" disabled={remove.isPending} onClick={() => remove.mutate()}>Remove locale</Button>
+                <Button variant="destructive" size="sm" disabled={remove.isPending} onClick={() => remove.mutate()}>Remove {languageName(locale.locale)}</Button>
               </div>
             </div>
           </motion.div>
@@ -163,14 +174,21 @@ function Row({ locale, all, projectId }: { locale: Locale; all: Locale[]; projec
   )
 }
 
-function Forms({ title, forms, samples }: { title: string; forms: string[]; samples: Record<string, string[]> }) {
+/** CLDR's categories as words; hovering one shows the numbers that take it. */
+function Forms({ cardinal, ordinal }: { cardinal: Record<string, string[]>; ordinal: Record<string, string[]> }) {
+  const words = (samples: Record<string, string[]>) =>
+    counting(samples).map((f, i) => (
+      <span key={f} title={samples[f]?.join(', ')} className="cursor-help">
+        {i > 0 && ', '}
+        {f}
+      </span>
+    ))
   return (
-    <span className="flex flex-wrap items-center gap-1">
-      <span className="text-muted-foreground w-24 text-xs md:hidden">{title}</span>
-      {forms.map((f) => (
-        <span key={f} title={samples[f]?.join(', ')} className="bg-muted rounded-md px-1.5 py-px font-mono text-xs">{f}</span>
-      ))}
-    </span>
+    <>
+      <span className="eyebrow mb-1 block">Plural forms</span>
+      <span className="block text-sm font-medium">{words(cardinal)}</span>
+      <span className="text-muted-foreground block text-sm">Ordinal: {words(ordinal)}</span>
+    </>
   )
 }
 
@@ -194,11 +212,11 @@ function Adder({ projectId, first, onDone }: { projectId: number; first: boolean
           e.preventDefault()
           add.mutate()
         }}
-        className="border-brand grid gap-4 border-l-2 py-1 pl-6"
+        className="card mb-3 grid gap-4 p-5"
       >
         <label className="grid max-w-xs gap-1.5">
-          <span className="text-sm font-medium">{first ? 'Source locale' : 'Locale'}</span>
-          <Input value={tag} onChange={(e) => setTag(e.target.value)} required autoFocus maxLength={35} placeholder="pt-BR" className="bg-background font-mono" />
+          <span className="text-sm font-semibold">{first ? 'The language content is written in' : 'Language'}</span>
+          <Input value={tag} onChange={(e) => setTag(e.target.value)} required autoFocus maxLength={35} placeholder="pt-BR" className="font-mono" />
           <span className="text-muted-foreground text-xs">A BCP 47 tag. {first ? 'This one cannot change later.' : ''}</span>
         </label>
         {add.error ? <p role="alert" className="text-destructive text-sm">{(add.error as { detail?: string }).detail ?? 'Could not add it.'}</p> : null}

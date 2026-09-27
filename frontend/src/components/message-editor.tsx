@@ -2,18 +2,19 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useNavigate, useParams } from 'react-router'
-import { ArrowLeftIcon, CheckIcon, PlayIcon, Trash2Icon, UndoIcon, XIcon } from 'lucide-react'
+import { ArrowLeftIcon } from 'lucide-react'
 import { cn } from 'cn'
-import { Highlight, IcuEditor } from '@/components/icu-editor'
+import { Highlight, IcuEditor, ink } from '@/components/icu-editor'
+import { Badge, Select } from '@/components/kit'
 import { toast } from '@/components/ui/sonner'
-import { Flag } from '@/components/locale'
+import { Flag, languageName } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Splash } from '@/components/splash'
 import { api } from '@/lib/api'
 import { covers, useProject, type Project } from '@/lib/projects'
 import {
-  day, state, status, typeTint, useDetail, useLocale,
+  day, state, status, useDetail, useLocale, useLocaleLists,
   type Analysis, type Contract, type Detail, type Locale, type Revision, type Variable,
 } from '@/lib/content'
 
@@ -151,23 +152,25 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
   const dirty = pattern !== stored
 
   return (
-    <div className="page flex flex-col gap-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
+    <div className="page flex flex-col gap-3">
+      {/* Back on the left, what acts on the message on the right. */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <BackLink />
-          <h2 className="mb-2 font-mono text-2xl break-all">{resource.key}</h2>
-          {resource.context && <p className="text-muted-foreground max-w-2xl text-[17px]">{resource.context}</p>}
+          <p className="text-muted-foreground min-w-0 font-mono text-[0.8125rem] break-all">{resource.key}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', s.tint)}>{s.label}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge dot={s.dot} className="bg-card h-9 px-3 text-[0.8125rem]">{s.label}</Badge>
+          <LocaleSwitch project={project} locale={locale} dirty={dirty} />
           {manager && (
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => archive.mutate(!resource.archived)}>
-              <Trash2Icon />
+            <Button variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => archive.mutate(!resource.archived)}>
               {resource.archived ? 'Restore' : 'Archive'}
             </Button>
           )}
         </div>
       </header>
+
+      {resource.context && <p className="text-muted-foreground max-w-[72ch] px-1">{resource.context}</p>}
 
       <IcuEditor
         role={origin ? 'Source' : 'Translation'}
@@ -197,7 +200,7 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
       <AnimatePresence initial={false}>
         {conflict && (
           <motion.div {...unfold} className="overflow-hidden">
-            <div className="border-destructive/40 bg-destructive/5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border p-3 text-sm">
+            <div className="border-destructive/30 bg-destructive/5 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border py-3 pr-3 pl-4 text-sm">
               <p className="min-w-60 flex-1">{(save.error as { detail?: string } | null)?.detail ?? 'This value changed.'} Your text is still here.</p>
               <Button
                 size="sm"
@@ -215,23 +218,23 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
       </AnimatePresence>
 
       {pending && (
-        <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm dark:border-amber-400/30 dark:bg-amber-400/10">
-          <p className="mb-2 font-medium">
-            A proposal is waiting{head?.machine ? ' from an API key' : ''}. {reviewer ? 'Nothing else can be written until it is decided.' : 'A reviewer decides next.'}
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-xl bg-amber-100/70 p-4 dark:bg-amber-400/10">
+          <p className="min-w-60 flex-1">
+            <Badge dot="bg-amber-400" className="bg-card mb-2">In review</Badge>
+            <span className="block font-semibold">A proposal is waiting{head?.machine ? ' from an API key' : ''}.</span>
+            <span className="text-muted-foreground block text-sm">{reviewer ? 'Nothing else can be written until it is decided.' : 'A reviewer decides next.'}</span>
           </p>
           {reviewer && (
             <div className="flex gap-2">
-              <Button size="sm" disabled={decide.isPending} onClick={() => decide.mutate(true)}>
-                <CheckIcon />
-                Approve
-              </Button>
-              <Button size="sm" variant="ghost" disabled={decide.isPending} onClick={() => decide.mutate(false)}>
-                <XIcon />
+              <Button variant="outline" disabled={decide.isPending} onClick={() => decide.mutate(false)}>
                 Send back
+              </Button>
+              <Button disabled={decide.isPending} onClick={() => decide.mutate(true)}>
+                Approve
               </Button>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -244,6 +247,7 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
       </div>
 
       <History
+        locale={target}
         revisions={revisions.filter((r) => r.locale === target)}
         events={events}
         approved={resource.approvedRevisionId}
@@ -251,6 +255,32 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
         busy={restore.isPending}
       />
     </div>
+  )
+}
+
+/** The language being edited, switchable in place: the editor remounts on the other locale's revisions. */
+function LocaleSwitch({ project, locale, dirty }: { project: Project; locale: Locale; dirty: boolean }) {
+  const { rows, select } = useLocale(project.id)
+  const lists = useLocaleLists(project.id, rows)
+  // Only what the caller may read: a role limited to one locale is refused the others.
+  const readable = rows.filter((_, i) => !lists[i]?.error)
+  if (readable.length < 2) return null
+  return (
+    // Switching remounts the editor on the other locale, so unsaved text is saved or discarded first.
+    <Select
+      lead={<Flag locale={locale.locale} className="size-4" />}
+      value={locale.locale}
+      disabled={dirty}
+      title={dirty ? 'Save or discard your change first.' : undefined}
+      aria-label="Language"
+      onChange={(e) => select(e.target.value)}
+    >
+      {readable.map((l) => (
+        <option key={l.locale} value={l.locale}>
+          {languageName(l.locale)}{l.source ? ' (source)' : ''}
+        </option>
+      ))}
+    </Select>
   )
 }
 
@@ -283,19 +313,22 @@ function Composer({ project, source }: { project: Project; source: Locale }) {
   })
 
   return (
-    <div className="page flex flex-col gap-6">
-      <BackLink />
+    <div className="page flex flex-col gap-3">
+      <header className="flex items-center gap-3">
+        <BackLink />
+        <h2>New message</h2>
+      </header>
 
-      <div className="flex flex-wrap gap-4">
+      <div className="card flex flex-wrap gap-4 p-4">
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Key</span>
-          <Input value={key} onChange={(e) => setKey(e.target.value)} autoFocus maxLength={255} placeholder="checkout.items" className="bg-background w-72 font-mono text-[13px]" />
+          <Input value={key} onChange={(e) => setKey(e.target.value)} autoFocus maxLength={255} placeholder="checkout.items" className="w-72 font-mono text-[0.8125rem]" />
         </label>
         <label className="grid min-w-60 flex-1 gap-1.5">
           <span className="text-sm font-medium">
             Context <span className="text-muted-foreground font-normal">(optional)</span>
           </span>
-          <Input value={context} onChange={(e) => setContext(e.target.value)} maxLength={255} placeholder="What a translator needs to know" className="bg-background" />
+          <Input value={context} onChange={(e) => setContext(e.target.value)} maxLength={255} placeholder="What a translator needs to know" />
         </label>
       </div>
 
@@ -327,14 +360,10 @@ function Composer({ project, source }: { project: Project; source: Locale }) {
 function BackLink() {
   const navigate = useNavigate()
   return (
-    <button
-      type="button"
-      onClick={() => navigate('/content')}
-      className="text-muted-foreground hover:text-foreground mb-3 inline-flex cursor-pointer items-center gap-1.5 text-sm transition-colors"
-    >
-      <ArrowLeftIcon className="size-3.5" />
-      All content
-    </button>
+    <Button variant="outline" className="shrink-0 pl-2.5" onClick={() => navigate('/content')}>
+      <ArrowLeftIcon />
+      Content
+    </Button>
   )
 }
 
@@ -368,22 +397,23 @@ function Tester({ projectId, locale, pattern, contract, values, onValues, ready,
 
   const entries = Object.entries(contract)
   return (
-    <section className="bg-background rounded-xl border">
-      <header className="flex items-center gap-2 border-b px-4 py-2.5">
-        <PlayIcon className="text-brand size-3.5" />
-        <span className="text-sm font-medium">Try it</span>
-        {entries.length > 0 && <span className="text-muted-foreground text-xs">{entries.length} {entries.length === 1 ? 'variable' : 'variables'}</span>}
+    <section className="card">
+      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 pt-4">
+        <h3>Try it</h3>
+        <span className="text-muted-foreground text-sm">
+          {entries.length ? `Change a value and read what people will see.` : 'This is what people will see.'}
+        </span>
       </header>
 
       {entries.length > 0 && (
-        <div className="grid gap-x-8 gap-y-3 border-b px-4 py-4 md:grid-cols-2">
+        <div className="grid gap-x-8 gap-y-4 px-5 pt-4 md:grid-cols-2">
           {entries.map(([name, variable]) => (
             <Value key={name} name={name} variable={variable} value={filled[name]} onChange={(v) => onValues({ ...values, [name]: v })} />
           ))}
         </div>
       )}
 
-      <div className="grid gap-2 px-4 py-4">
+      <div className="grid gap-3 px-5 pt-5 pb-5">
         <Rendered label={locale.locale} text={ready ? shown.data?.text : undefined} rtl={locale.rtl} strong />
         {reference && <Rendered label={reference.locale.locale} text={original.data?.text} rtl={reference.locale.rtl} />}
       </div>
@@ -393,9 +423,9 @@ function Tester({ projectId, locale, pattern, contract, values, onValues, ready,
 
 function Rendered({ label, text, rtl, strong }: { label: string; text?: string; rtl?: boolean; strong?: boolean }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-muted-foreground flex w-20 shrink-0 items-center gap-1.5 font-mono text-xs">
-        <Flag locale={label} className="size-4" />
+    <div className="flex items-baseline gap-4">
+      <span className="text-muted-foreground flex w-16 shrink-0 items-center gap-1.5 font-mono text-xs">
+        <Flag locale={label} className="size-3.5" />
         {label}
       </span>
       <AnimatePresence mode="popLayout" initial={false}>
@@ -406,7 +436,7 @@ function Rendered({ label, text, rtl, strong }: { label: string; text?: string; 
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.15 }}
-          className={cn('min-w-0 [overflow-wrap:anywhere]', strong ? 'text-[17px] font-medium' : 'text-muted-foreground', !text && 'text-muted-foreground/50')}
+          className={cn('min-w-0 [overflow-wrap:anywhere]', strong ? 'font-heading text-[1.375rem] leading-tight font-bold tracking-[-0.025em]' : 'text-muted-foreground text-[0.9375rem]', !text && 'text-muted-foreground/50')}
         >
           {text ?? '…'}
         </motion.p>
@@ -418,17 +448,17 @@ function Rendered({ label, text, rtl, strong }: { label: string; text?: string; 
 function Value({ name, variable, value, onChange }: { name: string; variable: Variable; value: unknown; onChange: (value: unknown) => void }) {
   return (
     <label className="grid gap-1.5 text-sm">
-      <span className="flex items-center gap-1.5">
-        <span className="font-mono text-[13px]">{name}</span>
-        <span className={cn('rounded px-1.5 text-[10px] font-medium', typeTint[variable.type])}>{variable.type.toLowerCase()}</span>
+      <span className="flex items-baseline gap-2">
+        <span className="font-mono text-[0.8125rem] font-semibold">{name}</span>
+        <span className="text-muted-foreground text-xs">{variable.type.toLowerCase()}</span>
       </span>
       {variable.type === 'NUMBER' ? (
         <span className="flex items-center gap-3">
-          <input type="range" min={0} max={30} value={Number(value)} onChange={(e) => onChange(Number(e.target.value))} className="accent-brand h-1 flex-1 cursor-pointer" />
-          <Input type="number" value={Number(value)} onChange={(e) => onChange(Number(e.target.value))} className="bg-background w-24" />
+          <input type="range" min={0} max={30} value={Number(value)} onChange={(e) => onChange(Number(e.target.value))} className="accent-foreground h-1 flex-1 cursor-pointer" />
+          <Input type="number" value={Number(value)} onChange={(e) => onChange(Number(e.target.value))} className="w-24" />
         </span>
       ) : variable.type === 'BOOLEAN' ? (
-        <input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} className="accent-brand size-4 cursor-pointer" />
+        <input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} className="accent-foreground size-5 cursor-pointer" />
       ) : variable.type === 'SELECT' ? (
         <span className="flex flex-wrap gap-1">
           {variable.values.map((option) => (
@@ -437,8 +467,8 @@ function Value({ name, variable, value, onChange }: { name: string; variable: Va
               type="button"
               onClick={() => onChange(option)}
               className={cn(
-                'cursor-pointer rounded-full px-2.5 py-0.5 text-xs font-medium transition-transform duration-200 motion-safe:active:scale-95',
-                value === option ? 'bg-foreground text-background' : 'bg-muted hover:bg-accent',
+                'h-8 cursor-pointer rounded-md border px-3 text-sm font-medium transition-colors motion-safe:active:scale-95',
+                value === option ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-card hover:border-foreground/40',
               )}
             >
               {option}
@@ -446,9 +476,9 @@ function Value({ name, variable, value, onChange }: { name: string; variable: Va
           ))}
         </span>
       ) : variable.type === 'TEMPORAL' ? (
-        <Input type="datetime-local" value={String(value).slice(0, 16)} onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : NOW)} className="bg-background" />
+        <Input type="datetime-local" value={String(value).slice(0, 16)} onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : NOW)} />
       ) : (
-        <Input value={String(value)} onChange={(e) => onChange(e.target.value)} className="bg-background" />
+        <Input value={String(value)} onChange={(e) => onChange(e.target.value)} />
       )}
     </label>
   )
@@ -470,7 +500,8 @@ function fallback(variable: Variable): unknown {
 }
 
 /** §8's log, newest first. A revert writes a new revision rather than rewriting one. */
-function History({ revisions, events, approved, onRestore, busy }: {
+function History({ locale, revisions, events, approved, onRestore, busy }: {
+  locale: string
   revisions: Revision[]
   events: Detail['events']
   approved: number | null
@@ -480,31 +511,26 @@ function History({ revisions, events, approved, onRestore, busy }: {
   const actions = new Map(events.map((e) => [e.revisionId, e.action]))
   if (!revisions.length) return null
   return (
-    <details className="group">
-      <summary className="text-muted-foreground hover:text-foreground w-fit cursor-pointer text-sm transition-colors select-none">
-        History · {revisions.length} {revisions.length === 1 ? 'revision' : 'revisions'}
+    <details className="group card mt-3 px-5 py-4">
+      <summary className="font-heading flex w-fit cursor-pointer list-none items-baseline gap-2 text-base font-bold tracking-[-0.02em] select-none [&::-webkit-details-marker]:hidden">
+        <span aria-hidden className="inline-block w-4 transition-transform group-open:rotate-45">+</span>
+        History <span className="text-muted-foreground font-sans text-sm font-medium tracking-normal">{revisions.length} {revisions.length === 1 ? 'revision' : 'revisions'}</span>
       </summary>
-      <ul className="mt-3 grid gap-3">
+      <ul className="mt-4 grid gap-2" style={ink(locale)}>
         {[...revisions].reverse().map((r) => (
-          <li key={r.id} className="bg-background grid gap-1.5 rounded-lg border px-3 py-2">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground text-[10px] uppercase">{actions.get(r.id) ?? 'edit'}</span>
-              {r.machine && <span className="rounded bg-sky-100 px-1 text-[10px] font-medium text-sky-900 dark:bg-sky-400/15 dark:text-sky-100">API key</span>}
-              {r.id === approved && <span className="text-brand text-[10px] font-semibold uppercase">live</span>}
+          <li key={r.id} className="grid gap-2 rounded-lg border px-4 py-3.5">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge className="capitalize">{(actions.get(r.id) ?? 'edit').toLowerCase()}</Badge>
+              {r.machine && <Badge>API key</Badge>}
+              {r.id === approved && <Badge dot="bg-emerald-500" className="bg-foreground text-background">Live</Badge>}
               <span className="text-muted-foreground ml-auto">{day.format(new Date(r.createdAt))}</span>
               {r.id !== approved && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => onRestore(r.id)}
-                  className="text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-1 transition-colors disabled:opacity-50"
-                >
-                  <UndoIcon className="size-3" />
+                <Button variant="ghost" size="sm" disabled={busy} onClick={() => onRestore(r.id)}>
                   Restore
-                </button>
+                </Button>
               )}
             </div>
-            <pre className="line-clamp-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+            <pre className="line-clamp-3 font-mono text-[0.8125rem] leading-relaxed whitespace-pre-wrap">
               <Highlight source={r.payload.pattern} />
             </pre>
           </li>

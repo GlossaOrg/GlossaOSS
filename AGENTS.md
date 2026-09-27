@@ -120,7 +120,10 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 ## Frontend (`frontend/`)
 
 - React SPA, Vite, Tailwind v4, shadcn/ui, TanStack Query, Zustand, Motion, Sonner for toasts.
-  shadcn components are added via the CLI into `components/ui/` and otherwise left alone.
+  shadcn components are added via the CLI into `components/ui/`, then restyled there and only
+  there: that is where Glossa's look lives (Manrope, 8px controls, white cards on a grey canvas), so a CLI update
+  has to keep it. Shared pieces that are not shadcn's (badge, segmented choice, select) are in
+  `components/kit.tsx`.
 - Sidebar entries are project screens (`screens.tsx`). What belongs to the installation is not a
   screen: it opens in the Settings dialog, which only an administrator can open.
 - Server state is TanStack Query; only genuinely client-side state (the current project/locale
@@ -128,7 +131,13 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 - Same-origin by design — `lib/api.ts` takes a path, never a base URL. There is no
   `VITE_API_URL` and no CORS config on either side; adding one means the dev proxy in
   `vite.config.ts` is wrong instead.
-- §12: pastel, approachable, Miro/Evernote-spirited — not dense enterprise UI. Each field type
+- §12: minimal, colourful, approachable — not dense enterprise UI. Colour has three roles and never
+  mixes them: ink and white cards on the grey canvas carry the structure, one lilac (`--brand`) marks
+  whatever acts (buttons, the current entry, focus), and every other colour belongs to a language — its
+  flag, and one pastel everywhere (`hue` in `components/locale.tsx`). One level of surface: a card
+  never sits inside another card. Every screen puts its title on the left and its one primary action
+  on the right. States and roles are neutral badges with
+  at most a dot, never a pastel of their own. Each field type
   from §4 gets its own editor *and* its own preview; one generic textbox for everything is a
   requirements violation, not a shortcut.
 - §4: HTML field content is untrusted. Sanitize before storage and before rendering.

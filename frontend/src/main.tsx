@@ -8,7 +8,8 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import '@/index.css'
 import App from './App.tsx'
 
-const queryClient = new QueryClient()
+// A refusal is an answer, not a hiccup: only a failed connection or a 5xx is worth asking again.
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: (failures, error) => failures < 3 && !((error as { status?: number }).status! < 500) } } })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
