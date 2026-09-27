@@ -22,8 +22,9 @@ export function SettingsDialog({ title, description, icon, tabs, open, onOpenCha
         </DialogHeader>
         <Tabs defaultValue={tabs[0].id} className="min-h-0 flex-1">
           <TabsList variant="line" className="w-full justify-start border-b overflow-x-auto [scrollbar-width:none]">
-            {tabs.map(({ id, title }) => (
+            {tabs.map(({ id, title, icon: Icon }) => (
               <TabsTrigger key={id} value={id}>
+                <Icon />
                 {title}
               </TabsTrigger>
             ))}

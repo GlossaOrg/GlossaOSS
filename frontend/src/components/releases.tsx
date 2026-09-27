@@ -80,7 +80,7 @@ function Webhook({ projectId }: { projectId: number }) {
   })
   const url = current.data?.url ?? null
   return (
-    <section className="grid gap-3">
+    <section>
       <AnimatePresence>
         {secret && (
           <OneTimeNote key={secret} title="Copy the webhook secret" secret={secret} onClose={() => setSecret(null)}>

@@ -17,7 +17,7 @@ export function OneTimeNote({ title, secret, children, onClose }: { title: strin
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
       transition={{ duration: 0.22, ease: 'easeOut' }}
-      className="bg-primary text-primary-foreground mb-12 rounded-xl p-6"
+      className="bg-primary text-primary-foreground mb-3 rounded-xl p-6"
     >
       <p className="font-heading text-xl font-semibold tracking-[-0.02em]">{title}</p>
       <p className="mt-1 mb-5 text-sm opacity-70">{children}</p>

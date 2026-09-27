@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { CheckIcon, Columns2Icon, CopyIcon, LayoutTemplateIcon, PlusIcon, Redo2Icon, SearchIcon, SparklesIcon, SquareIcon, Undo2Icon } from 'lucide-react'
 import { cn } from 'cn'
 import { Badge } from '@/components/kit'
-import { Language, shade, tint } from '@/components/locale'
+import { Language, tint } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -196,7 +196,7 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
       )}
 
       {/* The language being written tops its pane in its own colour, so nobody types into the wrong one. */}
-      <section className="bg-card flex min-w-0 flex-col overflow-hidden rounded-xl border-t-[3px]" style={{ borderTopColor: shade(locale.locale) }}>
+      <section className="bg-card flex min-w-0 flex-col overflow-hidden rounded-xl">
         <header className="flex min-h-14 flex-wrap items-center gap-1 border-b px-4 py-2">
           {/* Beside a source, the pane being written in needs no label: it is the other one. */}
           <Pane role={reference ? undefined : role} locale={locale.locale} />
@@ -374,7 +374,7 @@ function Pane({ role, locale }: { role?: string; locale: string }) {
 /** The source beside its translation, on its own pastel: read-only, set in the same type so lines can be compared. */
 function Reference({ locale, pattern }: { locale: Locale; pattern: string }) {
   return (
-    <section className="text-on-tint flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-t-[3px]" style={{ background: tint(locale.locale), borderTopColor: shade(locale.locale) }}>
+    <section className="text-on-tint flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl" style={{ background: tint(locale.locale) }}>
       <header className="flex h-14 items-center border-b border-black/8 px-5">
         <Pane role="Source" locale={locale.locale} />
       </header>
