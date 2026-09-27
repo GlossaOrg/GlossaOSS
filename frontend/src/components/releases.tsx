@@ -45,7 +45,7 @@ export function Releases() {
           </div>
           <ul className="divide-y">
             {rows.map((l) => (
-              <li key={l.locale}>
+              <li key={l.locale} className="reveal">
                 <Row locale={l} progress={progress.data?.find((p) => p.locale === l.locale)} fallback={l.fallbackLocale ?? (l.source ? undefined : source?.locale)} projectId={project.id} />
               </li>
             ))}

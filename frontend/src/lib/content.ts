@@ -200,12 +200,13 @@ export function useLocale(projectId: number) {
   }
 }
 
+export const resourcesQuery = (projectId: number, locale?: string) => ({
+  queryKey: ['resources', projectId, locale],
+  queryFn: () => api<Resource[]>(`/api/projects/${projectId}/resources?locale=${encodeURIComponent(locale!)}`),
+})
+
 export function useResources(projectId: number, locale?: string) {
-  return useQuery({
-    queryKey: ['resources', projectId, locale],
-    queryFn: () => api<Resource[]>(`/api/projects/${projectId}/resources?locale=${encodeURIComponent(locale!)}`),
-    enabled: !!locale,
-  })
+  return useQuery({ ...resourcesQuery(projectId, locale), enabled: !!locale })
 }
 
 export function useDetail(projectId: number, id: number, locale?: string) {

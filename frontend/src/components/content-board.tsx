@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { PlusIcon, SearchIcon } from 'lucide-react'
@@ -10,7 +11,7 @@ import { Flag, languageName, shade } from '@/components/locale'
 import { Pattern } from '@/components/pattern'
 import { Skeleton } from '@/components/ui/skeleton'
 import { covers, useProject, type Project } from '@/lib/projects'
-import { state, states, status, useLocale, useProgress, useResources, type Locale, type Progress, type Resource, type Status } from '@/lib/content'
+import { state, states, status, resourcesQuery, useLocale, useProgress, useResources, type Locale, type Progress, type Resource, type Status } from '@/lib/content'
 
 /** Height-and-fade, the same disclosure the rest of the app uses. */
 const unfold = {
@@ -31,6 +32,9 @@ export function Content() {
 function Board({ project }: { project: Project }) {
   const { rows: locales, locale, source, locales: query, select } = useLocale(project.id)
   const progress = useProgress(project.id)
+  const client = useQueryClient()
+  // A tab under the pointer is about to be clicked: its list is fetched before it is.
+  const prefetch = (tag: string) => client.prefetchQuery(resourcesQuery(project.id, tag))
   const resources = useResources(project.id, locale?.locale)
   const [group, setGroup] = useState<string | null>(null)
   const [params] = useSearchParams()
@@ -90,7 +94,7 @@ function Board({ project }: { project: Project }) {
 
       <div className="flex flex-wrap gap-2">
         {ordered.map((l) => (
-          <LocaleTab key={l.locale} locale={l} progress={progress.data?.find((p) => p.locale === l.locale)} active={locale?.locale === l.locale} onSelect={() => select(l.locale)} />
+          <LocaleTab key={l.locale} locale={l} progress={progress.data?.find((p) => p.locale === l.locale)} active={locale?.locale === l.locale} onSelect={() => select(l.locale)} onIntent={() => prefetch(l.locale)} />
         ))}
       </div>
 
@@ -150,7 +154,8 @@ function Board({ project }: { project: Project }) {
               </p>
             </motion.div>
           ) : (
-            <ul>
+            // Keyed by locale: switching language swaps the list in one fade instead of animating every row's height.
+            <motion.ul key={locale!.locale} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15, ease: 'easeOut' }}>
               <AnimatePresence initial={false}>
                 {shown.map((r) => (
                   <motion.li key={r.id} layout="position" {...unfold} className="overflow-hidden border-t">
@@ -158,7 +163,7 @@ function Board({ project }: { project: Project }) {
                   </motion.li>
                 ))}
               </AnimatePresence>
-            </ul>
+            </motion.ul>
           )}
         </div>
       </div>
@@ -167,7 +172,7 @@ function Board({ project }: { project: Project }) {
 }
 
 /** A locale to switch to, filled when it is the one being looked at; the fill slides between them. */
-function LocaleTab({ locale, progress, active, onSelect }: { locale: Locale; progress?: Progress; active: boolean; onSelect: () => void }) {
+function LocaleTab({ locale, progress, active, onSelect, onIntent }: { locale: Locale; progress?: Progress; active: boolean; onSelect: () => void; onIntent: () => void }) {
   const percent = progress?.total ? Math.floor((progress.approved / progress.total) * 100) : 0
   const still = useReducedMotion()
   return (
@@ -175,6 +180,8 @@ function LocaleTab({ locale, progress, active, onSelect }: { locale: Locale; pro
       type="button"
       aria-pressed={active}
       onClick={onSelect}
+      onPointerEnter={onIntent}
+      onFocus={onIntent}
       className={cn(
         'focus-visible:ring-ring/20 relative isolate flex shrink-0 cursor-pointer items-center gap-2.5 rounded-lg py-2 pr-4 pl-2.5 text-left transition-colors outline-none focus-visible:ring-3',
         active ? 'text-foreground' : 'bg-card text-muted-foreground hover:text-foreground',
@@ -204,7 +211,7 @@ function Row({ resource, locale, source, onOpen }: { resource: Resource; locale:
     <button
       type="button"
       onClick={onOpen}
-      className="hover:bg-secondary/70 focus-visible:bg-secondary grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-start gap-x-6 rounded-lg px-3 py-3 text-left transition-colors outline-none"
+      className="reveal hover:bg-secondary/70 focus-visible:bg-secondary grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-start gap-x-6 rounded-lg px-3 py-3 text-left transition-colors outline-none"
     >
       <span className="min-w-0">
         <span className="text-muted-foreground block truncate font-mono text-[12.5px]">

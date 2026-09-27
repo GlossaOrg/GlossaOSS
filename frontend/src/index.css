@@ -200,6 +200,22 @@
   @apply mx-auto w-full max-w-[84rem];
 }
 
+/* A row rises a few pixels into place as it scrolls into view, so a scrolled list reads as moving.
+   Driven by the scroll itself, not by JS; browsers without scroll timelines show it still. */
+@utility reveal {
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+  }
+}
+
+@keyframes reveal {
+  from { opacity: 0.2; transform: translateY(10px); }
+}
+
 @utility link-bg-animated {
   @apply transition-colors duration-200 ease-out;
 }

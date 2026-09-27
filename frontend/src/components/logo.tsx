@@ -1,7 +1,8 @@
 import { cn } from 'cn'
 
-/** One dot per language, in the pastels' stronger shades (`--lang-N-v`). */
-const dots = [0, 1, 2, 3, 4, 5].map((i) => ({ cx: 120 + (i % 3) * 300, cy: -420 + Math.floor(i / 3) * 300, style: { fill: `var(--lang-${i}-v)` } }))
+/** One dot per language, each its own colour; the favicon (`public/glossa.svg`) uses the same six. */
+const colors = ['#6FD68C', '#FF8FAB', '#6CBEFF', '#A596FF', '#FFBE45', '#5FD3C6']
+const dots = colors.map((fill, i) => ({ cx: 120 + (i % 3) * 300, cy: -420 + Math.floor(i / 3) * 300, fill }))
 
 /**
  * The Glossa logo: the six dots and the wordmark, set in Inter Display Bold and outlined, so it
