@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useLocation, useRoutes } from 'react-router'
 import { AppSidebar } from '@/components/app-sidebar'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { ChangePassword } from '@/components/change-password'
 import { SiteHeader } from '@/components/site-header'
 import { Invite } from '@/components/invite'
@@ -64,7 +65,7 @@ export default function App() {
             transition={{ duration: 0.18, ease: 'easeOut' }}
           >
             <Failsafe>
-              <Suspense>{screen}</Suspense>
+              <Suspense fallback={<Spinner className="m-auto size-6" />}>{screen}</Suspense>
             </Failsafe>
           </motion.div>
         </AnimatePresence>

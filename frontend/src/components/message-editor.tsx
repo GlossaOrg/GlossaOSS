@@ -14,7 +14,7 @@ import { Splash } from '@/components/splash'
 import { api } from '@/lib/api'
 import { covers, useProject, type Project } from '@/lib/projects'
 import {
-  day, state, status, useDetail, useLocale, useProgress, useResources, waiting,
+  day, readable, state, status, useDetail, useLocale, useProgress, useResources, waiting,
   type Analysis, type Contract, type Detail, type Locale, type Revision, type Variable,
 } from '@/lib/content'
 
@@ -303,9 +303,8 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
 function LocaleSwitch({ project, locale, dirty }: { project: Project; locale: Locale; dirty: boolean }) {
   const { rows, select } = useLocale(project.id)
   const progress = useProgress(project.id)
-  // Only what the caller may read: a role limited to one locale is refused the others.
-  const readable = rows.filter((l) => progress.data?.some((p) => p.locale === l.locale))
-  if (readable.length < 2) return null
+  const options = readable(rows, progress.data)
+  if (options.length < 2) return null
   return (
     // Switching remounts the editor on the other locale, so unsaved text is saved or discarded first.
     <Select
@@ -316,7 +315,7 @@ function LocaleSwitch({ project, locale, dirty }: { project: Project; locale: Lo
       aria-label="Language"
       onChange={(e) => select(e.target.value)}
     >
-      {readable.map((l) => (
+      {options.map((l) => (
         <option key={l.locale} value={l.locale}>
           {languageName(l.locale)}{l.source ? ' (source)' : ''}
         </option>

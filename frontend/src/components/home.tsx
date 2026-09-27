@@ -7,7 +7,7 @@ import { cn } from 'cn'
 import { Badge } from '@/components/kit'
 import { Flag, languageName, shade, tint } from '@/components/locale'
 import { Button } from '@/components/ui/button'
-import { day, resourcesQuery, status, useLocale, useProgress, waiting as needsWork, type Locale, type Progress, type Status } from '@/lib/content'
+import { day, readable as readableOf, resourcesQuery, status, useLocale, useProgress, waiting as needsWork, type Locale, type Progress, type Status } from '@/lib/content'
 import { useMe } from '@/lib/me'
 import { covers, useProject, type Project } from '@/lib/projects'
 
@@ -58,7 +58,7 @@ function Overview({ project }: { project: Project }) {
   const targets = rows.filter((l) => !l.source)
   const of = (l: Locale) => progress.data?.find((p) => p.locale === l.locale)
   // A caller whose role is one locale's may read no other: those languages are spoken, not shown.
-  const readable = progress.data ? targets.filter(of) : targets
+  const readable = readableOf(targets, progress.data)
 
   if (locales.error) return <Statement eyebrow={<Hello />} text="This project could not be loaded. Reload the page." />
   if (!locales.data) return null

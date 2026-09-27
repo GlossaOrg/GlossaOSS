@@ -25,7 +25,7 @@ export function Releases() {
         <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem]">Each language publishes on its own, and only what is approved goes in.</p>
       </header>
 
-      {locales.error ? (
+      {locales.error || progress.error ? (
         <p role="alert" className="text-destructive">Could not load the locales. Reload the page.</p>
       ) : !locales.data ? (
         <div className="card divide-y px-5" aria-busy>

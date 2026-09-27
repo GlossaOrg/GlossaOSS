@@ -11,7 +11,7 @@ import { Flag, languageName, shade } from '@/components/locale'
 import { Pattern } from '@/components/pattern'
 import { Skeleton } from '@/components/ui/skeleton'
 import { covers, useProject, type Project } from '@/lib/projects'
-import { state, states, status, resourcesQuery, useLocale, useProgress, useResources, type Locale, type Progress, type Resource, type Status } from '@/lib/content'
+import { readable, state, states, status, resourcesQuery, useLocale, useProgress, useResources, type Locale, type Progress, type Resource, type Status } from '@/lib/content'
 
 /** Height-and-fade, the same disclosure the rest of the app uses. */
 const unfold = {
@@ -55,8 +55,7 @@ function Board({ project }: { project: Project }) {
     return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b))
   }, [all])
 
-  // A locale the caller may not read is not offered at all.
-  const ordered = locales.filter((l) => progress.data?.some((p) => p.locale === l.locale))
+  const ordered = readable(locales, progress.data)
 
   const shown = all.filter((r) => {
     if (group && !(group === 'ungrouped' ? !r.key.includes('.') : r.key.startsWith(`${group}.`))) return false

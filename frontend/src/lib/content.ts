@@ -227,6 +227,9 @@ export type Progress = { locale: string; total: number; untranslated: number; re
  * Where every locale the caller may read stands, in one request. Keyed under `resources`, so every
  * write that invalidates the lists invalidates this too; a locale missing from it is not the caller's to read.
  */
+/** The locales the caller may read (§8): those `/progress` counts. Until it answers, or if it fails, all of them. */
+export const readable = (rows: Locale[], progress?: Progress[]) => (progress ? rows.filter((l) => progress.some((p) => p.locale === l.locale)) : rows)
+
 export function useProgress(projectId: number) {
   return useQuery({
     queryKey: ['resources', projectId, 'progress'],
