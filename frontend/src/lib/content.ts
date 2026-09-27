@@ -79,16 +79,7 @@ export function waiting(r: Resource, reviewer: boolean) {
   return s === 'untranslated' || s === 'rejected' || s === 'outdated' || (reviewer && s === 'review')
 }
 
-/** The message after `key` that waits on the caller, wrapping round; the list is in key order. */
-export const after = (rows: Resource[], key: string, reviewer: boolean) => {
-  const work = rows.filter((r) => waiting(r, reviewer) && r.key !== key)
-  return work.find((r) => r.key > key) ?? work[0]
-}
-
 export const state = (s: Status) => states.find((x) => x.value === s)!
-
-/** A locale the caller's role may not read (§8) answers 403; any other failure is not a refusal. */
-export const denied = (error: unknown) => (error as { status?: number } | null)?.status === 403
 
 export type Kind = 'text' | 'brace' | 'name' | 'type' | 'style' | 'arm' | 'hash' | 'quote' | 'comma'
 type Token = { text: string; kind: Kind; depth: number }

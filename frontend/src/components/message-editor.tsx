@@ -14,7 +14,7 @@ import { Splash } from '@/components/splash'
 import { api } from '@/lib/api'
 import { covers, useProject, type Project } from '@/lib/projects'
 import {
-  after, day, state, status, useDetail, useLocale, useProgress, useResources, waiting,
+  day, state, status, useDetail, useLocale, useProgress, useResources, waiting,
   type Analysis, type Contract, type Detail, type Locale, type Revision, type Variable,
 } from '@/lib/content'
 
@@ -154,8 +154,10 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
   // The way through a language: the next message waiting on the caller, one keystroke away.
   const navigate = useNavigate()
   const list = useResources(project.id, target)
-  const next = origin ? undefined : after(list.data ?? [], resource.key, reviewer)
-  const left = origin ? 0 : (list.data ?? []).filter((r) => waiting(r, reviewer) && r.id !== resource.id).length
+  // The list is in key order: the next one after this key, wrapping round.
+  const work = origin ? [] : (list.data ?? []).filter((r) => waiting(r, reviewer) && r.id !== resource.id)
+  const next = work.find((r) => r.key > resource.key) ?? work[0]
+  const left = work.length
   const go = () => next && navigate(`/content/${next.id}`)
   const canSave = !check.problem && !save.isPending && !pending && dirty && !(origin && !manager)
   useEffect(() => {

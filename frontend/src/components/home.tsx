@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router'
 import { ArrowRightIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Badge } from '@/components/kit'
-import { Flag, languageName, shade } from '@/components/locale'
+import { Flag, languageName, shade, tint } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { day, resourcesQuery, status, useLocale, useProgress, waiting as needsWork, type Locale, type Progress, type Status } from '@/lib/content'
 import { useMe } from '@/lib/me'
@@ -59,7 +59,6 @@ function Overview({ project }: { project: Project }) {
   const of = (l: Locale) => progress.data?.find((p) => p.locale === l.locale)
   // A caller whose role is one locale's may read no other: those languages are spoken, not shown.
   const readable = progress.data ? targets.filter(of) : targets
-  const failing = progress.isError
 
   if (locales.error) return <Statement eyebrow={<Hello />} text="This project could not be loaded. Reload the page." />
   if (!locales.data) return null
@@ -71,15 +70,15 @@ function Overview({ project }: { project: Project }) {
     )
   }
 
-  const counts = readable.map((l) => tally(of(l)))
-  const total = counts.reduce((sum, c) => sum + c.total, 0)
-  const approved = counts.reduce((sum, c) => sum + c.approved, 0)
-  const review = counts.reduce((sum, c) => sum + c.review, 0)
+  const counts = readable.map(of)
+  const sum = (k: 'total' | 'approved' | 'review') => counts.reduce((n, c) => n + (c?.[k] ?? 0), 0)
+  const [total, approved, review] = [sum('total'), sum('approved'), sum('review')]
   // Every locale counts every resource, so any one of them counts the messages.
   const messages = progress.data?.[0]?.total
-  const loaded = messages !== undefined && counts.every((c) => c.loaded)
-  const spoken = targets.length > 4 ? [...targets.slice(0, 3).map((l) => <Spoken key={l.locale} locale={l.locale} />), `${targets.length - 3} more`] : targets.map((l) => <Spoken key={l.locale} locale={l.locale} />)
-  const waiting = readable.map((l, i) => ({ locale: l, review: counts[i].review })).filter((w) => w.review).sort((a, b) => b.review - a.review)
+  const loaded = messages !== undefined && counts.every(Boolean)
+  const shown = targets.length > 4 ? targets.slice(0, 3) : targets
+  const spoken = [...shown.map((l) => <Spoken key={l.locale} locale={l.locale} />), ...(shown === targets ? [] : [`${targets.length - 3} more`])]
+  const waiting = readable.map((l, i) => ({ locale: l, review: counts[i]?.review ?? 0 })).filter((w) => w.review).sort((a, b) => b.review - a.review)
   // Straight into the first message that needs doing; the list when there is none, or it cannot be read.
   const open = async (l: Locale, next?: Status | 'translate') => {
     select(l.locale)
@@ -107,7 +106,7 @@ function Overview({ project }: { project: Project }) {
 
             <div className="mt-5 flex items-end justify-between gap-4">
               <span className="font-heading text-[2.75rem] leading-none font-extrabold tracking-[-0.045em] tabular-nums">
-                {loaded ? <Count to={total ? Math.floor((approved / total) * 100) : 0} suffix="%" /> : '–'}
+                {loaded ? <Count to={total ? Math.floor((approved / total) * 100) : 0} /> : '–'}
               </span>
               <span className="text-[0.8125rem] font-bold">approved</span>
             </div>
@@ -127,7 +126,7 @@ function Overview({ project }: { project: Project }) {
               ))}
             </div>
             <p className="text-muted-foreground mt-2 flex justify-between gap-4 text-xs tabular-nums">
-              <span>{loaded ? `${approved} of ${total} translations` : failing ? 'Some languages could not be loaded.' : 'Counting…'}</span>
+              <span>{loaded ? `${approved} of ${total} translations` : progress.isError ? 'Some languages could not be loaded.' : 'Counting…'}</span>
               <span>{messages ?? '–'} {messages === 1 ? 'message' : 'messages'}</span>
             </p>
 
@@ -173,7 +172,7 @@ function Overview({ project }: { project: Project }) {
         <ul>
           {readable.map((l, i) => (
             <li key={l.locale} className="border-t first:border-t-0">
-              <Tile locale={l} count={counts[i]} delay={i * 0.04} onOpen={(next) => open(l, next)} />
+              <Tile locale={l} progress={counts[i]} delay={i * 0.04} onOpen={(next) => open(l, next)} />
             </li>
           ))}
         </ul>
@@ -199,10 +198,10 @@ function Latest({ locales, progress, failed, manager }: { locales: Locale[]; pro
       <div className="mt-5 flex flex-wrap gap-1.5">
         {locales.map((l) =>
           release(l) ? (
-            <Flag key={l.locale} locale={l.locale} className="size-6" />
+            <Flag key={l.locale} locale={l.locale} className="size-6 transition-transform duration-200 hover:-translate-y-0.5 hover:scale-115" />
           ) : (
-            <span key={l.locale} title={`${languageName(l.locale)}: not published`} className="grid size-6 place-items-center rounded-full border border-dashed border-white/30">
-              <Flag locale={l.locale} className="size-3.5 opacity-50 grayscale" />
+            <span key={l.locale} title={`${languageName(l.locale)}: not published`} className="group/flag grid size-6 place-items-center rounded-full border border-dashed border-white/30 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:scale-115 hover:border-white/60">
+              <Flag locale={l.locale} className="size-3.5 opacity-50 grayscale transition-[opacity,filter] duration-200 group-hover/flag:opacity-100 group-hover/flag:grayscale-0" />
             </span>
           ),
         )}
@@ -222,28 +221,23 @@ function Latest({ locales, progress, failed, manager }: { locales: Locale[]; pro
   )
 }
 
-type Count = { total: number; approved: number; review: number; loaded: boolean }
-
-function tally(p?: Progress): Count {
-  return { total: p?.total ?? 0, approved: p?.approved ?? 0, review: p?.review ?? 0, loaded: !!p }
-}
-
-/** A number that counts up to itself when it arrives, and straight to the end for reduced motion. */
-function Count({ to, suffix = '' }: { to: number; suffix?: string }) {
+/** A percentage that counts up to itself when it arrives, and straight to the end for reduced motion. */
+function Count({ to }: { to: number }) {
   const ref = useRef<HTMLSpanElement>(null)
   const still = useReducedMotion()
   useEffect(() => {
-    const write = (n: number) => ref.current && (ref.current.textContent = `${Math.round(n)}${suffix}`)
+    const write = (n: number) => ref.current && (ref.current.textContent = `${Math.round(n)}%`)
     if (still) return void write(to)
     const counting = animate(0, to, { duration: 0.9, ease: [0.2, 0, 0, 1], onUpdate: write })
     return () => counting.stop()
-  }, [to, suffix, still])
-  return <span ref={ref}>{`${still ? to : 0}${suffix}`}</span>
+  }, [to, still])
+  return <span ref={ref}>{`${still ? to : 0}%`}</span>
 }
 
 /** A language's row: where it stands, and the one thing to do next in it. */
-function Tile({ locale, count, delay, onOpen }: { locale: Locale; count: Count; delay: number; onOpen: (next?: 'review' | 'translate') => void }) {
-  const { total, approved, review, loaded } = count
+function Tile({ locale, progress, delay, onOpen }: { locale: Locale; progress?: Progress; delay: number; onOpen: (next?: 'review' | 'translate') => void }) {
+  const { total = 0, approved = 0, review = 0 } = progress ?? {}
+  const loaded = !!progress
   const todo = total - approved - review
   const done = loaded && total > 0 && approved === total
   const fresh = loaded && approved === 0 && review === 0
@@ -256,10 +250,11 @@ function Tile({ locale, count, delay, onOpen }: { locale: Locale; count: Count; 
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 + delay, duration: 0.3, ease: 'easeOut' }}
-      className="group/tile hover:bg-secondary/70 focus-visible:bg-secondary grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-lg px-3 py-3 text-left transition-colors outline-none md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_8rem_7rem]"
+      style={{ '--tint': tint(locale.locale) } as React.CSSProperties}
+      className="group/tile hover:text-on-tint focus-visible:text-on-tint hover:bg-(--tint) focus-visible:bg-(--tint) grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-lg px-3 py-3 text-left transition-colors duration-300 outline-none md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_8rem_7rem]"
     >
       <span className="flex min-w-0 items-center gap-3">
-        <Flag locale={locale.locale} className="size-6" />
+        <Flag locale={locale.locale} className="size-6 transition-transform duration-300 group-hover/tile:scale-110 group-hover/tile:-rotate-6" />
         <span className="min-w-0">
           <span className="block truncate text-[0.875rem] leading-tight font-bold">{languageName(locale.locale)}</span>
           <span className="text-muted-foreground block font-mono text-[11.5px]">
@@ -269,7 +264,7 @@ function Tile({ locale, count, delay, onOpen }: { locale: Locale; count: Count; 
         </span>
       </span>
       <span className="col-span-2 row-start-2 flex items-center gap-3 md:col-span-1 md:col-start-2 md:row-start-1">
-        <span className="bg-secondary block h-1.5 flex-1 overflow-hidden rounded-full">
+        <span className="bg-secondary block h-1.5 flex-1 overflow-hidden rounded-full transition-colors group-hover/tile:bg-black/10">
           <motion.span
             className="block h-full rounded-full"
             style={{ background: shade(locale.locale) }}

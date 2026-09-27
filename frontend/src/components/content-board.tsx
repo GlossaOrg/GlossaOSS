@@ -92,7 +92,8 @@ function Board({ project }: { project: Project }) {
         )}
       </header>
 
-      <div className="flex flex-wrap gap-2">
+      {/* Every tab as wide as the groups column below, so the two line up. */}
+      <div className="flex flex-wrap gap-3">
         {ordered.map((l) => (
           <LocaleTab key={l.locale} locale={l} progress={progress.data?.find((p) => p.locale === l.locale)} active={locale?.locale === l.locale} onSelect={() => select(l.locale)} onIntent={() => prefetch(l.locale)} />
         ))}
@@ -183,18 +184,18 @@ function LocaleTab({ locale, progress, active, onSelect, onIntent }: { locale: L
       onPointerEnter={onIntent}
       onFocus={onIntent}
       className={cn(
-        'focus-visible:ring-ring/20 relative isolate flex shrink-0 cursor-pointer items-center gap-2.5 rounded-lg py-2 pr-4 pl-2.5 text-left transition-colors outline-none focus-visible:ring-3',
+        'focus-visible:ring-ring/20 relative isolate flex w-52 shrink-0 cursor-pointer items-center gap-2.5 rounded-lg py-2 pr-4 pl-3 text-left transition-colors outline-none focus-visible:ring-3',
         active ? 'text-foreground' : 'bg-card text-muted-foreground hover:text-foreground',
       )}
     >
       <Flag locale={locale.locale} className="size-6" />
-      <span className="grid leading-tight">
-        <span className="text-[0.8438rem] font-bold">{languageName(locale.locale)}</span>
+      <span className="grid min-w-0 flex-1 leading-tight">
+        <span className="truncate text-[0.8438rem] font-bold">{languageName(locale.locale)}</span>
         <span className="text-muted-foreground text-xs tabular-nums">
           {locale.source ? 'Source' : progress ? `${percent}% approved` : 'Counting…'}
         </span>
         {/* The source's bar is there but unseen, so every tab is the same height. */}
-        <span className={cn('bg-secondary mt-1.5 block h-1 w-24 overflow-hidden rounded-full', locale.source && 'invisible')}>
+        <span className={cn('bg-secondary mt-1.5 block h-1 w-full overflow-hidden rounded-full', locale.source && 'invisible')}>
           <motion.span className="block h-full rounded-full" style={{ background: shade(locale.locale) }} initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: still ? 0 : 0.6, ease: [0.2, 0, 0, 1] }} />
         </span>
       </span>

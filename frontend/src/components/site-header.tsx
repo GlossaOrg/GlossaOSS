@@ -1,26 +1,23 @@
 import { useState } from 'react'
 import { matchPath, useLocation, useNavigate } from 'react-router'
-import { cn } from 'cn'
 import { CheckIcon, ChevronDownIcon, SettingsIcon, SparklesIcon, UsersIcon } from 'lucide-react'
 import { AiFeatures } from '@/components/ai'
 import { Logo } from '@/components/logo'
 import { NavUser } from '@/components/nav-user'
 import { SettingsDialog } from '@/components/settings'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Users } from '@/components/users'
 import { useMe } from '@/lib/me'
 import { useProject } from '@/lib/projects'
 import { useScreens } from '@/screens'
-import { useWorkspace } from '@/store/workspace'
 
 const crumb = 'hover:bg-secondary data-popup-open:bg-secondary inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/20 [&>svg]:size-3.5 [&>svg]:opacity-50'
 
-/** The project and the screen, each a menu of the others: one click to switch either. */
+/** The project, then the screen as a menu of the others. */
 function Crumbs() {
-  const { projects, project } = useProject()
-  const select = useWorkspace((state) => state.select)
+  const { project } = useProject()
   const screens = useScreens()
   const { pathname } = useLocation()
   const navigate = useNavigate()
@@ -30,23 +27,8 @@ function Crumbs() {
 
   return (
     <nav aria-label="Breadcrumb" className="-ml-2 hidden min-w-0 items-center text-sm font-semibold md:flex">
-      <DropdownMenu>
-        <DropdownMenuTrigger className={cn(crumb, 'text-muted-foreground hover:text-foreground')}>
-          <span className="truncate">{project?.name ?? 'No project'}</span>
-          <ChevronDownIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="min-w-52" align="start" sideOffset={6}>
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Projects</DropdownMenuLabel>
-            {projects.data?.map((p) => (
-              <DropdownMenuItem key={p.id} onClick={() => select(p.id, null)}>
-                <span className="flex-1 truncate">{p.name}</span>
-                {p.id === project?.id && <CheckIcon className="size-4" />}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Switching project is the sidebar's job: the one a plugin may replace, and the one on phones. */}
+      <span className="text-muted-foreground truncate px-2">{project?.name ?? 'No project'}</span>
       {entry && (
         <>
           <span className="text-muted-foreground/60 mx-0.5">/</span>
