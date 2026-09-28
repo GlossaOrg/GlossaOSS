@@ -1,5 +1,7 @@
 package dev.relism.glossa.schema;
 
+import io.avaje.jsonb.Json;
+
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import dev.relism.glossa.persistence.entities.Role;
@@ -17,6 +19,7 @@ public final class Keys {
 
     @Schema(name = "NewApiKey", description = "A key for one project, with one role it can never exceed.")
     @Valid
+    @Json
     public record KeyRequest(
             @SchemaProperty(description = "What the key is for, so it can be recognised later.", required = true)
             @NotBlank(message = "is required")
@@ -30,6 +33,7 @@ public final class Keys {
             Instant expiresAt) {}
 
     @Schema(name = "ApiKey", description = "An issued key, without its secret.")
+    @Json
     public record KeyView(
             long id,
             String name,
@@ -41,5 +45,6 @@ public final class Keys {
             Instant revokedAt) {}
 
     @Schema(name = "IssuedApiKey", description = "A key and its token. The only answer the token ever appears in.")
+    @Json
     public record IssuedKey(long id, String name, Role role, String locale, String token) {}
 }

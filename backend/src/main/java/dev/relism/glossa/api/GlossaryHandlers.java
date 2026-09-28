@@ -1,15 +1,15 @@
 package dev.relism.glossa.api;
 
-import dev.relism.flash.ext.jackson.json.JsonHandler;
+import dev.relism.flash.ext.avaje.jsonb.JsonHandler;
 import dev.relism.flash.ext.openapi.APIResponse;
 import dev.relism.flash.ext.openapi.ApiOperation;
 import dev.relism.flash.ext.openapi.Content;
 import dev.relism.flash.ext.openapi.Parameter;
 import dev.relism.flash.ext.openapi.ParameterIn;
 import dev.relism.flash.ext.security.RolesAllowed;
-import dev.relism.flash.extension.Inject;
-import dev.relism.flash.models.Request;
-import dev.relism.flash.models.Response;
+import lombok.RequiredArgsConstructor;
+import dev.relism.flash.http.Request;
+import dev.relism.flash.http.Response;
 import dev.relism.flash.routing.DELETE;
 import dev.relism.flash.routing.GET;
 import dev.relism.flash.routing.PUT;
@@ -25,16 +25,15 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class GlossaryHandlers {
 
-    /** Every route here works through GlossaryService, and names what it reads and what it answers. */
-    private abstract static class Base<I, O> extends JsonHandler<I, O> { @Inject protected GlossaryService glossary; }
-
     @GET("/api/projects/{project}/glossary")
     @RolesAllowed(value = "READER", on = {"project", "locale"})
     @ApiOperation(summary = "The project's terminology.",
                   description = "Or what applies to one locale: a caller whose role is one locale's passes it as locale.",
                   tags = "Localization")
     @Parameter(name = "locale", in = ParameterIn.QUERY, description = "Only the terms that bind this locale, and the ones that bind every locale.")
-    public static final class Terms extends Base<Void, List<TermView>> {
+    @RequiredArgsConstructor
+    public static final class Terms extends JsonHandler<Void, List<TermView>> {
+        private final GlossaryService glossary;
         @Override public List<TermView> handle(Request req, Response res, Void ignored) {
             return glossary.list(LocalizationHandlers.project(req), req.query("locale"));
         }
@@ -45,7 +44,9 @@ public final class GlossaryHandlers {
     @ApiOperation(summary = "Adds or replaces a term.",
                   description = "No translation leaves the term alone; no locale means every locale.",
                   tags = "Localization")
-    public static final class Save extends Base<NewTerm, TermView> {
+    @RequiredArgsConstructor
+    public static final class Save extends JsonHandler<NewTerm, TermView> {
+        private final GlossaryService glossary;
         @Override public TermView handle(Request req, Response res, NewTerm body) throws Exception {
             return glossary.save(LocalizationHandlers.project(req), body);
         }
@@ -56,7 +57,9 @@ public final class GlossaryHandlers {
     @ApiOperation(summary = "Removes one term.", tags = "Localization")
     @APIResponse(responseCode = "204", description = "Removed")
     @APIResponse(responseCode = "404", description = "No such term in this project")
-    public static final class Remove extends Base<Void, Object> {
+    @RequiredArgsConstructor
+    public static final class Remove extends JsonHandler<Void, Object> {
+        private final GlossaryService glossary;
         @Override public Object handle(Request req, Response res, Void ignored) {
             glossary.remove(LocalizationHandlers.project(req), Long.parseLong(req.param("term")));
             res.status(204);

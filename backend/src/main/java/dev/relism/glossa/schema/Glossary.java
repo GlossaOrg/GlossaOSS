@@ -1,5 +1,7 @@
 package dev.relism.glossa.schema;
 
+import io.avaje.jsonb.Json;
+
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import io.avaje.validation.constraints.Valid;
@@ -13,6 +15,7 @@ import lombok.NoArgsConstructor;
 public final class Glossary {
 
     @Schema(name = "GlossaryTerm", description = "A term and what it is to become in one locale.")
+    @Json
     public record TermView(
             long id,
             String term,
@@ -23,6 +26,7 @@ public final class Glossary {
 
     @Schema(name = "NewGlossaryTerm", description = "Adds a term or replaces what it says. One term per locale.")
     @Valid
+    @Json
     public record NewTerm(
             @SchemaProperty(required = true)
             @NotBlank(message = "is required")

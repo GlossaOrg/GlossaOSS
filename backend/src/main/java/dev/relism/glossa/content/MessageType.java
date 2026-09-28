@@ -1,5 +1,7 @@
 package dev.relism.glossa.content;
 
+import io.avaje.jsonb.Json;
+
 import com.ibm.icu.text.DateFormat;
 import com.ibm.icu.text.MessageFormat;
 import com.ibm.icu.text.MessagePattern.ArgType;
@@ -11,7 +13,7 @@ import com.ibm.icu.util.LocaleData;
 import com.ibm.icu.util.TimeZone;
 import com.ibm.icu.util.ULocale;
 import com.ibm.icu.util.VersionInfo;
-import dev.relism.flash.exceptions.HttpException;
+import dev.relism.flash.http.HttpException;
 
 import java.text.Format;
 import java.time.Instant;
@@ -36,6 +38,7 @@ public final class MessageType implements FieldType {
     public static final String CLDR = LocaleData.getCLDRVersion().toString();
 
     /** {@code missing}: the plural forms the locale still needs before the message publishes, in CLDR order. */
+    @Json
     public record Analysis(Map<String, Variable> contract, List<String> missing, Map<String, Object> payload, boolean rtl) {}
 
     private static final List<String> FORMS = List.of("zero", "one", "two", "few", "many");

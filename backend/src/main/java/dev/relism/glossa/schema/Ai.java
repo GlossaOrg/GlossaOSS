@@ -1,5 +1,7 @@
 package dev.relism.glossa.schema;
 
+import io.avaje.jsonb.Json;
+
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import io.avaje.validation.constraints.Valid;
@@ -11,6 +13,7 @@ import lombok.NoArgsConstructor;
 public final class Ai {
 
     @Schema(name = "AiSettings", description = "Whether AI features are on, and the provider behind them.")
+    @Json
     public record SettingsView(
             boolean enabled,
             String baseUrl,
@@ -20,6 +23,7 @@ public final class Ai {
 
     @Schema(name = "AiProvider", description = "Any OpenAI-compatible provider. An absent key keeps the stored one.")
     @Valid
+    @Json
     public record SettingsUpdate(
             boolean enabled,
             @SchemaProperty(description = "Where /chat/completions lives.")

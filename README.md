@@ -16,8 +16,8 @@ Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual
 |---|---|
 | `pom.xml` | `glossa-parent`: the versions, the repositories and the build, inherited by every module. |
 | `backend/` | Glossa itself, the jar this parent builds. |
-| `backend/src/main/java/dev/relism/glossa/GlossaApp.java` | Every extension, route and service. Both `Main` and every test boot this. |
-| `backend/src/main/java/dev/relism/glossa/Main.java` | Production entrypoint. Adds the two externally-dependent extensions (web bundler, OIDC). |
+| `backend/src/main/java/dev/relism/glossa/GlossaApp.java` | Every module, route and service. Both `Main` and every test boot this. |
+| `backend/src/main/java/dev/relism/glossa/Main.java` | Production entrypoint. Adds the two externally-dependent modules (web bundler, OIDC). |
 | `backend/src/main/java/dev/relism/glossa/persistence/` | Postgres bootstrap — Flyway migrate, then Hibernate `validate`. Entities in `entities/`. |
 | `backend/src/main/java/dev/relism/glossa/api/` | HTTP handlers, discovered by `scan(...)`. |
 | `backend/src/main/java/dev/relism/glossa/content/` | Field types (§3). |
@@ -29,9 +29,10 @@ Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual
 | `dev/keycloak/` | The dev realm (§11) and the image that bakes it into Keycloak. |
 | `deploy/docker-compose.yml` | Glossa + Postgres, the deployment §2 describes. |
 
-### Flash extensions in use
+### Flash modules in use
 
-`data-hibernate` (Postgres), `jackson-json` (bodies parsed, checked and documented from their
+`data-hibernate` (Postgres), `avaje-jsonb` (bodies parsed and documented from generated adapters),
+`validation-avaje` (bodies checked from their
 type), `openapi`, `limiter` (§10 rate
 limiting), `oidc` (§11 SSO), `vite` (§12: Vite beside the app in DEV, the built SPA from the jar
 otherwise).
@@ -121,9 +122,9 @@ keep they save themselves, as their own revision.
 ./mvnw test
 ```
 
-`GlossaBootTest` boots the real extension graph on an ephemeral port against a real Postgres
+`GlossaBootTest` boots the real module graph on an ephemeral port against a real Postgres
 (Testcontainers, so Docker must be running) and asserts against real responses. It is the check
-that fails first when a dependency, a migration or an extension install order breaks.
+that fails first when a dependency, a migration or a module install order breaks.
 
 ## Dependencies
 

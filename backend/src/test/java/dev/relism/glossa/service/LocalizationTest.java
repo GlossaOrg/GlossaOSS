@@ -1,5 +1,6 @@
 package dev.relism.glossa.service;
 
+import dev.relism.flash.App;
 import dev.relism.flash.ext.security.test.TestSecurity;
 import dev.relism.flash.testing.FlashRequest;
 import dev.relism.flash.testing.FlashResponse;
@@ -28,8 +29,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class LocalizationTest {
 
+    static final TestSecurity security = new TestSecurity();
+
     @RegisterExtension
-    static final FlashTest app = FlashTest.of(flash -> flash.apply(new GlossaApp(Postgres.fresh("localization"), true, true)).install(new TestSecurity()));
+    static final FlashTest app = FlashTest.of(() -> App.create()
+            .install(new GlossaApp(Postgres.fresh("localization"), true, true), security));
 
     static long project, otherProject, manager, translator, reviewer, outsider;
 
@@ -250,7 +254,7 @@ class LocalizationTest {
     }
 
     private static Consumer<FlashRequest> as(long user) {
-        return TestSecurity.as(new Users.LocalUser("content-" + user, user));
+        return security.as(new Users.LocalUser("content-" + user, user));
     }
 
     private static long number(String json, String field) {

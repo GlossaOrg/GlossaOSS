@@ -1,5 +1,7 @@
 package dev.relism.glossa.schema;
 
+import io.avaje.jsonb.Json;
+
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import dev.relism.glossa.persistence.entities.Role;
@@ -20,6 +22,7 @@ public final class Users {
     public enum Status { ACTIVE, INVITED, DISABLED, DELETED }
 
     @Schema(name = "Account", description = "A row of the user table: an account, or an invitation nobody has taken up yet.")
+    @Json
     public record AccountView(
             long id,
             @SchemaProperty(description = "True while this is an invitation and not an account.")
@@ -39,10 +42,12 @@ public final class Users {
             List<Membership> projects) {}
 
     @Schema(name = "Membership", description = "A role in one project, optionally confined to one locale.")
+    @Json
     public record Membership(long project, String name, Role role, String locale) {}
 
     @Schema(name = "Invitation", description = "Invites an address. Nobody signs themselves up (§11).")
     @Valid
+    @Json
     public record InviteRequest(
             @SchemaProperty(required = true)
             @NotBlank(message = "is required")
@@ -60,9 +65,11 @@ public final class Users {
             int expiresInDays) {}
 
     @Schema(name = "Invited", description = "An invitation and its link. The only answer the link ever appears in.")
+    @Json
     public record Invited(long id, String email, String link) {}
 
     @Schema(name = "InvitationDetail", description = "What the invited person is shown before choosing a password.")
+    @Json
     public record InviteView(
             String email,
             String name,
@@ -71,6 +78,7 @@ public final class Users {
 
     @Schema(name = "Chosen", description = "The password the invited person chose, and the name they go by.")
     @Valid
+    @Json
     public record Chosen(
             String name,
             @SchemaProperty(required = true)
@@ -78,9 +86,11 @@ public final class Users {
             String password) {}
 
     @Schema(name = "Accepted", description = "Who the account turned out to be, so a browser can sign in with what was just chosen.")
+    @Json
     public record Accepted(String email) {}
 
     @Schema(name = "Me", description = "The signed-in account, as the frontend needs it.")
+    @Json
     public record MeView(
             long id,
             String email,
@@ -92,6 +102,7 @@ public final class Users {
 
     @Schema(name = "NewPassword", description = "A password to replace the current one. It must differ from it.")
     @Valid
+    @Json
     public record NewPassword(
             @SchemaProperty(required = true)
             @NotBlank(message = "is required")

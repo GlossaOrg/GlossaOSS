@@ -1,14 +1,13 @@
 package dev.relism.glossa.api;
 
-import dev.relism.flash.ext.jackson.json.JsonHandler;
+import dev.relism.flash.ext.avaje.jsonb.JsonHandler;
 import dev.relism.flash.ext.openapi.APIResponse;
 import dev.relism.flash.ext.openapi.ApiOperation;
 import dev.relism.flash.ext.openapi.Undocumented;
 import dev.relism.flash.ext.security.Authenticated;
 import dev.relism.flash.ext.security.SecurityIdentity;
-import dev.relism.flash.extension.Inject;
-import dev.relism.flash.models.Request;
-import dev.relism.flash.models.Response;
+import dev.relism.flash.http.Request;
+import dev.relism.flash.http.Response;
 import dev.relism.flash.routing.GET;
 import dev.relism.flash.routing.POST;
 import dev.relism.glossa.GlossaApp;
@@ -19,6 +18,7 @@ import dev.relism.glossa.schema.Users.NewPassword;
 import dev.relism.glossa.service.UserService;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
 
@@ -29,7 +29,7 @@ public final class MetaHandlers {
     /** Liveness probe for the container healthcheck (see deploy/docker-compose.yml). */
     @GET("/healthz")
     @ApiOperation(summary = "Name, version and liveness.", tags = "Meta")
-        @Undocumented
+    @Undocumented
     public static final class Health extends JsonHandler<Void, Map<String, String>> {
         @Override public Map<String, String> handle(Request req, Response res, Void ignored) {
             return Map.of("service", "glossa", "version", GlossaApp.VERSION, "status", "ok");
@@ -54,8 +54,9 @@ public final class MetaHandlers {
     @Authenticated
     @ApiOperation(summary = "Changes the account's password.", tags = "Meta")
     @APIResponse(responseCode = "204", description = "Changed. The old one stops working")
+    @RequiredArgsConstructor
     public static final class ChangePassword extends JsonHandler<NewPassword, Void> {
-        @Inject private UserService users;
+        private final UserService users;
 
         @Override public Void handle(Request req, Response res, NewPassword body) throws Exception {
             users.changePassword(body.password());

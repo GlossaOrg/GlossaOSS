@@ -1,5 +1,7 @@
 package dev.relism.glossa.schema;
 
+import io.avaje.jsonb.Json;
+
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import dev.relism.glossa.persistence.entities.Role;
@@ -13,6 +15,7 @@ import lombok.NoArgsConstructor;
 public final class Projects {
 
     @Schema(name = "Project", description = "A project and what the caller may do in it.")
+    @Json
     public record ProjectView(
             long id,
             String slug,
@@ -22,6 +25,7 @@ public final class Projects {
 
     @Schema(name = "NewProject", description = "A project. The slug is made from the name when not given.")
     @Valid
+    @Json
     public record NewProject(
             @SchemaProperty(description = "Lowercase, in URLs. Derived from the name when left out.")
             String slug,

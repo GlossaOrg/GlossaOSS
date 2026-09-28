@@ -1,5 +1,6 @@
 package dev.relism.glossa.auth;
 
+import dev.relism.flash.App;
 import dev.relism.flash.ext.security.form.PasswordEncoder;
 import dev.relism.flash.ext.security.oidc.OidcPrincipal;
 import dev.relism.flash.ext.security.test.TestSecurity;
@@ -23,8 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 class AuthTest {
 
+    static final TestSecurity security = new TestSecurity();
+
     @RegisterExtension
-    static final FlashTest app = FlashTest.of(flash -> flash.apply(new GlossaApp(Postgres.bootstrap(), true, true)).install(new TestSecurity()));
+    static final FlashTest app = FlashTest.of(() -> App.create()
+            .install(new GlossaApp(Postgres.bootstrap(), true, true), security));
 
     static long project, otherProject, manager, translator;
 
@@ -40,7 +44,7 @@ class AuthTest {
     }
 
     static Consumer<dev.relism.flash.testing.FlashRequest> as(long user) {
-        return TestSecurity.as(new Users.LocalUser("user-" + user, user));
+        return security.as(new Users.LocalUser("user-" + user, user));
     }
 
     @Test
@@ -103,14 +107,14 @@ class AuthTest {
     void anInvitedOidcCallerIsProvisionedOnceByIssuerAndSubject() throws Exception {
         sql("insert into invitation (email, sso, created_by) values ('seven@example.test', true, " + manager + ") returning id");
         OidcPrincipal oidc = oidc("sub-7", "seven@example.test");
-        app.request().with(TestSecurity.as(oidc)).get("/api/me").expectBodyContains("seven@example.test");
-        app.request().with(TestSecurity.as(oidc)).get("/api/me").expectStatus(200);
+        app.request().with(security.as(oidc)).get("/api/me").expectBodyContains("seven@example.test");
+        app.request().with(security.as(oidc)).get("/api/me").expectStatus(200);
         assertEquals(1, sql("select count(*) from user_identity where issuer = 'https://id.example.test' and subject = 'sub-7'"));
     }
 
     @Test
     void anUninvitedOidcCallerIsRefused() {
-        app.request().with(TestSecurity.as(oidc("sub-8", "eight@example.test"))).get("/api/me")
+        app.request().with(security.as(oidc("sub-8", "eight@example.test"))).get("/api/me")
                 .expectStatus(403).expectBodyContains("been invited");
     }
 
