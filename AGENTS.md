@@ -56,9 +56,13 @@ belong in `Main`.
   nothing, `JsonHandler<NewProject, ProjectView>` reads a body, and the codec writes the answer.
 - `content/` — §3's field types: each validates and renders its own values.
 - `service/` — `XxxService`, the domain logic: lookups, validation, authorization beyond the
-  annotation, writes. Request/view records nest on the service. It throws `HttpException`, whose
+  annotation, writes. It throws `HttpException`, whose
   status HTTP answers, and knows nothing of the transport, so anything composing the core can call
   it. Handlers only parse, call and return — no repository, no transaction.
+- `schema/` — what the API reads and answers: one final container per resource, its request and
+  view records nested, `@Json` for the codec and `@Valid` when a body carries rules.
+- `auth/` — §11: who a caller is (`Users`, `ApiKeys`), what they may do (`ProjectRoles`), and the
+  sessions kept in Postgres (`Sessions`).
 - `persistence/` — Postgres bootstrap: Flyway migrates, then Hibernate `validate`.
 - `persistence/entities/` — every `@Entity`, with the enums its columns map. Entities live nowhere else.
 
@@ -142,11 +146,11 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 ## Git
 
 - Branches: `feature/<scope>/<short-description>`, `fix/<scope>/<short-description>`, from
-  `master`, lowercase, words separated by `-`.
+  `main`, lowercase, words separated by `-`.
 - Commits: Conventional Commits — `<type>(<scope>): <description>`. Types: `feat`, `fix`,
   `refactor`, `test`, `docs`, `chore`.
 - Scopes: `api`, `persistence`, `frontend`, `deploy`, `docs`, `deps`, `build`.
-- Never push directly to `master`. Always via PR.
+- Never push directly to `main`. Always via PR.
 - Never commit `target/`, `.env`, or `dependency-reduced-pom.xml`.
 
 ## What an agent must not do here
@@ -155,5 +159,5 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 - Let a machine-generated translation become live without human review (§9), or let an API key
   reach past the grant it was issued with (§11).
 - Design or implement real-time collaboration: explicitly out of scope for v1 (§13).
-- Bump `flash.version` in the `docker` profile as a side effect of unrelated work.
+- Bump `flash.version` as a side effect of unrelated work.
 - Add a dependency for what a few lines of JDK or Flash already do.
