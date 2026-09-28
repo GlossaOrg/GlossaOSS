@@ -1,6 +1,6 @@
 package dev.relism.glossa.service;
 
-import dev.relism.flash.exceptions.HttpException;
+import dev.relism.flash.http.HttpException;
 import dev.relism.flash.ext.data.core.Data;
 import dev.relism.flash.ext.data.core.SpecBuilder;
 import dev.relism.flash.ext.security.SecurityIdentity;
@@ -69,7 +69,7 @@ public final class ApiKeyService {
     }
 
     private IssuedKey create(long project, KeyRequest request, long issuer) {
-        GeneratedApiKey generated = store.extension().generate();
+        GeneratedApiKey generated = store.module().generate();
         ProjectApiKey row = new ProjectApiKey();
         row.setKeyId(generated.id());
         row.setSecretHash(generated.secretHash());

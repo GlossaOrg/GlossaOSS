@@ -1,5 +1,7 @@
 package dev.relism.glossa.schema;
 
+import io.avaje.jsonb.Json;
+
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import dev.relism.glossa.content.FieldType.Variable;
@@ -20,6 +22,7 @@ public final class Localization {
 
     @Schema(name = "LocaleConfig", description = "Enables a locale, or changes what it falls back to.")
     @Valid
+    @Json
     public record LocaleConfig(
             @SchemaProperty(description = "Makes this the locale everything is translated from. Only one project locale is.")
             boolean source,
@@ -27,9 +30,11 @@ public final class Localization {
             String fallbackLocale) {}
 
     /** The service's own shape for the same thing, with the locale the route carried in its path. */
+    @Json
     public record LocaleRequest(String locale, boolean source, String fallbackLocale) {}
 
     @Schema(name = "Locale", description = "An enabled locale and the plural forms a message needs in it.")
+    @Json
     public record LocaleView(
             String locale,
             @SchemaProperty(description = "Whether everything is translated from this locale.")
@@ -44,6 +49,7 @@ public final class Localization {
 
     @Schema(name = "NewResource", description = "A resource and the source value it starts with, approved at once.")
     @Valid
+    @Json
     public record CreateResource(
             @SchemaProperty(description = "Unique in the project. Dots group keys without a namespace of their own: checkout.items.", required = true)
             @Pattern(regexp = "[A-Za-z0-9_][A-Za-z0-9_.-]{0,254}", message = "uses up to 255 letters, digits, _, . and -")
@@ -62,6 +68,7 @@ public final class Localization {
 
     @Schema(name = "NewRevision", description = "A new value for one locale: approved from a reviewer, a proposal from a translator.")
     @Valid
+    @Json
     public record Edit(
             @SchemaProperty(description = "The revision this edit was written against. The write is refused if the variant moved on.")
             Long expectedHeadRevisionId,
@@ -74,6 +81,7 @@ public final class Localization {
 
     @Schema(name = "Decision", description = "A reviewer's answer to the pending proposal.")
     @Valid
+    @Json
     public record Decision(
             @SchemaProperty(description = "The proposal being answered, so two reviewers cannot answer different things.")
             long revisionId,
@@ -82,9 +90,11 @@ public final class Localization {
 
     @Schema(name = "Revert", description = "Writes an earlier value again, as a new revision. Nothing is rewritten.")
     @Valid
+    @Json
     public record Revert(long revisionId, Long expectedHeadRevisionId, Long sourceRevisionId) {}
 
     @Schema(name = "Resource", description = "A resource with its state in one locale.")
+    @Json
     public record ResourceView(
             long id,
             String key,
@@ -102,6 +112,7 @@ public final class Localization {
             Map<String, Object> payload) {}
 
     @Schema(name = "Revision", description = "One immutable value a locale had.")
+    @Json
     public record RevisionView(
             long id,
             String locale,
@@ -114,6 +125,7 @@ public final class Localization {
             Instant createdAt) {}
 
     @Schema(name = "Event", description = "One entry of the append-only change log (§8).")
+    @Json
     public record EventView(
             long id,
             Long revisionId,
@@ -125,13 +137,16 @@ public final class Localization {
             Instant createdAt) {}
 
     @Schema(name = "ResourceDetail", description = "A resource, the revisions of the locale asked for, and its change log.")
+    @Json
     public record Detail(ResourceView resource, List<RevisionView> revisions, List<EventView> events) {}
 
     @Schema(name = "Release", description = "A published catalog. The hash addresses the catalog itself.")
+    @Json
     public record ReleaseView(long version, String locale, String hash, Instant createdAt) {}
 
     @Schema(name = "Message", description = "A message to check or render, with the values to render it with.")
     @Valid
+    @Json
     public record MessageRequest(
             @SchemaProperty(required = true)
             @NotNull(message = "is required")
@@ -144,6 +159,7 @@ public final class Localization {
 
     @Schema(name = "SuggestionRequest", description = "What to translate (§9). Nothing is stored and nothing is written.")
     @Valid
+    @Json
     public record Suggest(
             @NotNull(message = "is required")
             Map<String, Object> payload,
@@ -152,6 +168,7 @@ public final class Localization {
             String context) {}
 
     @Schema(name = "Rendered", description = "A message as a reader would see it.")
+    @Json
     public record Rendered(
             String text,
             @SchemaProperty(description = "The locale the text actually came from, which fallbacks may change.")
@@ -160,11 +177,13 @@ public final class Localization {
 
     @Schema(name = "RenderValues", description = "One value per variable the message declares.")
     @Valid
+    @Json
     public record Values(
             @NotNull(message = "is required")
             Map<String, Object> values) {}
 
     @Schema(name = "Archived", description = "Keeps a resource out of new catalogs, or puts it back.")
     @Valid
+    @Json
     public record Archived(boolean archived) {}
 }

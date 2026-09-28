@@ -15,5 +15,5 @@ only adds what's specific to Claude Code.
   possible" — see `AGENTS.md#philosophy`.
 - Flash (`../../Flash5` when checked out beside this repo) is not a black box. Read its source and its
   `flash-extensions/*/docs/` before writing infrastructure — that's cheaper than reinventing
-  an extension that already ships.
+  a module that already ships.
 - Everything in this repo is in English, only the project's name is Greek.
