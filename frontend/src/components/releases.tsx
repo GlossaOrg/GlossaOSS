@@ -25,11 +25,11 @@ export function Releases() {
     <div className="page grid gap-5">
       <header>
         <h2>Releases</h2>
-        <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem]">Each language publishes on its own, and only what is approved goes in.</p>
+        <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem] text-pretty">Each language publishes on its own, and only what is approved goes in.</p>
       </header>
 
       {locales.error || progress.error ? (
-        <p role="alert" className="text-destructive">Could not load the locales. Reload the page.</p>
+        <p role="alert" className="text-destructive">Could not load the releases. Reload the page.</p>
       ) : !locales.data ? (
         <div className="card divide-y px-5" aria-busy>
           {[0, 1, 2].map((i) => (

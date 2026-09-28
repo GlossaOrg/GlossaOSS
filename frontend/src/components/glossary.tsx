@@ -33,7 +33,7 @@ export function Glossary() {
       <header className="mb-5 flex flex-wrap items-end justify-between gap-6">
         <div>
           <h2>Glossary</h2>
-          <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem]">
+          <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem] text-pretty">
             Terms every translation should agree on. Translators see the ones a message uses, and AI suggestions follow them.
           </p>
         </div>

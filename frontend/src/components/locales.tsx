@@ -30,7 +30,7 @@ export function Locales() {
       <header className="mb-5 flex flex-wrap items-end justify-between gap-6">
         <div>
           <h2>Locales</h2>
-          <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem]">
+          <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem] text-pretty">
             {source
               ? `Content is written in ${languageName(source.locale)}, then translated. Where a translation is missing, its fallback shows instead.`
               : 'Start with the language content is written in.'}
@@ -127,6 +127,7 @@ function Row({ locale, all, projectId }: { locale: Locale; all: Locale[]; projec
         <span className="col-span-2 col-start-2 row-start-2 md:col-span-1 md:col-start-auto md:row-start-auto">
           <span className="eyebrow mb-1 block">Falls back to</span>
           <Select
+            className="w-48"
             lead={locale.fallbackLocale && <Flag locale={locale.fallbackLocale} className="size-4" />}
             value={locale.fallbackLocale ?? ''}
             disabled={save.isPending}

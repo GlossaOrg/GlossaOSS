@@ -108,7 +108,7 @@ export function ApiKeys() {
           )}
         </div>
 
-        <aside className="card grid content-start gap-8 self-start p-5 text-sm">
+        <aside className="card grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-8 self-start p-5 text-sm">
           <section>
             <h3 className="mb-3 text-base">Roles</h3>
             <dl className="grid gap-3.5">
@@ -123,7 +123,7 @@ export function ApiKeys() {
           <section>
             <h3 className="mb-2 text-base">Using a key</h3>
             <p className="text-muted-foreground mb-3">Send it as a bearer token to the API.</p>
-            <pre className="bg-secondary mb-3 overflow-x-auto rounded-lg p-4 font-mono text-xs leading-relaxed">{'Authorization: Bearer gk_…'}</pre>
+            <pre className="bg-secondary mb-3 rounded-lg p-4 whitespace-pre-wrap font-mono text-xs leading-relaxed">{'Authorization: Bearer gk_…'}</pre>
             <Button variant="outline" size="sm" nativeButton={false} render={<a href="/openapi/docs" target="_blank" rel="noreferrer" />}>
               <BookOpenIcon />
               API reference
