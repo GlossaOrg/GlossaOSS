@@ -1,6 +1,6 @@
 package dev.relism.glossa.service;
 
-import dev.relism.flash.exceptions.HttpException;
+import dev.relism.flash.http.HttpException;
 import dev.relism.flash.ext.data.core.Data;
 import dev.relism.flash.ext.security.form.PasswordEncoder;
 import dev.relism.glossa.persistence.entities.AppUser;

@@ -1,6 +1,6 @@
 package dev.relism.glossa.api;
 
-import dev.relism.flash.ext.jackson.json.JsonHandler;
+import dev.relism.flash.ext.avaje.jsonb.JsonHandler;
 import dev.relism.flash.ext.limiter.Limit;
 import dev.relism.flash.ext.openapi.APIResponse;
 import dev.relism.flash.ext.openapi.ApiOperation;
@@ -9,10 +9,10 @@ import dev.relism.flash.ext.openapi.Parameter;
 import dev.relism.flash.ext.openapi.ParameterIn;
 import dev.relism.flash.ext.security.Authenticated;
 import dev.relism.flash.ext.security.RolesAllowed;
-import dev.relism.flash.extension.Inject;
+import lombok.RequiredArgsConstructor;
 import dev.relism.flash.http.ContentType;
-import dev.relism.flash.models.Request;
-import dev.relism.flash.models.Response;
+import dev.relism.flash.http.Request;
+import dev.relism.flash.http.Response;
 import dev.relism.flash.routing.DELETE;
 import dev.relism.flash.routing.GET;
 import dev.relism.flash.routing.POST;
@@ -38,9 +38,6 @@ import java.util.concurrent.TimeUnit;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class LocalizationHandlers {
 
-    /** Every route here works through LocalizationService, and names what it reads and what it answers. */
-    private abstract static class Base<I, O> extends JsonHandler<I, O> { @Inject protected LocalizationService content; }
-
     static long project(Request req) {
         return Long.parseLong(req.param("project"));
     }
@@ -54,7 +51,9 @@ public final class LocalizationHandlers {
     @ApiOperation(summary = "The project's locales.",
                   description = "With the plural categories each needs. A caller whose role is one locale's passes it as locale.",
                   tags = "Localization")
-    public static final class Locales extends Base<Void, List<Localization.LocaleView>> {
+    @RequiredArgsConstructor
+    public static final class Locales extends JsonHandler<Void, List<Localization.LocaleView>> {
+        private final LocalizationService content;
         @Override public List<Localization.LocaleView> handle(Request req, Response res, Void ignored) {
             return content.locales(project(req));
         }
@@ -63,7 +62,9 @@ public final class LocalizationHandlers {
     @PUT("/api/projects/{project}/locales/{locale}")
     @RolesAllowed(value = "MANAGER", on = "project")
     @ApiOperation(summary = "Enables a locale or changes its fallback.", tags = "Localization")
-    public static final class ConfigureLocale extends Base<LocaleConfig, Localization.LocaleView> {
+    @RequiredArgsConstructor
+    public static final class ConfigureLocale extends JsonHandler<LocaleConfig, Localization.LocaleView> {
+        private final LocalizationService content;
         @Override public Localization.LocaleView handle(Request req, Response res, LocaleConfig body) throws Exception {
             return content.configureLocale(project(req), new LocaleRequest(req.param("locale"), body.source(), body.fallbackLocale()));
         }
@@ -76,7 +77,9 @@ public final class LocalizationHandlers {
                   tags = "Localization")
     @APIResponse(responseCode = "204", description = "Removed with everything written in it")
     @APIResponse(responseCode = "409", description = "The source locale cannot be removed")
-    public static final class RemoveLocale extends Base<Void, Object> {
+    @RequiredArgsConstructor
+    public static final class RemoveLocale extends JsonHandler<Void, Object> {
+        private final LocalizationService content;
         @Override public Object handle(Request req, Response res, Void ignored) {
             content.removeLocale(project(req), req.param("locale"));
             res.status(204);
@@ -91,7 +94,9 @@ public final class LocalizationHandlers {
                   tags = "Localization")
     @Parameter(name = "locale", in = ParameterIn.QUERY, description = "Which locale's state to report. The caller's own when their role is one locale's.")
     @Parameter(name = "prefix", in = ParameterIn.QUERY, description = "Only the keys under this dotted prefix.")
-    public static final class Resources extends Base<Void, List<Localization.ResourceView>> {
+    @RequiredArgsConstructor
+    public static final class Resources extends JsonHandler<Void, List<Localization.ResourceView>> {
+        private final LocalizationService content;
         @Override public List<Localization.ResourceView> handle(Request req, Response res, Void ignored) {
             return content.list(project(req), req.query("locale"), req.query("prefix"));
         }
@@ -103,7 +108,9 @@ public final class LocalizationHandlers {
                   description = "Each locale the caller may read, its resources counted by state, and its newest release.",
                   tags = "Localization")
     @APIResponse(responseCode = "403", description = "No locale of this project is the caller's to read")
-    public static final class Progress extends Base<Void, List<Localization.Progress>> {
+    @RequiredArgsConstructor
+    public static final class Progress extends JsonHandler<Void, List<Localization.Progress>> {
+        private final LocalizationService content;
         @Override public List<Localization.Progress> handle(Request req, Response res, Void ignored) {
             return content.progress(project(req));
         }
@@ -115,7 +122,9 @@ public final class LocalizationHandlers {
                   description = "Into the source, new keys become resources (managers only). Elsewhere each entry is the caller's own write, "
                           + "a proposal unless they review. Entries that cannot be written are listed, the rest still go in.",
                   tags = "Localization")
-    public static final class ImportMessages extends Base<Localization.Import, Localization.Imported> {
+    @RequiredArgsConstructor
+    public static final class ImportMessages extends JsonHandler<Localization.Import, Localization.Imported> {
+        private final LocalizationService content;
         @Override public Localization.Imported handle(Request req, Response res, Localization.Import body) {
             return content.importMessages(project(req), req.param("locale"), body);
         }
@@ -128,7 +137,9 @@ public final class LocalizationHandlers {
                   tags = "Localization")
     @APIResponse(responseCode = "201", description = "Created, with its first source revision approved")
     @APIResponse(responseCode = "409", description = "That key is already taken in this project")
-    public static final class CreateResource extends Base<Localization.CreateResource, Localization.ResourceView> {
+    @RequiredArgsConstructor
+    public static final class CreateResource extends JsonHandler<Localization.CreateResource, Localization.ResourceView> {
+        private final LocalizationService content;
         @Override public Localization.ResourceView handle(Request req, Response res, Localization.CreateResource body) throws Exception {
             res.status(201);
             return content.create(project(req), body);
@@ -142,7 +153,9 @@ public final class LocalizationHandlers {
                   tags = "Localization")
     @Parameter(name = "locale", in = ParameterIn.QUERY, description = "Which locale's revisions to include beside the source's.")
     @APIResponse(responseCode = "404", description = "No such resource in this project")
-    public static final class Detail extends Base<Void, Localization.Detail> {
+    @RequiredArgsConstructor
+    public static final class Detail extends JsonHandler<Void, Localization.Detail> {
+        private final LocalizationService content;
         @Override public Localization.Detail handle(Request req, Response res, Void ignored) {
             return content.detail(project(req), resource(req), req.query("locale"));
         }
@@ -152,7 +165,9 @@ public final class LocalizationHandlers {
     @RolesAllowed(value = "READER", on = {"project", "locale"})
     @ApiOperation(summary = "The thread about a resource in one locale.", tags = "Localization")
     @Parameter(name = "locale", in = ParameterIn.QUERY, required = true, description = "Whose thread.")
-    public static final class Comments extends Base<Void, List<Localization.CommentView>> {
+    @RequiredArgsConstructor
+    public static final class Comments extends JsonHandler<Void, List<Localization.CommentView>> {
+        private final LocalizationService content;
         @Override public List<Localization.CommentView> handle(Request req, Response res, Void ignored) {
             return content.comments(project(req), resource(req), req.query("locale"));
         }
@@ -163,7 +178,9 @@ public final class LocalizationHandlers {
     @ApiOperation(summary = "Adds to the thread about a resource in one locale.", tags = "Localization")
     @Parameter(name = "locale", in = ParameterIn.QUERY, required = true, description = "Whose thread.")
     @APIResponse(responseCode = "201", description = "Added")
-    public static final class Comment extends Base<Localization.NewComment, Localization.CommentView> {
+    @RequiredArgsConstructor
+    public static final class Comment extends JsonHandler<Localization.NewComment, Localization.CommentView> {
+        private final LocalizationService content;
         @Override public Localization.CommentView handle(Request req, Response res, Localization.NewComment body) {
             res.status(201);
             return content.comment(project(req), resource(req), req.query("locale"), body);
@@ -173,7 +190,9 @@ public final class LocalizationHandlers {
     @PUT("/api/projects/{project}/resources/{resource}/context")
     @RolesAllowed(value = "MANAGER", on = "project")
     @ApiOperation(summary = "Changes what translators are told about a resource.", tags = "Localization")
-    public static final class Context extends Base<Localization.Context, Localization.ResourceView> {
+    @RequiredArgsConstructor
+    public static final class Context extends JsonHandler<Localization.Context, Localization.ResourceView> {
+        private final LocalizationService content;
         @Override public Localization.ResourceView handle(Request req, Response res, Localization.Context body) {
             return content.context(project(req), resource(req), body.context());
         }
@@ -184,7 +203,9 @@ public final class LocalizationHandlers {
     @ApiOperation(summary = "Writes a revision.",
                   description = "Approved for a reviewer, a proposal otherwise.",
                   tags = "Localization")
-    public static final class Edit extends Base<Localization.Edit, Localization.ResourceView> {
+    @RequiredArgsConstructor
+    public static final class Edit extends JsonHandler<Localization.Edit, Localization.ResourceView> {
+        private final LocalizationService content;
         @Override public Localization.ResourceView handle(Request req, Response res, Localization.Edit body) throws Exception {
             return content.edit(project(req), resource(req), req.param("locale"), body);
         }
@@ -194,7 +215,9 @@ public final class LocalizationHandlers {
     @RolesAllowed(value = "REVIEWER", on = {"project", "locale"})
     @ApiOperation(summary = "Approves or rejects the pending proposal.", tags = "Localization")
     @APIResponse(responseCode = "409", description = "That proposal is not the one pending")
-    public static final class Review extends Base<Decision, Localization.ResourceView> {
+    @RequiredArgsConstructor
+    public static final class Review extends JsonHandler<Decision, Localization.ResourceView> {
+        private final LocalizationService content;
         @Override public Localization.ResourceView handle(Request req, Response res, Decision body) throws Exception {
             return content.review(project(req), resource(req), req.param("locale"), body);
         }
@@ -205,7 +228,9 @@ public final class LocalizationHandlers {
     @ApiOperation(summary = "Reverts to an earlier revision.",
                   description = "The earlier value is written as a new one.",
                   tags = "Localization")
-    public static final class Revert extends Base<Localization.Revert, Localization.ResourceView> {
+    @RequiredArgsConstructor
+    public static final class Revert extends JsonHandler<Localization.Revert, Localization.ResourceView> {
+        private final LocalizationService content;
         @Override public Localization.ResourceView handle(Request req, Response res, Localization.Revert body) throws Exception {
             return content.revert(project(req), resource(req), req.param("locale"), body);
         }
@@ -214,7 +239,9 @@ public final class LocalizationHandlers {
     @PUT("/api/projects/{project}/resources/{resource}/archive")
     @RolesAllowed(value = "MANAGER", on = "project")
     @ApiOperation(summary = "Archives or restores a resource.", tags = "Localization")
-    public static final class Archive extends Base<Archived, Localization.ResourceView> {
+    @RequiredArgsConstructor
+    public static final class Archive extends JsonHandler<Archived, Localization.ResourceView> {
+        private final LocalizationService content;
         @Override public Localization.ResourceView handle(Request req, Response res, Archived body) throws Exception {
             return content.archive(project(req), resource(req), body.archived());
         }
@@ -225,7 +252,9 @@ public final class LocalizationHandlers {
     @ApiOperation(summary = "Renders the approved value.",
                   description = "Following the locale's fallbacks.",
                   tags = "Localization")
-    public static final class Render extends Base<Values, Localization.Rendered> {
+    @RequiredArgsConstructor
+    public static final class Render extends JsonHandler<Values, Localization.Rendered> {
+        private final LocalizationService content;
         @Override public Localization.Rendered handle(Request req, Response res, Values body) throws Exception {
             return content.render(project(req), resource(req), req.param("locale"), body.values());
         }
@@ -236,7 +265,9 @@ public final class LocalizationHandlers {
     @ApiOperation(summary = "Checks a message.",
                   description = "Reports its variables and plural branches.",
                   tags = "Localization")
-    public static final class Analyze extends Base<MessageRequest, MessageType.Analysis> {
+    @RequiredArgsConstructor
+    public static final class Analyze extends JsonHandler<MessageRequest, MessageType.Analysis> {
+        private final LocalizationService content;
         @Override public MessageType.Analysis handle(Request req, Response res, MessageRequest body) throws Exception {
             return content.analyze(project(req), req.param("locale"), body);
         }
@@ -245,7 +276,9 @@ public final class LocalizationHandlers {
     @POST("/api/projects/{project}/messages/{locale}/preview")
     @RolesAllowed(value = "READER", on = {"project", "locale"})
     @ApiOperation(summary = "Renders an unsaved message with the values given.", tags = "Localization")
-    public static final class Preview extends Base<MessageRequest, Object> {
+    @RequiredArgsConstructor
+    public static final class Preview extends JsonHandler<MessageRequest, Object> {
+        private final LocalizationService content;
         @Override public Object handle(Request req, Response res, MessageRequest body) throws Exception {
             return Map.of("text", content.preview(project(req), req.param("locale"), body));
         }
@@ -256,7 +289,9 @@ public final class LocalizationHandlers {
     @ApiOperation(summary = "Suggests a translation.",
                   description = "§9. Stores nothing: the caller writes what they keep.",
                   tags = "Localization")
-    public static final class Translate extends Base<Suggest, Map<String, Object>> {
+    @RequiredArgsConstructor
+    public static final class Translate extends JsonHandler<Suggest, Map<String, Object>> {
+        private final LocalizationService content;
         @Override public Map<String, Object> handle(Request req, Response res, Suggest body) throws Exception {
             return content.suggest(project(req), req.param("locale"), body);
         }
@@ -268,7 +303,9 @@ public final class LocalizationHandlers {
                   description = "An unchanged catalog stays the current release.",
                   tags = "Delivery")
     @APIResponse(responseCode = "201", description = "Published. An unchanged catalog stays the release it already was")
-    public static final class Publish extends Base<Void, Localization.ReleaseView> {
+    @RequiredArgsConstructor
+    public static final class Publish extends JsonHandler<Void, Localization.ReleaseView> {
+        private final LocalizationService content;
         @Override public Localization.ReleaseView handle(Request req, Response res, Void ignored) {
             res.status(201);
             return content.publish(project(req), req.param("locale"));
@@ -281,7 +318,9 @@ public final class LocalizationHandlers {
     @ApiOperation(summary = "The current release's hash.",
                   description = "It addresses the catalog itself.",
                   tags = "Delivery")
-    public static final class Manifest extends Base<Void, Localization.ReleaseView> {
+    @RequiredArgsConstructor
+    public static final class Manifest extends JsonHandler<Void, Localization.ReleaseView> {
+        private final LocalizationService content;
         @Override public Localization.ReleaseView handle(Request req, Response res, Void ignored) {
             res.header("Cache-Control", "private, no-cache");
             return content.manifest(project(req), req.param("locale"));
@@ -295,7 +334,9 @@ public final class LocalizationHandlers {
     @ApiOperation(summary = "The published catalog with that hash.", tags = "Delivery")
     @APIResponse(responseCode = "304", description = "Unchanged, as the ETag said")
     @APIResponse(responseCode = "404", description = "No catalog with that hash")
-    public static final class Catalog extends Base<Void, Object> {
+    @RequiredArgsConstructor
+    public static final class Catalog extends JsonHandler<Void, Object> {
+        private final LocalizationService content;
         @Override public Object handle(Request req, Response res, Void ignored) {
             String etag = "\"" + req.param("hash") + "\"";
             String artifact = content.catalog(project(req), req.param("locale"), req.param("hash"));

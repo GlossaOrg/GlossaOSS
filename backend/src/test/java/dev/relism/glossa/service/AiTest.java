@@ -1,5 +1,6 @@
 package dev.relism.glossa.service;
 
+import dev.relism.flash.App;
 import com.sun.net.httpserver.HttpServer;
 import dev.relism.flash.ext.security.test.TestSecurity;
 import dev.relism.flash.testing.FlashRequest;
@@ -34,8 +35,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AiTest {
 
+    static final TestSecurity security = new TestSecurity();
+
     @RegisterExtension
-    static final FlashTest app = FlashTest.of(flash -> flash.apply(new GlossaApp(Postgres.fresh("ai"), true, true)).install(new TestSecurity()));
+    static final FlashTest app = FlashTest.of(() -> App.create()
+            .install(new GlossaApp(Postgres.fresh("ai"), true, true), security));
 
     /** What the stand-in answers next, in order; the last answer repeats once the queue runs dry. */
     private static final Deque<String> ANSWERS = new ArrayDeque<>();
@@ -165,7 +169,7 @@ class AiTest {
     }
 
     private static Consumer<FlashRequest> as(long user) {
-        return TestSecurity.as(new Users.LocalUser("ai-" + user, user));
+        return security.as(new Users.LocalUser("ai-" + user, user));
     }
 
     private static long sql(String query) throws Exception {

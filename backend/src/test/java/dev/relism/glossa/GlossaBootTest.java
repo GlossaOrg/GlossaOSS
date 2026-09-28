@@ -1,21 +1,22 @@
 package dev.relism.glossa;
 
+import dev.relism.flash.App;
 import dev.relism.flash.testing.FlashTest;
 import dev.relism.glossa.support.Postgres;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
- * The harness check: {@link GlossaApp}'s full extension graph boots against a real Postgres and
- * answers a real request. It is what fails first if a dependency, a migration or an extension
+ * The harness check: {@link GlossaApp}'s full module graph boots against a real Postgres and
+ * answers a real request. It is what fails first if a dependency, a migration or a module
  * install order breaks — keep it passing as the domain lands on top.
  */
 class GlossaBootTest {
 
     @RegisterExtension
-    static final FlashTest app = FlashTest.of(new GlossaApp(Postgres.bootstrap(), true, true));
+    static final FlashTest app = FlashTest.of(() -> App.create().install(new GlossaApp(Postgres.bootstrap(), true, true)));
 
-    /** Also covers the scanned-handler path and Jackson's automatic JSON marshalling. */
+    /** Also covers the scanned-handler path and Avaje JSON-B marshalling. */
     @Test
     void healthzAnswers() {
         app.get("/healthz")

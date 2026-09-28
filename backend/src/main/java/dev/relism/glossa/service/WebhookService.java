@@ -2,7 +2,7 @@ package dev.relism.glossa.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.relism.flash.exceptions.HttpException;
+import dev.relism.flash.http.HttpException;
 import dev.relism.flash.ext.data.core.Data;
 import dev.relism.glossa.persistence.entities.Project;
 import dev.relism.glossa.schema.Localization.ReleaseView;

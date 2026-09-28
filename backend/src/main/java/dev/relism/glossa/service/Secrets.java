@@ -1,6 +1,6 @@
 package dev.relism.glossa.service;
 
-import dev.relism.flash.exceptions.HttpException;
+import dev.relism.flash.http.HttpException;
 import dev.relism.glossa.Env;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

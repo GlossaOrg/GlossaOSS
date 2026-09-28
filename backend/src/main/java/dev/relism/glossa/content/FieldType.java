@@ -1,5 +1,7 @@
 package dev.relism.glossa.content;
 
+import io.avaje.jsonb.Json;
+
 import java.util.List;
 import java.util.Map;
 
@@ -9,6 +11,7 @@ public interface FieldType {
     enum VariableType { TEXT, NUMBER, TEMPORAL, SELECT, BOOLEAN }
 
     /** A runtime argument a value may use; only a {@link VariableType#SELECT} declares {@code values}. */
+    @Json
     record Variable(VariableType type, List<String> values) {
         public Variable {
             values = values == null ? List.of() : List.copyOf(values);

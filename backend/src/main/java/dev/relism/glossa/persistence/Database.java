@@ -2,7 +2,7 @@ package dev.relism.glossa.persistence;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import dev.relism.flash.ext.data.DataExtension;
+import dev.relism.flash.ext.data.DataModule;
 import dev.relism.flash.ext.data.core.Data;
 import dev.relism.flash.ext.data.core.Tx;
 import dev.relism.flash.ext.data.hibernate.HibernateData;
@@ -91,15 +91,10 @@ public final class Database {
     }
 
     /**
-     * {@code tx} is usable immediately, independent of installing {@code extension} on a
-     * {@link dev.relism.flash.extension.FlashApp} — {@code Tx}'s transaction stack is a static
-     * thread-local keyed by thread, not by instance (see {@code Tx} in flash-ext-data-core), so
-     * building one here and a separate one inside {@link DataExtension} for the same
-     * {@code TxManager} is safe and behaves identically. This lets callers run queries before
-     * {@code .start()}, which matters because routes must be registered before {@code .start()}
-     * compiles them into the FSM router.
+     * {@code data} is usable before the app starts; {@code module} installs that same transaction
+     * runtime and closes its manager with the app.
      */
-    public record Bootstrap(DataExtension extension, Data data) {
+    public record Bootstrap(DataModule module, Data data) {
         public Tx tx() { return data.tx(); }
     }
 
@@ -125,7 +120,7 @@ public final class Database {
         SessionFactory sessionFactory = buildSessionFactory(dataSource, entities);
         HibernateTxManager txManager = new HibernateTxManager(sessionFactory);
         Data data = HibernateData.create(txManager);
-        return new Bootstrap(new DataExtension(txManager, data), data);
+        return new Bootstrap(new DataModule(txManager, data), data);
     }
 
     /**

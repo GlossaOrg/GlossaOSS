@@ -1,6 +1,6 @@
 package dev.relism.glossa.content;
 
-import dev.relism.flash.exceptions.HttpException;
+import dev.relism.flash.http.HttpException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

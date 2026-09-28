@@ -3,7 +3,7 @@ package dev.relism.glossa.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.ibm.icu.util.ULocale;
-import dev.relism.flash.exceptions.HttpException;
+import dev.relism.flash.http.HttpException;
 import dev.relism.flash.ext.data.core.Data;
 import dev.relism.flash.ext.data.core.Tx;
 import dev.relism.flash.ext.data.core.TxException;

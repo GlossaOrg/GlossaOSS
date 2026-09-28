@@ -3,13 +3,12 @@ package dev.relism.glossa.auth;
 import dev.relism.flash.ext.data.core.Data;
 import dev.relism.flash.ext.data.core.SpecBuilder;
 import dev.relism.flash.ext.security.apikey.ApiKey;
-import dev.relism.flash.ext.security.apikey.ApiKeyExtension;
 import dev.relism.flash.ext.security.apikey.ApiKeyStore;
 import dev.relism.glossa.persistence.entities.ProjectApiKey;
 import dev.relism.glossa.persistence.entities.Role;
 import lombok.RequiredArgsConstructor;
 
-/** §11's API keys as rows, verified by {@link ApiKeyExtension}; issued by {@code ApiKeyService}. */
+/** §11's API keys as rows, verified by Flash's API-key module; issued by {@code ApiKeyService}. */
 @RequiredArgsConstructor
 public final class ApiKeys implements ApiKeyStore<ApiKeys.Grant> {
 
@@ -19,10 +18,11 @@ public final class ApiKeys implements ApiKeyStore<ApiKeys.Grant> {
     private static final SpecBuilder.FieldSpec<ProjectApiKey, String> KEY_ID = SpecBuilder.field("keyId");
 
     private final Data data;
-    private final ApiKeyExtension<Grant> extension = new ApiKeyExtension<>("gk", this);
+    private final dev.relism.flash.ext.security.apikey.ApiKeys<Grant> module =
+            new dev.relism.flash.ext.security.apikey.ApiKeys<>("gk", this);
 
-    public ApiKeyExtension<Grant> extension() {
-        return extension;
+    public dev.relism.flash.ext.security.apikey.ApiKeys<Grant> module() {
+        return module;
     }
 
     @Override

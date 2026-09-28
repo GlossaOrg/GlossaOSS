@@ -1,5 +1,7 @@
 package dev.relism.glossa.schema;
 
+import io.avaje.jsonb.Json;
+
 import dev.relism.flash.ext.openapi.Schema;
 import dev.relism.flash.ext.openapi.SchemaProperty;
 import io.avaje.validation.constraints.Valid;
@@ -13,10 +15,12 @@ import lombok.NoArgsConstructor;
 public final class Setup {
 
     @Schema(name = "Setup", description = "Whether this install still waits for its first user.")
+    @Json
     public record SetupView(boolean firstUser) {}
 
     @Schema(name = "FirstAccount", description = "The first account, which administers the install. Refused once anyone exists.")
     @Valid
+    @Json
     public record FirstAccount(
             @SchemaProperty(description = "Shown wherever the account appears. The email when left out.")
             String name,
