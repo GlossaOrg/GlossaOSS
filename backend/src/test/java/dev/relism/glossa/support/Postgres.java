@@ -30,8 +30,8 @@ public final class Postgres {
 
     private Postgres() {}
 
-    public static Database.Bootstrap bootstrap(Database.Layer... layers) {
-        return Database.bootstrap(CONTAINER.getJdbcUrl(), CONTAINER.getUsername(), CONTAINER.getPassword(), layers);
+    public static Database.Bootstrap bootstrap() {
+        return Database.bootstrap(CONTAINER.getJdbcUrl(), CONTAINER.getUsername(), CONTAINER.getPassword());
     }
 
     /** A database of its own in the shared container, for a test that needs to start from no rows at all. */

@@ -29,10 +29,6 @@ public final class Localization {
             @SchemaProperty(description = "The locale to serve when this one has nothing approved. Must be enabled already.")
             String fallbackLocale) {}
 
-    /** The service's own shape for the same thing, with the locale the route carried in its path. */
-    @Json
-    public record LocaleRequest(String locale, boolean source, String fallbackLocale) {}
-
     @Schema(name = "Locale", description = "An enabled locale and the plural forms a message needs in it.")
     @Json
     public record LocaleView(
@@ -193,6 +189,8 @@ public final class Localization {
             @SchemaProperty(description = "Approved, but the source moved on since.")
             int outdated,
             int approved,
+            @SchemaProperty(description = "The newest release already contains exactly what publishing would produce.")
+            boolean current,
             @SchemaProperty(description = "The newest published catalog. Null until one is.")
             ReleaseView release) {}
 

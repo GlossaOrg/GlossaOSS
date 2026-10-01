@@ -12,8 +12,6 @@ import dev.relism.glossa.persistence.entities.Role;
 import dev.relism.glossa.schema.Keys.IssuedKey;
 import dev.relism.glossa.schema.Keys.KeyRequest;
 import dev.relism.glossa.schema.Keys.KeyView;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
