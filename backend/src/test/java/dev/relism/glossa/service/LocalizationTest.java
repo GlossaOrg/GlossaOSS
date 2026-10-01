@@ -25,6 +25,7 @@ import java.sql.SQLException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -99,6 +100,8 @@ class LocalizationTest {
                 .get("/api/projects/" + project + "/catalogs/it/" + hash).expectStatus(304);
         // Publishing an unchanged catalog keeps the release it already has.
         post(manager, "/api/projects/" + project + "/catalogs/it", "{}").expectBodyContains("\"hash\":\"" + hash + "\"");
+        String current = app.request().with(as(manager)).get("/api/projects/" + project + "/progress").expectStatus(200).body();
+        assertTrue(current.matches("(?s).*\"locale\":\"it\".*?\"current\":true.*"), current);
 
         // A source change makes the translation stale, and delivery falls back as a whole message.
         String changed = put(manager, path(resourceId) + "/variants/en", """
@@ -107,6 +110,8 @@ class LocalizationTest {
                  "contract":{"count":{"type":"NUMBER","values":[]}}}
                 """.formatted(source)).expectStatus(200).body();
         long newSource = number(changed, "sourceRevisionId");
+        String changedProgress = app.request().with(as(manager)).get("/api/projects/" + project + "/progress").expectStatus(200).body();
+        assertTrue(changedProgress.matches("(?s).*\"locale\":\"it\".*?\"current\":false.*"), changedProgress);
         post(translator, path(resourceId) + "/render/it", "{\"values\":{\"count\":2}}")
                 .expectBodyContains("\"text\":\"2 items here\"").expectBodyContains("\"resolvedLocale\":\"en\"");
 
@@ -336,6 +341,60 @@ class LocalizationTest {
         } finally {
             server.stop(0);
         }
+    }
+
+    /**
+     * V13's derived state, in a project of its own so the counts are exact: one resource per state,
+     * and a catalog whose entries resolve through the fallback rather than in the locale itself.
+     */
+    @Test
+    @Order(10)
+    void derivedStateCountsEveryStateAndResolvesThroughFallbacks() throws Exception {
+        long own = sql("insert into project (slug, name) values ('states', 'States') returning id");
+        member(own, manager, "MANAGER", null);
+        member(own, reviewer, "REVIEWER", "it");
+        member(own, translator, "TRANSLATOR", "it");
+        put(manager, "/api/projects/" + own + "/locales/en", "{\"source\":true}").expectStatus(200);
+        put(manager, "/api/projects/" + own + "/locales/it", "{\"source\":false,\"fallbackLocale\":\"en\"}").expectStatus(200);
+
+        BiFunction<String, String, String> create = (key, pattern) -> post(manager, "/api/projects/" + own + "/resources",
+                "{\"key\":\"" + key + "\",\"fieldType\":\"message\",\"payload\":{\"pattern\":\"" + pattern + "\"}}")
+                .expectStatus(201).body();
+        String untranslated = create.apply("state.untranslated", "Nothing yet");
+        String review = create.apply("state.review", "Review me");
+        String rejected = create.apply("state.rejected", "Reject me");
+        String outdated = create.apply("state.outdated", "Outdated");
+        String approved = create.apply("state.approved", "Approved");
+        String base = "/api/projects/" + own + "/resources/";
+
+        // A translator's proposal waits for review; a reviewer's own edit is live at once.
+        put(translator, base + number(review, "id") + "/variants/it", italian(review, "Rivedimi")).expectStatus(200);
+        put(reviewer, base + number(approved, "id") + "/variants/it", italian(approved, "Approvato")).expectStatus(200);
+        String proposal = put(translator, base + number(rejected, "id") + "/variants/it", italian(rejected, "Rifiutami")).expectStatus(200).body();
+        post(reviewer, base + number(rejected, "id") + "/variants/it/review",
+                "{\"revisionId\":" + number(proposal, "pendingRevisionId") + ",\"approve\":false}").expectStatus(200);
+        // Approved, and then the source moves on under it.
+        put(reviewer, base + number(outdated, "id") + "/variants/it", italian(outdated, "Vecchio")).expectStatus(200);
+        put(manager, base + number(outdated, "id") + "/variants/en", "{\"expectedHeadRevisionId\":" + number(outdated, "sourceRevisionId")
+                + ",\"payload\":{\"pattern\":\"Outdated, changed since\"}}").expectStatus(200);
+
+        // Four of the five resolve through en, one in it: the release holds exactly that.
+        post(manager, "/api/projects/" + own + "/catalogs/it", "{}").expectStatus(201);
+        String counts = app.request().with(as(manager)).get("/api/projects/" + own + "/progress").expectStatus(200).body();
+        assertTrue(counts.contains("\"locale\":\"it\",\"total\":5,\"untranslated\":1,\"review\":1,\"rejected\":1,"
+                + "\"outdated\":1,\"approved\":1,\"current\":true"), counts);
+        assertTrue(untranslated.contains("state.untranslated"), untranslated);
+
+        // One more resource the release cannot know about: the live count alone makes it out of date.
+        create.apply("state.added", "Added");
+        String added = app.request().with(as(manager)).get("/api/projects/" + own + "/progress").expectStatus(200).body();
+        assertTrue(added.matches("(?s).*\"locale\":\"it\",\"total\":6,.*?\"current\":false.*"), added);
+    }
+
+    /** An Italian value written against the source revision the resource was created with. */
+    private static String italian(String resource, String pattern) {
+        return "{\"expectedHeadRevisionId\":0,\"sourceRevisionId\":" + number(resource, "sourceRevisionId")
+                + ",\"payload\":{\"pattern\":\"" + pattern + "\"}}";
     }
 
     private static String path(long resource) {

@@ -30,6 +30,19 @@ public final class ProjectRoles implements RoleResolver {
     /** The one role that is not a project's: it holds across the whole installation (§11). */
     public static final String ADMINISTRATOR = "ADMINISTRATOR";
 
+    /**
+     * Whether the caller holds {@code role} on this project and locale, for the decisions a route
+     * annotation cannot take because they depend on the data — which locale is the source, say.
+     * A null locale asks for the project-wide grant.
+     */
+    public static boolean held(long project, String locale, String role) {
+        return SecurityIdentity.current().hasRole(role, name -> switch (name) {
+            case "project" -> Long.toString(project);
+            case "locale" -> locale;
+            default -> null;
+        });
+    }
+
     @Override
     public boolean hasRole(SecurityIdentity identity, String role, Target on) {
         if (ADMINISTRATOR.equals(role)) {

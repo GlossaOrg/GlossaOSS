@@ -1,150 +1,55 @@
 package dev.relism.glossa.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.ibm.icu.util.ULocale;
-import dev.relism.flash.http.HttpException;
 import dev.relism.flash.ext.data.core.Data;
-import dev.relism.flash.ext.data.core.Tx;
-import dev.relism.flash.ext.data.core.TxException;
-import dev.relism.flash.ext.security.SecurityIdentity;
-import dev.relism.flash.ext.security.apikey.ApiKeyPrincipal;
+import dev.relism.flash.ext.data.core.Query;
+import dev.relism.flash.ext.data.core.Sort;
+import dev.relism.flash.ext.data.core.SpecBuilder;
+import dev.relism.flash.http.HttpException;
 import dev.relism.glossa.content.FieldType.Variable;
 import dev.relism.glossa.content.FieldType;
-import dev.relism.glossa.content.MessageType;
-import dev.relism.glossa.persistence.entities.AppUser;
-import dev.relism.glossa.persistence.entities.CatalogRelease;
+import dev.relism.glossa.content.FieldTypes;
 import dev.relism.glossa.persistence.entities.ContentEvent;
 import dev.relism.glossa.persistence.entities.ContentRevision;
 import dev.relism.glossa.persistence.entities.ContentVariant;
 import dev.relism.glossa.persistence.entities.LocalizedResource;
-import dev.relism.glossa.persistence.entities.Project;
 import dev.relism.glossa.persistence.entities.ProjectLocale;
-import dev.relism.glossa.persistence.entities.ResourceComment;
-import dev.relism.glossa.schema.Localization.CommentView;
 import dev.relism.glossa.schema.Localization.CreateResource;
 import dev.relism.glossa.schema.Localization.Decision;
 import dev.relism.glossa.schema.Localization.Detail;
 import dev.relism.glossa.schema.Localization.Edit;
 import dev.relism.glossa.schema.Localization.EventView;
-import dev.relism.glossa.schema.Localization.LocaleRequest;
-import dev.relism.glossa.schema.Localization.LocaleView;
-import dev.relism.glossa.schema.Localization.MessageRequest;
-import dev.relism.glossa.schema.Localization.NewComment;
-import dev.relism.glossa.schema.Localization.Import;
-import dev.relism.glossa.schema.Localization.Imported;
-import dev.relism.glossa.schema.Localization.Progress;
-import dev.relism.glossa.schema.Localization.Skipped;
-import dev.relism.glossa.schema.Localization.ReleaseView;
 import dev.relism.glossa.schema.Localization.Rendered;
 import dev.relism.glossa.schema.Localization.ResourceView;
 import dev.relism.glossa.schema.Localization.Revert;
 import dev.relism.glossa.schema.Localization.RevisionView;
-import dev.relism.glossa.schema.Localization.Suggest;
-import jakarta.persistence.LockModeType;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
-import lombok.RequiredArgsConstructor;
-import org.hibernate.Session;
+import dev.relism.glossa.service.ContentQueries.VariantWithApproved;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
- * Resources, their revisions, review and published catalogs (§5–§10), shared by every transport. Roles are
- * checked by {@code @RolesAllowed} on each route; only what depends on the data is decided here.
+ * A resource, its per-locale revisions and their review (§5, §7, §8) — the aggregate every other
+ * localization service is a satellite of. Roles are checked by {@code @RolesAllowed} on each route;
+ * only what depends on the data is decided here.
  */
-@RequiredArgsConstructor
-public final class LocalizationService {
+public final class LocalizationService extends ProjectScoped {
 
-    private record Resolved(ContentRevision revision, String locale) {}
+    /** A revision and the locale it was actually found in, which fallbacks may make a different one. */
+    record Resolved(ContentRevision revision, String locale) {}
 
-    /** A variant and its approved revision, which is null until something is approved in it. */
-    private record Current(ContentVariant variant, ContentRevision approved) {}
+    private static final SpecBuilder.FieldSpec<LocalizedResource, Long> RESOURCE_PROJECT = SpecBuilder.field("projectId");
+    private static final SpecBuilder.FieldSpec<ContentVariant, Long> VARIANT_RESOURCE = SpecBuilder.field("resourceId");
+    private static final SpecBuilder.FieldSpec<ContentVariant, String> VARIANT_LOCALE = SpecBuilder.field("locale");
+    private static final SpecBuilder.FieldSpec<ContentEvent, Long> EVENT_RESOURCE = SpecBuilder.field("resourceId");
 
-    private final Data data;
-    private final ObjectMapper json;
-    private final AiService ai;
-    private final GlossaryService glossary;
-    private final WebhookService webhooks;
-    private final MessageType messages = new MessageType();
-    /** §3's registry: the field types a resource may name. */
-    private final Map<String, FieldType> types = Map.of(messages.name(), messages);
+    private final ContentQueries queries;
 
-    /** Every locale path or argument must match an enabled locale exactly, so the role check and the data agree on it. */
-    public List<LocaleView> locales(long project) {
-        return inProject(project, false, () -> localesOf(project).stream().map(LocalizationService::localeViewOf).toList());
-    }
-
-    public LocaleView configureLocale(long project, LocaleRequest request) {
-        String locale = MessageType.locale(request.locale());
-        String fallback = request.fallbackLocale() == null ? null : MessageType.locale(request.fallbackLocale());
-        if (request.source() && fallback != null) throw HttpException.badRequest("The source locale can't have a fallback.");
-        return inProject(project, true, () -> {
-            List<ProjectLocale> locales = localesOf(project);
-            ProjectLocale source = locales.stream().filter(ProjectLocale::isSource).findFirst().orElse(null);
-            if (source == null && !request.source()) throw HttpException.conflict("Add the source locale first.");
-            if (source != null && request.source() != source.getLocale().equals(locale)) {
-                throw HttpException.conflict("The source locale can't change.");
-            }
-            Map<String, String> fallbacks = new HashMap<>();
-            locales.forEach(l -> fallbacks.put(l.getLocale(), l.getFallbackLocale()));
-            if (fallback != null && !fallbacks.containsKey(fallback)) throw HttpException.badRequest("Enable " + fallback + " first.");
-            fallbacks.put(locale, fallback);
-            Set<String> seen = new HashSet<>();
-            for (String current = locale; current != null; current = fallbacks.get(current)) {
-                if (!seen.add(current)) throw HttpException.badRequest("Fallbacks can't form a cycle.");
-            }
-            ProjectLocale row = locales.stream().filter(l -> l.getLocale().equals(locale)).findFirst().orElseGet(ProjectLocale::new);
-            row.setProjectId(project);
-            row.setLocale(locale);
-            row.setSource(request.source());
-            row.setFallbackLocale(fallback);
-            if (row.getId() == null) session().persist(row);
-            return localeViewOf(row);
-        });
-    }
-
-    /**
-     * A translation locale and everything written in it, gone; the source never goes. Its history goes
-     * too: §8's log is append-only for a locale that exists, not a reason to keep rows about one that
-     * no longer does. Locales that fell back to it fall back to nothing.
-     */
-    public void removeLocale(long project, String locale) {
-        inProject(project, true, () -> {
-            if (enabled(project, locale).isSource()) throw HttpException.conflict("The source locale can't be removed.");
-            String variants = "select v.id from ContentVariant v where v.projectId = :project and v.locale = :locale";
-            String revisions = "select r.id from ContentRevision r where r.variantId in (" + variants + ")";
-            // V7: the immutability triggers let deletes through for this transaction only.
-            session().createNativeQuery("select set_config('glossa.removing_locale', 'on', true)", String.class).getSingleResult();
-            // No foreign key cascades, and variants and revisions point at each other: order is everything.
-            mutate("delete from ContentEvent where revisionId in (" + revisions + ") or beforeRevisionId in (" + revisions
-                    + ") or afterRevisionId in (" + revisions + ")", project, locale);
-            mutate("update ContentVariant set headRevisionId = null, approvedRevisionId = null, pendingRevisionId = null"
-                    + " where projectId = :project and locale = :locale", project, locale);
-            mutate("delete from ContentRevision where variantId in (" + variants + ")", project, locale);
-            mutate("delete from ContentVariant where projectId = :project and locale = :locale", project, locale);
-            mutate("delete from CatalogRelease where projectId = :project and locale = :locale", project, locale);
-            mutate("update ProjectLocale set fallbackLocale = null where projectId = :project and fallbackLocale = :locale", project, locale);
-            mutate("delete from GlossaryTerm where projectId = :project and locale = :locale", project, locale);
-            mutate("delete from ProjectLocale where projectId = :project and locale = :locale", project, locale);
-            return null;
-        });
-    }
-
-    private void mutate(String query, long project, String locale) {
-        session().createMutationQuery(query).setParameter("project", project).setParameter("locale", locale).executeUpdate();
+    public LocalizationService(Data data, ContentQueries queries) {
+        super(data);
+        this.queries = queries;
     }
 
     /** Three queries however many resources the project holds: its locales, its resources, and both locales' variants with their approved revisions. */
@@ -153,172 +58,37 @@ public final class LocalizationService {
             List<ProjectLocale> locales = localesOf(project);
             String origin = source(locales).getLocale();
             enabled(locales, locale);
-            Map<String, Current> current = new HashMap<>();
-            session().createQuery("select v, r from ContentVariant v left join ContentRevision r on r.id = v.approvedRevisionId"
-                            + " where v.projectId = :project and v.locale in (:locales)", Object[].class)
-                    .setParameter("project", project).setParameterList("locales", List.of(origin, locale)).getResultStream()
-                    .forEach(row -> {
-                        ContentVariant variant = (ContentVariant) row[0];
-                        current.put(variant.getLocale() + "/" + variant.getResourceId(), new Current(variant, (ContentRevision) row[1]));
-                    });
-            return session().createQuery("from LocalizedResource where projectId = :project order by key", LocalizedResource.class)
-                    .setParameter("project", project).getResultStream()
+            Map<String, VariantWithApproved> current = queries.variantsOf(project, Set.copyOf(List.of(origin, locale))).stream()
+                    .collect(Collectors.toMap(row -> row.variant().getLocale() + "/" + row.variant().getResourceId(), row -> row));
+            return data.repository(LocalizedResource.class)
+                    .findAll(Query.<LocalizedResource>all().where(RESOURCE_PROJECT.eq(project)).orderBy(Sort.by("key"))).stream()
                     .filter(resource -> prefix == null || resource.getKey().startsWith(prefix))
                     .map(resource -> {
-                        Current source = current.get(origin + "/" + resource.getId());
-                        Current here = current.getOrDefault(locale + "/" + resource.getId(), new Current(null, null));
-                        if (source == null || source.approved() == null) throw noSource();
-                        return view(resource, source.approved(), here.variant(), here.approved());
+                        VariantWithApproved origins = current.get(origin + "/" + resource.getId());
+                        VariantWithApproved here = current.get(locale + "/" + resource.getId());
+                        if (origins == null || origins.approved() == null) throw noSource();
+                        return view(resource, origins.approved(),
+                                here == null ? null : here.variant(), here == null ? null : here.approved());
                     })
                     .toList();
         });
     }
 
-    /**
-     * Every locale the caller may read, counted by state in one pass over ids alone: what a
-     * dashboard needs without a list of payloads per locale.
-     */
-    public List<Progress> progress(long project) {
-        return inProject(project, false, () -> {
-            List<ProjectLocale> locales = localesOf(project).stream().filter(l -> allows(project, l.getLocale(), "READER")).toList();
-            if (locales.isEmpty()) throw HttpException.forbidden("No locale of this project is yours to read.");
-            String origin = source(localesOf(project)).getLocale();
-            Set<Long> live = new HashSet<>(session().createQuery("select id from LocalizedResource where projectId = :project and archived = false", Long.class)
-                    .setParameter("project", project).getResultList());
-            // locale -> resource -> [head, approved, pending, basedOnSource]
-            Map<String, Map<Long, Long[]>> variants = new HashMap<>();
-            session().createQuery("select v.locale, v.resourceId, v.headRevisionId, v.approvedRevisionId, v.pendingRevisionId, r.basedOnSourceRevisionId"
-                            + " from ContentVariant v left join ContentRevision r on r.id = v.approvedRevisionId where v.projectId = :project", Object[].class)
-                    .setParameter("project", project).getResultStream()
-                    .filter(row -> live.contains((Long) row[1]))
-                    .forEach(row -> variants.computeIfAbsent((String) row[0], l -> new HashMap<>())
-                            .put((Long) row[1], new Long[] {(Long) row[2], (Long) row[3], (Long) row[4], (Long) row[5]}));
-            Map<Long, Long[]> sources = variants.getOrDefault(origin, Map.of());
-            Map<String, CatalogRelease> newest = new HashMap<>();
-            Map<String, Long> published = new HashMap<>();
-            session().createQuery("from CatalogRelease where projectId = :project order by id desc", CatalogRelease.class)
-                    .setParameter("project", project).getResultStream()
-                    .forEach(release -> {
-                        newest.putIfAbsent(release.getLocale(), release);
-                        published.merge(release.getLocale(), 1L, Long::sum);
-                    });
-            Map<String, ReleaseView> releases = newest.values().stream().collect(Collectors.toMap(CatalogRelease::getLocale,
-                    r -> new ReleaseView(published.get(r.getLocale()), r.getLocale(), r.getHash(), r.getCreatedAt())));
-            return locales.stream().map(locale -> {
-                Map<Long, Long[]> here = variants.getOrDefault(locale.getLocale(), Map.of());
-                int untranslated = 0, review = 0, rejected = 0, outdated = 0, approved = 0;
-                for (Long id : live) {
-                    Long[] v = here.get(id);
-                    Long source = sources.containsKey(id) ? sources.get(id)[1] : null;
-                    if (v != null && v[2] != null) review++;
-                    else if (v == null || v[0] == null) untranslated++;
-                    else if (!v[0].equals(v[1])) rejected++;
-                    else if (v[3] != null && !v[3].equals(source)) outdated++;
-                    else approved++;
-                }
-                return new Progress(locale.getLocale(), live.size(), untranslated, review, rejected, outdated, approved, releases.get(locale.getLocale()));
-            }).toList();
-        });
-    }
-
-    /**
-     * Brings a file's messages in, one ordinary write per entry: into the source, new keys become
-     * resources; elsewhere, each becomes the caller's own change (§8), a proposal unless they review.
-     * An entry that cannot be written is reported and the rest still go in.
-     */
-    public Imported importMessages(long project, String locale, Import request) {
-        List<ProjectLocale> locales = inProject(project, false, () -> localesOf(project));
-        enabled(locales, locale);
-        boolean origin = source(locales).getLocale().equals(locale);
-        if (origin && !allows(project, null, "MANAGER")) throw HttpException.forbidden("Only a manager can import into the source.");
-        Map<String, ResourceView> known = list(project, locale, null).stream().collect(Collectors.toMap(ResourceView::key, r -> r));
-        int created = 0, updated = 0, unchanged = 0;
-        List<Skipped> skipped = new java.util.ArrayList<>();
-        for (Map.Entry<String, String> entry : new TreeMap<>(request.entries()).entrySet()) {
-            ResourceView current = known.get(entry.getKey());
-            Map<String, Object> payload = Map.of("pattern", entry.getValue() == null ? "" : entry.getValue());
-            try {
-                if (current == null) {
-                    if (!origin) {
-                        skipped.add(new Skipped(entry.getKey(), "No such key in the source."));
-                        continue;
-                    }
-                    create(project, new CreateResource(entry.getKey(), null, messages.name(), payload, null));
-                    created++;
-                } else if (current.archived()) {
-                    skipped.add(new Skipped(entry.getKey(), "Archived."));
-                } else if (payload.equals(current.payload())) {
-                    unchanged++;
-                } else if (current.pendingRevisionId() != null) {
-                    skipped.add(new Skipped(entry.getKey(), "A proposal is waiting for review."));
-                } else {
-                    edit(project, current.id(), locale, new Edit(Objects.requireNonNullElse(current.headRevisionId(), 0L), current.sourceRevisionId(), payload, null));
-                    updated++;
-                }
-            } catch (HttpException refused) {
-                skipped.add(new Skipped(entry.getKey(), refused.getMessage()));
-            }
-        }
-        return new Imported(created, updated, unchanged, skipped);
-    }
-
-    /** The thread about a resource in one locale, oldest first. */
-    public List<CommentView> comments(long project, long id, String locale) {
-        return inProject(project, false, () -> {
-            enabled(project, locale);
-            resource(project, id);
-            return session().createQuery("from ResourceComment where resourceId = :resource and locale = :locale order by id", ResourceComment.class)
-                    .setParameter("resource", id).setParameter("locale", locale).getResultStream().map(LocalizationService::commentViewOf).toList();
-        });
-    }
-
-    public CommentView comment(long project, long id, String locale, NewComment request) {
-        if (request.body().isBlank()) throw HttpException.badRequest("Write something first.");
-        return inProject(project, true, () -> {
-            enabled(project, locale);
-            resource(project, id);
-            ResourceComment comment = new ResourceComment();
-            comment.setProjectId(project);
-            comment.setResourceId(id);
-            comment.setLocale(locale);
-            // A name to show, not an audit trail: an OIDC subject means nothing to the reader. An API key signs as itself.
-            comment.setAuthor(machine() ? actor() : SecurityIdentity.current().user(AppUser.class).getName());
-            comment.setBody(request.body().strip());
-            session().persist(comment);
-            return commentViewOf(comment);
-        });
-    }
-
-    /** The translator context is guidance, not content: it changes in place and has no revisions. */
-    public ResourceView context(long project, long id, String context) {
-        return inProject(project, true, () -> {
-            LocalizedResource resource = resource(project, id);
-            resource.setContext(context == null || context.isBlank() ? null : context.strip());
-            return view(resource, source(project).getLocale());
-        });
-    }
-
-    private static CommentView commentViewOf(ResourceComment c) {
-        return new CommentView(c.getId(), c.getLocale(), c.getAuthor(), c.getBody(), c.getCreatedAt());
-    }
-
     /** The resource and its first source revision, approved at once. */
     public ResourceView create(long project, CreateResource request) {
-        FieldType type = type(request.fieldType());
+        FieldType type = FieldTypes.named(request.fieldType());
         // §3: leaving the contract out asks the field type to read it off the message itself.
         Map<String, Variable> contract = request.contract() != null ? request.contract() : type.contractOf(request.payload());
         return inProject(project, true, () -> {
             String locale = source(project).getLocale();
-            boolean taken = session().createQuery("select count(*) from LocalizedResource where projectId = :project and key = :key", Long.class)
-                    .setParameter("project", project).setParameter("key", request.key()).getSingleResult() > 0;
-            if (taken) throw HttpException.conflict("That key already exists.");
+            if (queries.keyTaken(project, request.key())) throw HttpException.conflict("That key already exists.");
             type.validate(request.payload(), contract, locale, false);
             LocalizedResource resource = new LocalizedResource();
             resource.setProjectId(project);
             resource.setKey(request.key());
             resource.setContext(request.context());
             resource.setFieldType(type.name());
-            session().persist(resource);
+            data.repository(LocalizedResource.class).save(resource);
             append(resource, variant(resource, locale, true), request.payload(), contract, null, true, "CREATE");
             return view(resource, locale);
         });
@@ -341,14 +111,14 @@ public final class LocalizationService {
             if (variant == null || !Objects.equals(variant.getPendingRevisionId(), decision.revisionId())) {
                 throw HttpException.conflict("That proposal is no longer pending.");
             }
-            ContentRevision revision = session().find(ContentRevision.class, decision.revisionId());
+            ContentRevision revision = revision(decision.revisionId());
             if (revision.isMachine() && machine) throw HttpException.forbidden("A machine proposal needs human review.");
             Long approved = variant.getApprovedRevisionId();
             if (decision.approve()) {
                 if (!Objects.equals(revision.getBasedOnSourceRevisionId(), sourceRevision(resource).getId())) {
                     throw HttpException.conflict("The source changed after this proposal.");
                 }
-                type(resource.getFieldType()).validate(revision.getPayload(), revision.getContract(), locale, false);
+                FieldTypes.named(resource.getFieldType()).validate(revision.getPayload(), revision.getContract(), locale, false);
                 variant.setApprovedRevisionId(revision.getId());
                 event(resource, revision.getId(), "APPROVE", approved, revision.getId());
             } else {
@@ -370,24 +140,27 @@ public final class LocalizationService {
         });
     }
 
+    /** The translator context is guidance, not content: it changes in place and has no revisions. */
+    public ResourceView context(long project, long id, String context) {
+        return inProject(project, true, () -> {
+            LocalizedResource resource = resource(project, id);
+            resource.setContext(context == null || context.isBlank() ? null : context.strip());
+            return view(resource, source(project).getLocale());
+        });
+    }
+
     /** The resource with its source and {@code locale} revisions, and the log entries about them. */
     public Detail detail(long project, long id, String locale) {
         return inProject(project, false, () -> {
             enabled(project, locale);
             LocalizedResource resource = resource(project, id);
-            Map<Long, String> variants = session().createQuery("from ContentVariant where resourceId = :resource and locale in (:locales)", ContentVariant.class)
-                    .setParameter("resource", id).setParameterList("locales", List.of(locale, source(project).getLocale())).getResultStream()
-                    .collect(Collectors.toMap(ContentVariant::getId, ContentVariant::getLocale));
-            List<RevisionView> revisions = session().createQuery("from ContentRevision where variantId in (:variants) order by id", ContentRevision.class)
-                    .setParameterList("variants", variants.keySet()).getResultStream()
-                    .map(r -> new RevisionView(r.getId(), variants.get(r.getVariantId()), r.getBasedOnSourceRevisionId(), r.getPayload(),
-                            r.getContract(), r.getActor(), r.isMachine(), r.getCreatedAt()))
-                    .toList();
+            List<RevisionView> revisions = queries.revisionsOf(id, Set.copyOf(List.of(locale, source(project).getLocale())));
             Set<Long> shown = revisions.stream().map(RevisionView::id).collect(Collectors.toSet());
-            List<EventView> events = session().createQuery("from ContentEvent where resourceId = :resource order by id", ContentEvent.class)
-                    .setParameter("resource", id).getResultStream()
+            List<EventView> events = data.repository(ContentEvent.class)
+                    .findAll(Query.<ContentEvent>all().where(EVENT_RESOURCE.eq(id)).orderBy(Sort.by("id"))).stream()
                     .filter(e -> e.getRevisionId() == null || shown.contains(e.getRevisionId()))
-                    .map(LocalizationService::eventViewOf)
+                    .map(e -> new EventView(e.getId(), e.getRevisionId(), e.getBeforeRevisionId(), e.getAfterRevisionId(),
+                            e.getAction(), e.getActor(), e.getCreatedAt()))
                     .toList();
             return new Detail(view(resource, locale), revisions, events);
         });
@@ -399,116 +172,10 @@ public final class LocalizationService {
             LocalizedResource resource = active(project, id);
             Resolved resolved = resolve(resource, locale, false);
             ContentRevision revision = resolved.revision();
-            String text = type(resource.getFieldType()).render(revision.getPayload(), revision.getContract(), resolved.locale(), values);
+            String text = FieldTypes.named(resource.getFieldType())
+                    .render(revision.getPayload(), revision.getContract(), resolved.locale(), values);
             return new Rendered(text, resolved.locale(), revision.getId());
         });
-    }
-
-    public MessageType.Analysis analyze(long project, String locale, MessageRequest request) {
-        return inProject(project, false, () -> messages.analyze(request.payload(), contractOf(request), enabled(project, locale).getLocale(), request.complete()));
-    }
-
-    public String preview(long project, String locale, MessageRequest request) {
-        return inProject(project, false, () -> messages.render(request.payload(), contractOf(request), enabled(project, locale).getLocale(), request.values()));
-    }
-
-    private Map<String, Variable> contractOf(MessageRequest request) {
-        return request.contract() != null ? request.contract() : messages.contractOf(request.payload());
-    }
-
-    /**
-     * §9: a translation for one message, for whoever asked to accept, edit or discard. Nothing is
-     * stored, so what they keep is written by {@link #edit} as their own revision. The provider is
-     * called outside any transaction: it takes seconds, and a database connection is not for waiting in.
-     */
-    public Map<String, Object> suggest(long project, String locale, Suggest request) {
-        String from = inProject(project, false, () -> {
-            enabled(project, locale);
-            return source(project).getLocale();
-        });
-        if (from.equals(locale)) throw HttpException.badRequest("That is the source locale.");
-        Map<String, Variable> contract = request.contract() != null ? request.contract() : messages.contractOf(request.payload());
-        messages.validate(request.payload(), contract, from, false);
-        String context = request.context() == null || request.context().isBlank() ? "None." : request.context().trim();
-        String system = Prompts.render("translate-message", Map.ofEntries(
-                Map.entry("source_locale_code", from),
-                Map.entry("source_locale_name", localeName(from)),
-                Map.entry("target_locale_code", locale),
-                Map.entry("target_locale_name", localeName(locale)),
-                Map.entry("source_plural_categories", categories(from, false)),
-                Map.entry("source_ordinal_categories", categories(from, true)),
-                Map.entry("target_plural_categories", categories(locale, false)),
-                Map.entry("target_ordinal_categories", categories(locale, true)),
-                Map.entry("context", context),
-                Map.entry("glossary", glossary.forPrompt(project, locale)),
-                Map.entry("content", String.valueOf(request.payload().get("pattern")))));
-        String ask = "Translate the source message into " + localeName(locale) + ". Return the ICU message only.";
-        // ponytail: one retry, handing back the parser's own complaint. A model that misses twice is the wrong model.
-        String refused = null;
-        for (int attempt = 0; attempt < 2; attempt++) {
-            String answer = ai.complete(system, refused == null ? ask
-                    : ask + "\n\nYour previous answer was refused: " + refused + "\nAnswer with a corrected message only.");
-            Map<String, Object> suggested = Map.of("pattern", answer);
-            try {
-                messages.validate(suggested, contract, locale, false);
-            } catch (HttpException invalid) {
-                refused = invalid.getMessage();
-                continue;
-            }
-            ai.used();
-            // The payload alone: which model answered is the administrator's business, not a translator's.
-            return suggested;
-        }
-        throw new HttpException(502, "The AI did not produce a usable message: " + refused);
-    }
-
-    /** Every active resource resolved for {@code locale}; publishing an unchanged catalog returns the current release. */
-    public ReleaseView publish(long project, String locale) {
-        boolean[] fresh = {false};
-        ReleaseView published = inProject(project, true, () -> {
-            enabled(project, locale);
-            Map<String, Object> entries = new TreeMap<>();
-            List<LocalizedResource> resources = session().createQuery("from LocalizedResource where projectId = :project and archived = false", LocalizedResource.class)
-                    .setParameter("project", project).getResultList();
-            for (LocalizedResource resource : resources) {
-                Resolved resolved = resolve(resource, locale, true);
-                ContentRevision revision = resolved.revision();
-                entries.put(resource.getKey(), Map.of("fieldType", resource.getFieldType(), "payload", revision.getPayload(),
-                        "contract", revision.getContract(), "resolvedLocale", resolved.locale(), "revisionId", revision.getId()));
-            }
-            String artifact = json.writer().with(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS).writeValueAsString(Map.of("profile", MessageType.PROFILE,
-                    "icuVersion", MessageType.ICU, "cldrVersion", MessageType.CLDR, "locale", locale, "entries", entries));
-            String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(artifact.getBytes(StandardCharsets.UTF_8)));
-            CatalogRelease latest = latest(project, locale);
-            if (latest != null && latest.getHash().equals(hash)) return releaseViewOf(latest);
-            CatalogRelease release = new CatalogRelease();
-            release.setProjectId(project);
-            release.setLocale(locale);
-            release.setHash(hash);
-            release.setArtifact(artifact);
-            session().persist(release);
-            fresh[0] = true;
-            return releaseViewOf(release);
-        });
-        // After the commit, so whoever the webhook tells can already fetch the release.
-        if (fresh[0]) webhooks.published(project, published);
-        return published;
-    }
-
-    public ReleaseView manifest(long project, String locale) {
-        return inProject(project, false, () -> {
-            CatalogRelease release = latest(project, locale);
-            if (release == null) throw HttpException.notFound("Catalog");
-            return releaseViewOf(release);
-        });
-    }
-
-    public String catalog(long project, String locale, String hash) {
-        return inProject(project, false, () -> session()
-                .createQuery("select artifact from CatalogRelease where projectId = :project and locale = :locale and hash = :hash", String.class)
-                .setParameter("project", project).setParameter("locale", locale).setParameter("hash", hash)
-                .setMaxResults(1).uniqueResultOptional()
-                .orElseThrow(() -> HttpException.notFound("Catalog")));
     }
 
     /**
@@ -537,14 +204,14 @@ public final class LocalizationService {
             Map<String, Object> payload = edit.payload();
             Map<String, Variable> contract = origin ? edit.contract() : source.getContract();
             if (revertTo != null) {
-                ContentRevision previous = session().find(ContentRevision.class, revertTo);
+                ContentRevision previous = data.repository(ContentRevision.class).findById(revertTo).orElse(null);
                 if (previous == null || !previous.getVariantId().equals(variant.getId())) throw HttpException.notFound("Revision");
                 payload = previous.getPayload();
                 if (origin) contract = previous.getContract();
             } else if (!origin && edit.contract() != null && !edit.contract().equals(contract)) {
                 throw HttpException.badRequest("A translation keeps the source's variables.");
             }
-            FieldType type = type(resource.getFieldType());
+            FieldType type = FieldTypes.named(resource.getFieldType());
             // A source write may leave the contract out; a translation never has the choice.
             if (contract == null) contract = type.contractOf(payload);
             type.validate(payload, contract, locale, false);
@@ -562,7 +229,7 @@ public final class LocalizationService {
         revision.setContract(contract);
         revision.setActor(actor());
         revision.setMachine(machine());
-        session().persist(revision);
+        data.repository(ContentRevision.class).save(revision);
         Long approved = variant.getApprovedRevisionId();
         variant.setHeadRevisionId(revision.getId());
         if (approve) {
@@ -582,30 +249,31 @@ public final class LocalizationService {
         event.setAfterRevisionId(after);
         event.setAction(action);
         event.setActor(actor());
-        session().persist(event);
+        data.repository(ContentEvent.class).save(event);
     }
 
     /**
-     * The first current approved value along {@code locale}'s fallback chain, which {@link #configureLocale} keeps
-     * acyclic. A stale translation is skipped as a whole message, never mixed with its source.
+     * The first current approved value along {@code locale}'s fallback chain, which {@code configureLocale} keeps
+     * acyclic. A stale translation is skipped as a whole message, never mixed with its source. {@code resolved_entry}
+     * derives the same answer in SQL for whoever only needs the ids; this one also validates what it found.
      */
-    private Resolved resolve(LocalizedResource resource, String locale, boolean complete) {
+    Resolved resolve(LocalizedResource resource, String locale, boolean complete) {
         ContentRevision source = sourceRevision(resource);
         for (String current = locale; current != null; current = enabled(resource.getProjectId(), current).getFallbackLocale()) {
             ContentVariant variant = variant(resource, current, false);
             if (variant == null || variant.getApprovedRevisionId() == null) continue;
-            ContentRevision revision = session().find(ContentRevision.class, variant.getApprovedRevisionId());
+            ContentRevision revision = revision(variant.getApprovedRevisionId());
             if (stale(revision, source)) continue;
-            type(resource.getFieldType()).validate(revision.getPayload(), revision.getContract(), current, complete);
+            FieldTypes.named(resource.getFieldType()).validate(revision.getPayload(), revision.getContract(), current, complete);
             return new Resolved(revision, current);
         }
         throw HttpException.conflict("Nothing approved to show for " + resource.getKey() + ".");
     }
 
-    private ResourceView view(LocalizedResource resource, String locale) {
+    ResourceView view(LocalizedResource resource, String locale) {
         ContentVariant variant = variant(resource, locale, false);
         return view(resource, sourceRevision(resource), variant,
-                variant == null || variant.getApprovedRevisionId() == null ? null : session().find(ContentRevision.class, variant.getApprovedRevisionId()));
+                variant == null || variant.getApprovedRevisionId() == null ? null : revision(variant.getApprovedRevisionId()));
     }
 
     /** {@code variant} and {@code approved} are null where nothing was written, or nothing approved, in the locale. */
@@ -616,15 +284,6 @@ public final class LocalizationService {
                 source.getPayload(), approved == null ? null : approved.getPayload());
     }
 
-    /** English, because the prompt is: the code alone can be ambiguous, and the name disambiguates it. */
-    private static String localeName(String tag) {
-        return ULocale.forLanguageTag(tag).getDisplayName(ULocale.ENGLISH);
-    }
-
-    private static String categories(String tag, boolean ordinal) {
-        return String.join(", ", MessageType.forms(tag, ordinal).keySet());
-    }
-
     private static boolean stale(ContentRevision translation, ContentRevision source) {
         return translation.getBasedOnSourceRevisionId() != null && !translation.getBasedOnSourceRevisionId().equals(source.getId());
     }
@@ -632,7 +291,11 @@ public final class LocalizationService {
     private ContentRevision sourceRevision(LocalizedResource resource) {
         ContentVariant variant = variant(resource, source(resource.getProjectId()).getLocale(), false);
         if (variant == null || variant.getApprovedRevisionId() == null) throw noSource();
-        return session().find(ContentRevision.class, variant.getApprovedRevisionId());
+        return revision(variant.getApprovedRevisionId());
+    }
+
+    private ContentRevision revision(long id) {
+        return data.repository(ContentRevision.class).findById(id).orElseThrow(() -> HttpException.notFound("Revision"));
     }
 
     private static HttpException noSource() {
@@ -640,20 +303,20 @@ public final class LocalizationService {
     }
 
     private ContentVariant variant(LocalizedResource resource, String locale, boolean create) {
-        ContentVariant variant = session().createQuery("from ContentVariant where resourceId = :resource and locale = :locale", ContentVariant.class)
-                .setParameter("resource", resource.getId()).setParameter("locale", locale).uniqueResult();
+        ContentVariant variant = data.repository(ContentVariant.class)
+                .findOne(VARIANT_RESOURCE.eq(resource.getId()).and(VARIANT_LOCALE.eq(locale))).orElse(null);
         if (variant == null && create) {
             variant = new ContentVariant();
             variant.setResourceId(resource.getId());
             variant.setProjectId(resource.getProjectId());
             variant.setLocale(locale);
-            session().persist(variant);
+            data.repository(ContentVariant.class).save(variant);
         }
         return variant;
     }
 
-    private LocalizedResource resource(long project, long id) {
-        LocalizedResource resource = session().find(LocalizedResource.class, id);
+    LocalizedResource resource(long project, long id) {
+        LocalizedResource resource = data.repository(LocalizedResource.class).findById(id).orElse(null);
         if (resource == null || resource.getProjectId() != project) throw HttpException.notFound("Resource");
         return resource;
     }
@@ -662,91 +325,5 @@ public final class LocalizationService {
         LocalizedResource resource = resource(project, id);
         if (resource.isArchived()) throw HttpException.conflict("This resource is archived.");
         return resource;
-    }
-
-    private CatalogRelease latest(long project, String locale) {
-        return session().createQuery("from CatalogRelease where projectId = :project and locale = :locale order by id desc", CatalogRelease.class)
-                .setParameter("project", project).setParameter("locale", locale).setMaxResults(1).uniqueResult();
-    }
-
-    private List<ProjectLocale> localesOf(long project) {
-        return session().createQuery("from ProjectLocale where projectId = :project order by locale", ProjectLocale.class)
-                .setParameter("project", project).getResultList();
-    }
-
-    private ProjectLocale source(long project) {
-        return source(localesOf(project));
-    }
-
-    private static ProjectLocale source(List<ProjectLocale> locales) {
-        return locales.stream().filter(ProjectLocale::isSource).findFirst().orElseThrow(() -> HttpException.conflict("Add a source locale first."));
-    }
-
-    private ProjectLocale enabled(long project, String locale) {
-        return enabled(localesOf(project), locale);
-    }
-
-    private static ProjectLocale enabled(List<ProjectLocale> locales, String locale) {
-        return locales.stream().filter(l -> l.getLocale().equals(locale)).findFirst()
-                .orElseThrow(() -> HttpException.badRequest(locale + " isn't enabled on this project."));
-    }
-
-    private FieldType type(String name) {
-        FieldType type = name == null ? null : types.get(name);
-        if (type == null) throw HttpException.badRequest("Unknown field type: " + name + ".");
-        return type;
-    }
-
-    /** Runs {@code work} on an existing project, locked for a write so that one project's writes serialize. */
-    private <T> T inProject(long project, boolean write, Tx.TxCallable<T> work) {
-        Tx.TxCallable<T> body = () -> {
-            // ponytail: one lock per project; lock the resource row instead if concurrent edits contend.
-            if (session().find(Project.class, project, write ? LockModeType.PESSIMISTIC_WRITE : LockModeType.NONE) == null) {
-                throw HttpException.notFound("Project");
-            }
-            return work.call();
-        };
-        try {
-            return write ? data.write(body) : data.read(body);
-        } catch (TxException failure) {
-            if (failure.getCause() instanceof HttpException http) throw http;
-            throw failure;
-        }
-    }
-
-    private Session session() {
-        return data.tx().resource(Session.class);
-    }
-
-    private static boolean allows(long project, String locale, String role) {
-        return SecurityIdentity.current().hasRole(role, name -> switch (name) {
-            case "project" -> Long.toString(project);
-            case "locale" -> locale;
-            default -> null;
-        });
-    }
-
-    private static String actor() {
-        return SecurityIdentity.current().principal().name();
-    }
-
-    private static boolean machine() {
-        return SecurityIdentity.current().principal(ApiKeyPrincipal.class) != null;
-    }
-
-    private static LocaleView localeViewOf(ProjectLocale l) {
-        return new LocaleView(l.getLocale(), l.isSource(), l.getFallbackLocale(), ULocale.forLanguageTag(l.getLocale()).isRightToLeft(),
-                MessageType.forms(l.getLocale(), false), MessageType.forms(l.getLocale(), true));
-    }
-
-    private static EventView eventViewOf(ContentEvent e) {
-        return new EventView(e.getId(), e.getRevisionId(), e.getBeforeRevisionId(), e.getAfterRevisionId(), e.getAction(), e.getActor(), e.getCreatedAt());
-    }
-
-    /** A release's version counts its own locale's releases, not every locale's. */
-    private ReleaseView releaseViewOf(CatalogRelease r) {
-        long version = session().createQuery("select count(*) from CatalogRelease where projectId = :project and locale = :locale and id <= :id", Long.class)
-                .setParameter("project", r.getProjectId()).setParameter("locale", r.getLocale()).setParameter("id", r.getId()).getSingleResult();
-        return new ReleaseView(version, r.getLocale(), r.getHash(), r.getCreatedAt());
     }
 }

@@ -59,6 +59,16 @@ belong in `Main`.
   annotation, writes. It throws `HttpException`, whose
   status HTTP answers, and knows nothing of the transport, so anything composing the core can call
   it. Handlers only parse, call and return — no repository, no transaction.
+  **One service per route family**, as `api/` has one file per resource: a feature that adds a
+  family of routes adds its own service, and a service that would hold two holds the one it is
+  named for. A satellite service depends on the aggregate's, never the other way round, and what
+  they all share — the transaction, the project lock, the project's locales, the role check — is
+  `ProjectScoped`'s. No service sees a `Session`: a query `Spec` cannot express belongs in
+  `ContentQueries`.
+- **State a query can derive is derived in SQL** — a view, or a `case` in the query — never
+  rebuilt in Java from pointer columns reassembled per row. A view is a migration like any other
+  and is read with a native query: it is not an `@Entity` and nothing registers it in
+  `Database#CORE_ENTITIES`.
 - `schema/` — what the API reads and answers: one final container per resource, its request and
   view records nested, `@Json` for the codec and `@Valid` when a body carries rules.
 - `auth/` — §11: who a caller is (`Users`, `ApiKeys`), what they may do (`ProjectRoles`), and the
