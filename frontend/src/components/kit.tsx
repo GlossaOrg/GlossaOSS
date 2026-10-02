@@ -4,13 +4,12 @@ import { Flag } from '@/components/locale'
 import { roles, type Role } from '@/lib/projects'
 
 /**
- * The small pieces every screen shares, in the one look they share. Colour belongs to languages,
- * so a badge is neutral and says what it means in words; a state gets a dot, nothing more.
+ * The small pieces every screen shares, in the one look they share. A badge says what it means in
+ * words — no dot beside them repeating it in colour.
  */
-export function Badge({ children, dot, className }: { children: React.ReactNode; dot?: string; className?: string }) {
+export function Badge({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <span className={cn('bg-secondary inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap', className)}>
-      {dot && <span aria-hidden className={cn('size-1.5 rounded-full', dot)} />}
       {children}
     </span>
   )

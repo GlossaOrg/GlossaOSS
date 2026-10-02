@@ -143,9 +143,11 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
   `VITE_API_URL` and no CORS config on either side; adding one means the dev proxy in
   `vite.config.ts` is wrong instead.
 - §12: minimal, colourful, approachable — not dense enterprise UI. Colour has three roles and never
-  mixes them: ink and white cards on the grey canvas carry the structure, one lilac (`--brand`) marks
-  whatever acts (buttons, the current entry, focus), and every other colour belongs to a language — its
-  flag, and one pastel everywhere (`hue` in `components/locale.tsx`). One level of surface: a card
+  mixes them: ink and white cards on the grey canvas carry the structure, one brand blue (`--brand`,
+  `--brand-strong`, and nothing else — change the two and the whole app follows) marks whatever acts
+  (buttons, the current entry, focus), and every other colour belongs to a language — its flag, whose
+  first chromatic SVG fill becomes its accent (`flagColor` in `lib/color.ts`, applied through `shade`
+  and `tint` in `components/locale.tsx`). One level of surface: a card
   never sits inside another card. Every screen puts its title on the left and its one primary action
   on the right. States and roles are neutral badges with
   at most a dot, never a pastel of their own. Each field type

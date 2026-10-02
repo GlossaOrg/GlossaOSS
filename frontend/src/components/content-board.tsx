@@ -73,7 +73,7 @@ function Board({ project }: { project: Project }) {
   if (!source) {
     return (
       <Blank title={`${project.name} has no languages yet.`} text="A project needs the language it is written in before anything can be.">
-        {manager && <Button size="lg" onClick={() => navigate('/locales')}>Pick the source language →</Button>}
+        {manager && <Button size="lg" onClick={() => navigate('/locales')}>Pick the source language</Button>}
       </Blank>
     )
   }
@@ -83,7 +83,7 @@ function Board({ project }: { project: Project }) {
       <header className="mb-5 flex flex-wrap items-end justify-between gap-6">
         <div>
           <h2>Content</h2>
-          <p className="text-muted-foreground mt-1.5 max-w-[46ch] text-[0.9375rem]">
+          <p className="text-muted-foreground mt-1.5 max-w-[46ch] text-sm">
             Every message in {project.name}, and where each one stands.
           </p>
         </div>
@@ -130,11 +130,10 @@ function Board({ project }: { project: Project }) {
                   aria-pressed={on}
                   onClick={() => setFilter(on ? null : s.value)}
                   className={cn(
-                    'focus-visible:ring-ring/20 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-[0.8125rem] font-semibold transition-colors outline-none focus-visible:ring-3',
-                    on ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-accent',
+                    'focus-visible:ring-ring/20 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors outline-none focus-visible:ring-3',
+                    on ? 'bg-primary text-primary-foreground' : cn(s.tint, 'hover:brightness-95'),
                   )}
                 >
-                  <span aria-hidden className={cn('size-1.5 rounded-full', s.dot)} />
                   {s.label}
                   <span className="opacity-55">{count}</span>
                 </button>
@@ -201,7 +200,7 @@ function LocaleTab({ locale, progress, active, onSelect, onIntent }: { locale: L
     >
       <Flag locale={locale.locale} className="size-6" />
       <span className="grid min-w-0 flex-1 leading-tight">
-        <span className="truncate text-[0.8438rem] font-bold">{languageName(locale.locale)}</span>
+        <span className="truncate text-sm font-bold">{languageName(locale.locale)}</span>
         <span className="text-muted-foreground text-xs tabular-nums">
           {locale.source ? 'Source' : progress ? `${percent}% approved` : 'Counting…'}
         </span>
@@ -218,6 +217,8 @@ function LocaleTab({ locale, progress, active, onSelect, onIntent }: { locale: L
 function Row({ resource, locale, source, onOpen }: { resource: Resource; locale: Locale; source: Locale; onOpen: () => void }) {
   const s = state(status(resource))
   const dot = resource.key.lastIndexOf('.')
+  const payload = resource.payload ?? resource.sourcePayload
+  const translated = !locale.source && resource.payload !== null
 
   return (
     <button
@@ -226,21 +227,16 @@ function Row({ resource, locale, source, onOpen }: { resource: Resource; locale:
       className="reveal hover:bg-secondary/70 focus-visible:bg-secondary grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-start gap-x-6 rounded-lg px-3 py-3 text-left transition-colors outline-none"
     >
       <span className="min-w-0">
-        <span className="text-muted-foreground block truncate font-mono text-[12.5px]">
+        <span className="text-muted-foreground block truncate font-mono text-xs">
           {dot > 0 && resource.key.slice(0, dot + 1)}
           <span className="text-foreground font-medium">{resource.key.slice(dot + 1)}</span>
         </span>
-        <span className="mt-1 block text-[0.9375rem] leading-snug">
-          <Pattern text={resource.sourcePayload.pattern} rtl={source.rtl} locale={source.locale} />
+        <span className={cn('mt-1 flex items-baseline gap-2 text-sm leading-snug', !translated && !locale.source && 'text-muted-foreground')}>
+          {translated && <Flag locale={locale.locale} className="size-3.5 translate-y-[2px]" />}
+          <Pattern text={payload.pattern} rtl={translated ? locale.rtl : source.rtl} locale={translated ? locale.locale : source.locale} />
         </span>
-        {!locale.source && resource.payload && (
-          <span className="text-muted-foreground mt-1 flex items-baseline gap-2 text-[0.9375rem] leading-snug">
-            <Flag locale={locale.locale} className="size-3.5 translate-y-[2px]" />
-            <Pattern text={resource.payload.pattern} rtl={locale.rtl} locale={locale.locale} />
-          </span>
-        )}
       </span>
-      <Badge dot={s.dot} className="mt-0.5">{s.label}</Badge>
+      <Badge className={cn('mt-0.5', s.tint)}>{s.label}</Badge>
     </button>
   )
 }
@@ -252,7 +248,7 @@ function Group({ label, count, done, active, onClick }: { label: string; count: 
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'link-bg-animated flex h-9 shrink-0 cursor-pointer items-center justify-between gap-3 rounded-lg px-3 text-left text-[0.8438rem] font-semibold',
+        'link-bg-animated flex h-9 shrink-0 cursor-pointer items-center justify-between gap-3 rounded-lg px-3 text-left text-sm font-semibold',
         active ? 'bg-brand text-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
       )}
     >

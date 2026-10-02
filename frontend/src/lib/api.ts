@@ -3,13 +3,10 @@
  * prod Flash serves this bundle itself (see vite.config.ts and flash-ext-vite). So no
  * base URL, no VITE_API_URL, no CORS on either side.
  */
-/** Headers sent with every call: whatever the whole session is scoped to, which no caller should have to pass. */
-export const ambient: Record<string, string> = {}
-
 export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const response = await fetch(path, {
     ...init,
-    headers: { accept: 'application/json', ...ambient, ...(init?.json !== undefined && { 'content-type': 'application/json' }), ...init?.headers },
+    headers: { accept: 'application/json', ...(init?.json !== undefined && { 'content-type': 'application/json' }), ...init?.headers },
     body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body,
   })
   if (!response.ok) {

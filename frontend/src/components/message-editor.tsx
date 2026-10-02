@@ -2,20 +2,24 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { useNavigate, useParams } from 'react-router'
-import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react'
+import { ArchiveIcon, CalendarIcon, PencilLineIcon, PlusIcon } from 'lucide-react'
 import { cn } from 'cn'
-import { Highlight, IcuEditor, ink } from '@/components/icu-editor'
-import { Badge, Select } from '@/components/kit'
+import { Highlight, IcuEditor } from '@/components/icu-editor'
+import { Badge } from '@/components/kit'
+import { Calendar } from '@/components/ui/calendar'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/sonner'
 import { useGlossary } from '@/components/glossary'
-import { Flag, languageName } from '@/components/locale'
+import { Flag, LocaleSelect } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Splash } from '@/components/splash'
 import { api } from '@/lib/api'
 import { covers, useProject, type Project } from '@/lib/projects'
 import {
-  day, readable, state, status, useDetail, useLocale, useProgress, useResources, waiting,
+  day, readable, state, status, useDetail, useLocale, useProgress,
   type Analysis, type Contract, type Detail, type Locale, type Revision, type Variable,
 } from '@/lib/content'
 
@@ -69,7 +73,6 @@ function useCheck(projectId: number, locale: Locale, pattern: string, fixed: Con
     contract: fixed ?? analysis.data?.contract ?? {},
     problem: problem?.replace(/^Invalid ICU (pattern|formatter): /, '').replace(/:? ?\[at pattern index \d+\]/, '') ?? null,
     missing: analysis.data?.missing ?? [],
-    checking: analysis.isFetching,
     error: at ? Number(at[1]) : undefined,
   }
 }
@@ -107,6 +110,7 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
   const [pattern, setPattern] = useState(stored)
   const [values, setValues] = useState<Record<string, unknown>>({})
   const [conflict, setConflict] = useState(false)
+  const [confirmArchive, setConfirmArchive] = useState(false)
   const check = useCheck(project.id, locale, pattern, origin ? null : sourceRevision.contract)
 
   const refresh = () => client.invalidateQueries({ queryKey: ['resource', project.id, resource.id] })
@@ -146,160 +150,178 @@ function Editor({ detail, locale, source, project }: { detail: Detail; locale: L
 
   const archive = useMutation({
     mutationFn: (archived: boolean) => api(`/api/projects/${project.id}/resources/${resource.id}/archive`, { method: 'PUT', json: { archived } }),
-    onSuccess: settled,
+    onSuccess: () => {
+      setConfirmArchive(false)
+      return settled()
+    },
   })
 
-  const s = state(status(resource))
+  const resourceStatus = status(resource)
+  const s = state(resourceStatus)
   const dirty = pattern !== stored
-
-  // The way through a language: the next message waiting on the caller, one keystroke away.
-  const navigate = useNavigate()
-  const list = useResources(project.id, target)
-  // The list is in key order: the next one after this key, wrapping round.
-  const work = origin ? [] : (list.data ?? []).filter((r) => waiting(r, reviewer) && r.id !== resource.id)
-  const next = work.find((r) => r.key > resource.key) ?? work[0]
-  const left = work.length
-  const go = () => next && navigate(`/content/${next.id}`)
   const canSave = !check.problem && !save.isPending && !pending && dirty && !(origin && !manager)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault()
-        if (pending && reviewer && !decide.isPending) decide.mutateAsync(true).then(go, () => {})
-        else if (canSave) save.mutateAsync().then(go, () => {})
-        else if (!dirty) go()
-      } else if (e.altKey && e.key === 'ArrowRight' && !dirty) {
-        e.preventDefault()
-        go()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  })
 
   return (
     <div className="page flex flex-col gap-3">
-      {/* Back on the left, what acts on the message on the right. */}
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <BackLink />
-          <p className="text-muted-foreground min-w-0 font-mono text-[0.8125rem] break-all">{resource.key}</p>
+      <header className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+            <h2 className="min-w-0 font-mono text-xl font-semibold tracking-[-0.02em] break-all">{resource.key}</h2>
+            {resourceStatus !== 'untranslated' && <Badge className={s.tint}>{s.label}</Badge>}
+          </div>
+          <Context projectId={project.id} resourceId={resource.id} context={resource.context} manager={manager} onSaved={settled} />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge dot={s.dot} className="bg-card h-9 px-3 text-[0.8125rem]">{s.label}</Badge>
-          <LocaleSwitch project={project} locale={locale} dirty={dirty} />
-          {!origin && (
-            <Button variant="outline" disabled={!next || dirty} title={dirty ? 'Save or discard your change first.' : 'Next message (⌥→)'} onClick={go}>
-              {left ? `Next · ${left} left` : 'All done'}
-              {next && <ArrowRightIcon />}
-            </Button>
-          )}
-          {manager && (
-            <Button variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => archive.mutate(!resource.archived)}>
-              {resource.archived ? 'Restore' : 'Archive'}
-            </Button>
-          )}
-        </div>
+        <LocaleSwitch project={project} locale={locale} dirty={dirty} />
       </header>
 
-      <Context projectId={project.id} resourceId={resource.id} context={resource.context} manager={manager} onSaved={settled} />
-      {!origin && <Terms projectId={project.id} locale={target} source={sourceRevision.payload.pattern} written={pattern} />}
+      {/* Wide enough, the thread and the log stand beside the editor instead of under it. */}
+      <div className="grid gap-3 @6xl/main:grid-cols-[minmax(0,1fr)_23rem] @6xl/main:items-start">
+        <div className="flex min-w-0 flex-col gap-3">
+          {!origin && <Terms projectId={project.id} locale={target} source={sourceRevision.payload.pattern} written={pattern} />}
 
-      <IcuEditor
-        role={origin ? 'Source' : 'Translation'}
-        reference={origin ? undefined : { locale: source, pattern: sourceRevision.payload.pattern }}
-        suggest={origin ? undefined : suggest}
-        value={pattern}
-        onChange={setPattern}
-        locale={locale}
-        variables={origin ? undefined : sourceRevision.contract}
-        problem={check.problem}
-        missing={check.missing}
-        checking={check.checking}
-        error={check.error}
-      />
+          <IcuEditor
+            role={origin ? 'Source' : 'Translation'}
+            reference={origin ? undefined : { locale: source, pattern: sourceRevision.payload.pattern }}
+            suggest={origin ? undefined : suggest}
+            value={pattern}
+            onChange={setPattern}
+            locale={locale}
+            variables={origin ? undefined : sourceRevision.contract}
+            problem={check.problem}
+            missing={check.missing}
+            error={check.error}
+          />
 
-      <Tester
-        projectId={project.id}
-        locale={locale}
-        pattern={pattern}
-        contract={check.contract}
-        values={values}
-        onValues={setValues}
-        ready={!check.problem}
-        reference={origin ? undefined : { locale: source, pattern: sourceRevision.payload.pattern, contract: sourceRevision.contract }}
-      />
+          <Tester
+            projectId={project.id}
+            locale={locale}
+            pattern={pattern}
+            contract={check.contract}
+            values={values}
+            onValues={setValues}
+            ready={!check.problem}
+            reference={origin ? undefined : { locale: source, pattern: sourceRevision.payload.pattern, contract: sourceRevision.contract }}
+          />
 
-      <AnimatePresence initial={false}>
-        {conflict && (
-          <motion.div {...unfold} className="overflow-hidden">
-            <div className="border-destructive/30 bg-destructive/5 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border py-3 pr-3 pl-4 text-sm">
-              <p className="min-w-60 flex-1">{(save.error as { detail?: string } | null)?.detail ?? 'This value changed.'} Your text is still here.</p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setConflict(false)
-                  refresh()
-                }}
-              >
-                Reload and keep my text
-              </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence initial={false}>
+            {conflict && (
+              <motion.div {...unfold} className="overflow-hidden">
+                <div className="border-destructive/30 bg-destructive/5 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border py-3 pr-3 pl-4 text-sm">
+                  <p className="min-w-60 flex-1">{(save.error as { detail?: string } | null)?.detail ?? 'This value changed.'} Your text is still here.</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setConflict(false)
+                      refresh()
+                    }}
+                  >
+                    Reload and keep my text
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      {pending && (
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-xl bg-amber-100/70 p-4 dark:bg-amber-400/10">
-          <p className="min-w-60 flex-1">
-            <Badge dot="bg-amber-400" className="bg-card mb-2">In review</Badge>
-            <span className="block font-semibold">A proposal is waiting{head?.machine ? ' from an API key' : ''}.</span>
-            <span className="text-muted-foreground block text-sm">{reviewer ? 'Nothing else can be written until it is decided.' : 'A reviewer decides next.'}</span>
-          </p>
-          {reviewer && (
-            <div className="flex gap-2">
-              <Button variant="outline" disabled={decide.isPending} onClick={() => decide.mutate(false)}>
-                Send back
-              </Button>
-              <Button disabled={decide.isPending} onClick={() => decide.mutate(true)}>
-                Approve
-              </Button>
-              {next && (
-                <Button disabled={decide.isPending} title="⌘↵" onClick={() => decide.mutateAsync(true).then(go, () => {})}>
-                  Approve and next
-                </Button>
+          {pending && (
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-xl bg-amber-100/70 p-4 dark:bg-amber-400/10">
+              <p className="min-w-60 flex-1">
+                <span className="block font-semibold">A proposal is waiting{head?.machine ? ' from an API key' : ''}.</span>
+                <span className="text-muted-foreground block text-sm">{reviewer ? 'Nothing else can be written until it is decided.' : 'A reviewer decides next.'}</span>
+              </p>
+              {reviewer && (
+                <div className="flex gap-2">
+                  <Button variant="outline" disabled={decide.isPending} onClick={() => decide.mutate(false)}>
+                    Send back
+                  </Button>
+                  <Button disabled={decide.isPending} onClick={() => decide.mutate(true)}>
+                    Approve
+                  </Button>
+                </div>
               )}
-            </div>
+            </motion.div>
           )}
-        </motion.div>
-      )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={!canSave} onClick={() => save.mutate()}>
-          {reviewer ? 'Save' : 'Propose'}
-        </Button>
-        {next && (
-          <Button variant="outline" disabled={!canSave} title="⌘↵" onClick={() => save.mutateAsync().then(go, () => {})}>
-            {reviewer ? 'Save' : 'Propose'} and next
-          </Button>
-        )}
-        {dirty && <Button variant="ghost" onClick={() => setPattern(stored)}>Discard</Button>}
-        {origin && !manager && <span className="text-muted-foreground text-sm">Only a manager edits the source.</span>}
-        {!reviewer && !origin && <span className="text-muted-foreground text-sm">Saved as a proposal for review.</span>}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button disabled={!canSave} onClick={() => save.mutate()}>
+              {reviewer ? 'Save' : 'Propose'}
+            </Button>
+            {dirty && <Button variant="ghost" onClick={() => setPattern(stored)}>Discard</Button>}
+            {manager && (
+              <Button
+                variant={resource.archived ? 'outline' : 'destructive'}
+                className={cn('ml-auto', !resource.archived && 'border-destructive/30')}
+                disabled={archive.isPending}
+                onClick={() => resource.archived ? archive.mutate(false) : setConfirmArchive(true)}
+              >
+                <ArchiveIcon />
+                {resource.archived ? 'Restore' : 'Archive'}
+              </Button>
+            )}
+            {origin && !manager && <span className="text-muted-foreground text-sm">Only a manager edits the source.</span>}
+            {!reviewer && !origin && <span className="text-muted-foreground text-sm">Saved as a proposal for review.</span>}
+          </div>
+
+          <ConfirmDialog
+            open={confirmArchive}
+            onOpenChange={setConfirmArchive}
+            title="Archive this message?"
+            description={<>{resource.key} will disappear from translation work and future releases. You can restore it later.</>}
+            action="Archive message"
+            pendingLabel="Archiving…"
+            pending={archive.isPending}
+            icon={<ArchiveIcon />}
+            error={(archive.error as { detail?: string } | null)?.detail}
+            onConfirm={() => archive.mutate(true)}
+          />
+        </div>
+
+        <Side
+          projectId={project.id}
+          resourceId={resource.id}
+          locale={target}
+          canWrite={covers(project.role, 'TRANSLATOR')}
+          revisions={revisions.filter((r) => r.locale === target)}
+          events={events}
+          approved={resource.approvedRevisionId}
+          onRestore={(id) => restore.mutate(id)}
+          busy={restore.isPending}
+        />
       </div>
-
-      <Comments projectId={project.id} resourceId={resource.id} locale={target} canWrite={covers(project.role, 'TRANSLATOR')} />
-
-      <History
-        locale={target}
-        revisions={revisions.filter((r) => r.locale === target)}
-        events={events}
-        approved={resource.approvedRevisionId}
-        onRestore={(id) => restore.mutate(id)}
-        busy={restore.isPending}
-      />
     </div>
+  )
+}
+
+/**
+ * Everything said *about* the message rather than written *in* it: the thread and the log, one at a
+ * time in a column of their own. Two collapsed cards under the editor is how both went unread.
+ */
+function Side({ projectId, resourceId, locale, canWrite, revisions, events, approved, onRestore, busy }: {
+  projectId: number
+  resourceId: number
+  locale: string
+  canWrite: boolean
+  revisions: Revision[]
+  events: Detail['events']
+  approved: number | null
+  onRestore: (id: number) => void
+  busy: boolean
+}) {
+  return (
+    <aside className="card flex min-w-0 flex-col px-4 py-2 @6xl/main:sticky @6xl/main:top-20 @6xl/main:max-h-[calc(100svh-7rem)]">
+      <Tabs defaultValue="comments" className="min-h-0 flex-1">
+        <TabsList variant="line" className="shrink-0 border-b">
+          <TabsTrigger value="comments">Comments</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
+        <TabsContent value="comments" className="min-h-0 flex-1 overflow-y-auto pt-2 pb-1">
+          <Comments projectId={projectId} resourceId={resourceId} locale={locale} canWrite={canWrite} />
+        </TabsContent>
+        <TabsContent value="history" className="min-h-0 flex-1 overflow-y-auto pt-2 pb-1">
+          <History revisions={revisions} events={events} approved={approved} onRestore={onRestore} busy={busy} />
+        </TabsContent>
+      </Tabs>
+    </aside>
   )
 }
 
@@ -310,21 +332,9 @@ function LocaleSwitch({ project, locale, dirty }: { project: Project; locale: Lo
   const options = readable(rows, progress.data)
   if (options.length < 2) return null
   return (
-    // Switching remounts the editor on the other locale, so unsaved text is saved or discarded first.
-    <Select
-      lead={<Flag locale={locale.locale} className="size-4" />}
-      value={locale.locale}
-      disabled={dirty}
-      title={dirty ? 'Save or discard your change first.' : undefined}
-      aria-label="Language"
-      onChange={(e) => select(e.target.value)}
-    >
-      {options.map((l) => (
-        <option key={l.locale} value={l.locale}>
-          {languageName(l.locale)}{l.source ? ' (source)' : ''}
-        </option>
-      ))}
-    </Select>
+    <span title={dirty ? 'Save or discard your change first.' : undefined}>
+      <LocaleSelect value={locale.locale} options={options} disabled={dirty} onChange={(next) => next && select(next)} />
+    </span>
   )
 }
 
@@ -338,7 +348,7 @@ function Context({ projectId, resourceId, context, manager, onSaved }: { project
   if (draft !== null)
     return (
       <form
-        className="flex flex-wrap items-center gap-2"
+        className="mt-2 flex w-full flex-wrap items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault()
           save.mutate()
@@ -351,14 +361,23 @@ function Context({ projectId, resourceId, context, manager, onSaved }: { project
     )
   if (!context && !manager) return null
   return (
-    <p className="text-muted-foreground max-w-[72ch] px-1">
-      {context}{' '}
-      {manager && (
-        <button type="button" onClick={() => setDraft(context ?? '')} className="text-foreground cursor-pointer text-sm font-medium underline-offset-4 hover:underline">
-          {context ? 'Edit' : 'Add context for translators'}
-        </button>
-      )}
-    </p>
+    <div className="mt-2 flex max-w-[72ch] items-center gap-1">
+      {context ? (
+        <>
+          <p className="text-muted-foreground min-w-0 text-sm leading-relaxed">{context}</p>
+          {manager && (
+            <Button type="button" size="icon-xs" variant="ghost" aria-label="Edit description" title="Edit description" onClick={() => setDraft(context)}>
+              <PencilLineIcon />
+            </Button>
+          )}
+        </>
+      ) : manager ? (
+        <Button type="button" size="sm" variant="ghost" className="text-muted-foreground -ml-3" onClick={() => setDraft('')}>
+          <PlusIcon />
+          Add description
+        </Button>
+      ) : null}
+    </div>
   )
 }
 
@@ -378,29 +397,29 @@ function Comments({ projectId, resourceId, locale, canWrite }: { projectId: numb
   const comments = thread.data ?? []
   const send = () => body.trim() && !post.isPending && post.mutate()
   return (
-    <details className="group card mt-3 px-5 py-4">
-      <summary className="font-heading flex w-fit cursor-pointer list-none items-baseline gap-2 text-base font-bold tracking-[-0.02em] select-none [&::-webkit-details-marker]:hidden">
-        <span aria-hidden className="inline-block w-4 transition-transform group-open:rotate-45">+</span>
-        Comments <span className="text-muted-foreground font-sans text-sm font-medium tracking-normal">{comments.length || 'none yet'}</span>
-      </summary>
-      <ul className="mt-4 grid gap-2">
-        {comments.map((c) => (
-          <li key={c.id} className="rounded-lg border px-4 py-3">
-            <p className="text-muted-foreground flex flex-wrap gap-x-2 text-xs">
-              <span className="text-foreground font-medium">{c.author}</span>
-              {day.format(new Date(c.createdAt))}
-            </p>
-            <p className="mt-1 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{c.body}</p>
-          </li>
-        ))}
-      </ul>
+    <div className="grid gap-2">
+      {comments.length > 0 ? (
+        <ul className="divide-y">
+          {comments.map((c) => (
+            <li key={c.id} className="py-3 first:pt-0">
+              <p className="text-muted-foreground flex flex-wrap gap-x-2 text-xs">
+                <span className="text-foreground font-medium">{c.author}</span>
+                {day.format(new Date(c.createdAt))}
+              </p>
+              <p className="mt-1 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{c.body}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-muted-foreground text-sm">Nothing asked about this message yet.</p>
+      )}
       {canWrite && (
-        <div className="mt-3 grid gap-2">
+        <div className="grid gap-2">
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => {
-              // ⌘↵ posts here, rather than saving the message and moving on.
+              // ⌘↵ posts without reaching for the button.
               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                 e.preventDefault()
                 e.stopPropagation()
@@ -409,13 +428,13 @@ function Comments({ projectId, resourceId, locale, canWrite }: { projectId: numb
             }}
             maxLength={2000}
             placeholder="Ask or answer something about this message"
-            className="border-input bg-card focus-visible:ring-ring/10 max-h-40 min-h-16 resize-y rounded-lg [field-sizing:content] border px-3 py-2 text-sm outline-none focus-visible:ring-3"
+            className="border-input bg-card focus-visible:ring-ring/10 max-h-40 min-h-14 resize-y rounded-lg [field-sizing:content] border px-3 py-2 text-sm outline-none focus-visible:ring-3"
           />
           {post.error ? <p role="alert" className="text-destructive text-xs">{(post.error as { detail?: string }).detail ?? 'Could not post the comment.'}</p> : null}
           <Button size="sm" className="w-fit" disabled={!body.trim() || post.isPending} onClick={send}>Comment</Button>
         </div>
       )}
-    </details>
+    </div>
   )
 }
 
@@ -436,7 +455,7 @@ function Terms({ projectId, locale, source, written }: { projectId: number; loca
         const honoured = !written.trim() || has(written, expected)
         return (
           <span key={t.id} title={honoured ? undefined : `The translation does not use “${expected}” yet.`}>
-            <Badge dot={honoured ? undefined : 'bg-rose-500'} className="bg-card">
+            <Badge className={cn('bg-card', !honoured && 'text-destructive')}>
               {t.term} → {t.translation ?? <i className="font-normal">keep as is</i>}
             </Badge>
           </span>
@@ -476,15 +495,12 @@ function Composer({ project, source }: { project: Project; source: Locale }) {
 
   return (
     <div className="page flex flex-col gap-3">
-      <header className="flex items-center gap-3">
-        <BackLink />
-        <h2>New message</h2>
-      </header>
+      <h2>New message</h2>
 
       <div className="card flex flex-wrap gap-4 p-4">
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Key</span>
-          <Input value={key} onChange={(e) => setKey(e.target.value)} autoFocus maxLength={255} placeholder="checkout.items" className="w-72 font-mono text-[0.8125rem]" />
+          <Input value={key} onChange={(e) => setKey(e.target.value)} autoFocus maxLength={255} placeholder="checkout.items" className="w-72 font-mono text-sm" />
         </label>
         <label className="grid min-w-60 flex-1 gap-1.5">
           <span className="text-sm font-medium">
@@ -502,7 +518,6 @@ function Composer({ project, source }: { project: Project; source: Locale }) {
         locale={source}
         problem={check.problem}
         missing={check.missing}
-        checking={check.checking}
         error={check.error}
       />
 
@@ -516,16 +531,6 @@ function Composer({ project, source }: { project: Project; source: Locale }) {
         <Button variant="ghost" onClick={() => navigate('/content')}>Cancel</Button>
       </div>
     </div>
-  )
-}
-
-function BackLink() {
-  const navigate = useNavigate()
-  return (
-    <Button variant="outline" className="shrink-0 pl-2.5" onClick={() => navigate('/content')}>
-      <ArrowLeftIcon />
-      Content
-    </Button>
   )
 }
 
@@ -560,11 +565,8 @@ function Tester({ projectId, locale, pattern, contract, values, onValues, ready,
   const entries = Object.entries(contract)
   return (
     <section className="card">
-      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 pt-4">
+      <header className="px-5 pt-4">
         <h3>Try it</h3>
-        <span className="text-muted-foreground text-sm">
-          {entries.length ? `Change a value and read what people will see.` : 'This is what people will see.'}
-        </span>
       </header>
 
       {entries.length > 0 && (
@@ -598,7 +600,7 @@ function Rendered({ label, text, rtl, strong }: { label: string; text?: string; 
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.15 }}
-          className={cn('min-w-0 [overflow-wrap:anywhere]', strong ? 'font-heading text-[1.375rem] leading-tight font-bold tracking-[-0.025em]' : 'text-muted-foreground text-[0.9375rem]', !text && 'text-muted-foreground/50')}
+          className={cn('min-w-0 [overflow-wrap:anywhere]', strong ? 'font-heading text-2xl leading-tight font-bold tracking-[-0.025em]' : 'text-muted-foreground text-sm', !text && 'text-muted-foreground/50')}
         >
           {text ?? '…'}
         </motion.p>
@@ -611,7 +613,7 @@ function Value({ name, variable, value, onChange }: { name: string; variable: Va
   return (
     <label className="grid gap-1.5 text-sm">
       <span className="flex items-baseline gap-2">
-        <span className="font-mono text-[0.8125rem] font-semibold">{name}</span>
+        <span className="font-mono text-xs font-semibold">{name}</span>
         <span className="text-muted-foreground text-xs">{variable.type.toLowerCase()}</span>
       </span>
       {variable.type === 'NUMBER' ? (
@@ -638,11 +640,57 @@ function Value({ name, variable, value, onChange }: { name: string; variable: Va
           ))}
         </span>
       ) : variable.type === 'TEMPORAL' ? (
-        <Input type="datetime-local" value={String(value).slice(0, 16)} onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : NOW)} />
+        <DateTimePicker value={String(value)} onChange={onChange} />
       ) : (
         <Input value={String(value)} onChange={(e) => onChange(e.target.value)} />
       )}
     </label>
+  )
+}
+
+function DateTimePicker({ value, onChange }: { value: string; onChange: (value: unknown) => void }) {
+  const [open, setOpen] = useState(false)
+  const parsed = new Date(value)
+  const date = Number.isNaN(parsed.getTime()) ? new Date(NOW) : parsed
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  const update = (next: Date) => onChange(next.toISOString())
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger render={<Button type="button" variant="outline" className="w-full justify-start font-normal" />}>
+        <CalendarIcon className="text-muted-foreground" />
+        {date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto gap-0 overflow-hidden p-0">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={(selected) => {
+            if (!selected) return
+            const next = new Date(selected)
+            next.setHours(date.getHours(), date.getMinutes(), 0, 0)
+            update(next)
+          }}
+        />
+        <div className="flex items-end gap-2 border-t p-3">
+          <label className="grid flex-1 gap-1 text-xs font-medium">
+            Time
+            <Input
+              type="time"
+              value={time}
+              onChange={(event) => {
+                if (!event.target.value) return
+                const [hours, minutes] = event.target.value.split(':').map(Number)
+                const next = new Date(date)
+                next.setHours(hours, minutes, 0, 0)
+                update(next)
+              }}
+            />
+          </label>
+          <Button type="button" size="sm" onClick={() => setOpen(false)}>Done</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -662,8 +710,7 @@ function fallback(variable: Variable): unknown {
 }
 
 /** §8's log, newest first. A revert writes a new revision rather than rewriting one. */
-function History({ locale, revisions, events, approved, onRestore, busy }: {
-  locale: string
+function History({ revisions, events, approved, onRestore, busy }: {
   revisions: Revision[]
   events: Detail['events']
   approved: number | null
@@ -671,20 +718,15 @@ function History({ locale, revisions, events, approved, onRestore, busy }: {
   busy: boolean
 }) {
   const actions = new Map(events.map((e) => [e.revisionId, e.action]))
-  if (!revisions.length) return null
+  if (!revisions.length) return <p className="text-muted-foreground text-sm">Nothing written in this language yet.</p>
   return (
-    <details className="group card mt-3 px-5 py-4">
-      <summary className="font-heading flex w-fit cursor-pointer list-none items-baseline gap-2 text-base font-bold tracking-[-0.02em] select-none [&::-webkit-details-marker]:hidden">
-        <span aria-hidden className="inline-block w-4 transition-transform group-open:rotate-45">+</span>
-        History <span className="text-muted-foreground font-sans text-sm font-medium tracking-normal">{revisions.length} {revisions.length === 1 ? 'revision' : 'revisions'}</span>
-      </summary>
-      <ul className="mt-4 grid gap-2" style={ink(locale)}>
+      <ul className="divide-y">
         {[...revisions].reverse().map((r) => (
-          <li key={r.id} className="grid gap-2 rounded-lg border px-4 py-3.5">
+          <li key={r.id} className="grid gap-2 py-3.5 first:pt-0">
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <Badge className="capitalize">{(actions.get(r.id) ?? 'edit').toLowerCase()}</Badge>
               {r.machine && <Badge>API key</Badge>}
-              {r.id === approved && <Badge dot="bg-emerald-500" className="bg-foreground text-background">Live</Badge>}
+              {r.id === approved && <Badge className="bg-foreground text-background">Live</Badge>}
               <span className="text-muted-foreground ml-auto">{day.format(new Date(r.createdAt))}</span>
               {r.id !== approved && (
                 <Button variant="ghost" size="sm" disabled={busy} onClick={() => onRestore(r.id)}>
@@ -692,12 +734,11 @@ function History({ locale, revisions, events, approved, onRestore, busy }: {
                 </Button>
               )}
             </div>
-            <pre className="line-clamp-3 font-mono text-[0.8125rem] leading-relaxed whitespace-pre-wrap">
+            <pre className="line-clamp-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
               <Highlight source={r.payload.pattern} />
             </pre>
           </li>
         ))}
       </ul>
-    </details>
   )
 }

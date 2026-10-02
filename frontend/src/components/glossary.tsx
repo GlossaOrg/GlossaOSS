@@ -4,6 +4,7 @@ import { PlusIcon, Trash2Icon } from 'lucide-react'
 import { Select } from '@/components/kit'
 import { Flag, languageName } from '@/components/locale'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
@@ -33,7 +34,7 @@ export function Glossary() {
       <header className="mb-5 flex flex-wrap items-end justify-between gap-6">
         <div>
           <h2>Glossary</h2>
-          <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem] text-pretty">
+          <p className="text-muted-foreground mt-1.5 max-w-[72ch] text-sm">
             Terms every translation should agree on. Translators see the ones a message uses, and AI suggestions follow them.
           </p>
         </div>
@@ -70,28 +71,45 @@ const columns = 'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-
 
 function Row({ term, projectId }: { term: Term; projectId: number }) {
   const client = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
   const remove = useMutation({
     mutationFn: () => api(`/api/projects/${projectId}/glossary/${term.id}`, { method: 'DELETE' }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['glossary', projectId] }),
+    onSuccess: () => {
+      setConfirming(false)
+      return client.invalidateQueries({ queryKey: ['glossary', projectId] })
+    },
   })
   return (
-    <div className={`group/row ${columns}`}>
-      <span className="truncate font-semibold">{term.term}</span>
-      <span className="text-muted-foreground flex items-center gap-2 text-sm md:order-none">
-        {term.locale ? <><Flag locale={term.locale} className="size-4" />{languageName(term.locale)}</> : 'Every language'}
-      </span>
-      <span className="truncate text-sm">{term.translation ?? <span className="text-muted-foreground">Kept as it is</span>}</span>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={`Remove ${term.term}`}
-        disabled={remove.isPending}
-        onClick={() => remove.mutate()}
-        className="text-muted-foreground hover:text-destructive justify-self-end transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:focus-visible:opacity-100"
-      >
-        <Trash2Icon />
-      </Button>
-    </div>
+    <>
+      <div className={`group/row ${columns}`}>
+        <span className="truncate font-semibold">{term.term}</span>
+        <span className="text-muted-foreground flex items-center gap-2 text-sm md:order-none">
+          {term.locale ? <><Flag locale={term.locale} className="size-4" />{languageName(term.locale)}</> : 'Every language'}
+        </span>
+        <span className="truncate text-sm">{term.translation ?? <span className="text-muted-foreground">Kept as it is</span>}</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Remove ${term.term}`}
+          disabled={remove.isPending}
+          onClick={() => setConfirming(true)}
+          className="text-muted-foreground hover:text-destructive justify-self-end transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:focus-visible:opacity-100"
+        >
+          <Trash2Icon />
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={`Remove “${term.term}”?`}
+        description="Translations will stop receiving this glossary guidance. This cannot be undone."
+        action="Remove term"
+        pending={remove.isPending}
+        icon={<Trash2Icon />}
+        error={(remove.error as { detail?: string } | null)?.detail}
+        onConfirm={() => remove.mutate()}
+      />
+    </>
   )
 }
 

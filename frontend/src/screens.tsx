@@ -3,7 +3,6 @@ import { BookOpenIcon, HouseIcon, KeyRoundIcon, LanguagesIcon, MessagesSquareIco
 import { Content } from '@/components/content-board'
 import { Home } from '@/components/home'
 import { covers, useProject, type Role } from '@/lib/projects'
-import { plugin } from '@/plugin'
 
 /**
  * A sidebar entry and the route behind it. `role` is the least project role that may open it;
@@ -23,7 +22,7 @@ const Releases = lazy(() => import('@/components/releases').then((m) => ({ defau
 const MessageEditor = lazy(() => import('@/components/message-editor').then((m) => ({ default: m.MessageEditor })))
 const NewMessage = lazy(() => import('@/components/message-editor').then((m) => ({ default: m.NewMessage })))
 
-const core: Screen[] = [
+const screens: Screen[] = [
   { title: 'Home', url: '/', icon: HouseIcon, element: <Home /> },
   { title: 'Content', url: '/content', icon: MessagesSquareIcon, element: <Content /> },
   { title: 'New message', url: '/content/new', icon: MessagesSquareIcon, element: <NewMessage />, role: 'MANAGER', hidden: true },
@@ -33,10 +32,6 @@ const core: Screen[] = [
   { title: 'Releases', url: '/releases', icon: RocketIcon, element: <Releases />, role: 'MANAGER' },
   { title: 'API keys', url: '/keys', icon: KeyRoundIcon, element: <ApiKeys />, role: 'MANAGER' },
 ]
-
-// A plugin's screens come first and take the url, so a plugin can replace a core screen.
-const claimed = new Set((plugin.screens ?? []).map((screen) => screen.url))
-const screens: Screen[] = [...(plugin.screens ?? []), ...core.filter((screen) => !claimed.has(screen.url))]
 
 /**
  * The one permission gate of the frontend: the screens the caller may open on the selected project. The sidebar lists exactly these and the router routes exactly these, so a screen

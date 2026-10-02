@@ -3,9 +3,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { PlusIcon, Trash2Icon } from 'lucide-react'
 import { cn } from 'cn'
-import { Badge, Select } from '@/components/kit'
-import { Flag, languageName } from '@/components/locale'
+import { Badge } from '@/components/kit'
+import { Flag, languageName, LocaleSelect } from '@/components/locale'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
@@ -30,7 +31,7 @@ export function Locales() {
       <header className="mb-5 flex flex-wrap items-end justify-between gap-6">
         <div>
           <h2>Locales</h2>
-          <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem] text-pretty">
+          <p className="text-muted-foreground mt-1.5 max-w-[72ch] text-sm">
             {source
               ? `Content is written in ${languageName(source.locale)}, then translated. Where a translation is missing, its fallback shows instead.`
               : 'Start with the language content is written in.'}
@@ -103,7 +104,13 @@ function Row({ locale, all, projectId }: { locale: Locale; all: Locale[]; projec
     mutationFn: (fallbackLocale: string | null) => api(path, { method: 'PUT', json: { source: locale.source, fallbackLocale } }),
     onSuccess: settle,
   })
-  const remove = useMutation({ mutationFn: () => api(path, { method: 'DELETE' }), onSuccess: settle })
+  const remove = useMutation({
+    mutationFn: () => api(path, { method: 'DELETE' }),
+    onSuccess: () => {
+      setConfirming(false)
+      return settle()
+    },
+  })
 
   // A fallback may not cycle, and the server is the one that guarantees it; the options just
   // never offer a locale that already falls back here.
@@ -114,7 +121,7 @@ function Row({ locale, all, projectId }: { locale: Locale; all: Locale[]; projec
     return false
   }
   const options = all.filter((l) => l.locale !== locale.locale && !reaches(l.locale))
-  const failure = (save.error ?? remove.error) as { detail?: string } | null
+  const failure = save.error as { detail?: string } | null
 
   return (
     <div className="group/row py-5">
@@ -126,17 +133,15 @@ function Row({ locale, all, projectId }: { locale: Locale; all: Locale[]; projec
         </span>
         <span className="col-span-2 col-start-2 row-start-2 md:col-span-1 md:col-start-auto md:row-start-auto">
           <span className="eyebrow mb-1 block">Falls back to</span>
-          <Select
+          <LocaleSelect
             className="w-48"
-            lead={locale.fallbackLocale && <Flag locale={locale.fallbackLocale} className="size-4" />}
-            value={locale.fallbackLocale ?? ''}
+            value={locale.fallbackLocale}
+            options={options}
+            emptyLabel="Nothing"
             disabled={save.isPending}
-            aria-label={`${languageName(locale.locale)} falls back to`}
-            onChange={(e) => save.mutate(e.target.value || null)}
-          >
-            <option value="">Nothing</option>
-            {options.map((l) => <option key={l.locale} value={l.locale}>{languageName(l.locale)}</option>)}
-          </Select>
+            label={`${languageName(locale.locale)} falls back to`}
+            onChange={(fallback) => save.mutate(fallback)}
+          />
         </span>
         <span className="col-span-2 col-start-2 row-start-3 md:col-span-1 md:col-start-auto md:row-start-auto">
           <Forms cardinal={locale.cardinal} ordinal={locale.ordinal} />
@@ -147,28 +152,24 @@ function Row({ locale, all, projectId }: { locale: Locale; all: Locale[]; projec
             size="icon"
             aria-label={`Remove ${languageName(locale.locale)}`}
             onClick={() => setConfirming(true)}
-            className={cn('text-muted-foreground hover:text-destructive transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:focus-visible:opacity-100', confirming && 'md:opacity-100')}
+            className="text-muted-foreground hover:text-destructive transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:focus-visible:opacity-100"
           >
             <Trash2Icon />
           </Button>
         </span>
       </div>
 
-      <AnimatePresence initial={false}>
-        {confirming && (
-          <motion.div {...unfold} className="overflow-hidden">
-            <div className="border-destructive/30 bg-destructive/5 mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border py-3 pr-3 pl-4 text-sm">
-              <p className="min-w-60 flex-1">
-                Every translation, release and history entry in {languageName(locale.locale)} goes with it. This cannot be undone.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>Cancel</Button>
-                <Button variant="destructive" size="sm" disabled={remove.isPending} onClick={() => remove.mutate()}>Remove {languageName(locale.locale)}</Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={`Remove ${languageName(locale.locale)}?`}
+        description={<>Every translation, release and history entry in this language goes with it. This cannot be undone.</>}
+        action={`Remove ${languageName(locale.locale)}`}
+        pending={remove.isPending}
+        icon={<Trash2Icon />}
+        error={(remove.error as { detail?: string } | null)?.detail}
+        onConfirm={() => remove.mutate()}
+      />
       {failure ? <p role="alert" className="text-destructive mt-2 text-xs">{failure.detail ?? 'Could not save.'}</p> : null}
     </div>
   )

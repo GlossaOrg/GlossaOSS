@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { CheckIcon, Columns2Icon, CopyIcon, LayoutTemplateIcon, PlusIcon, Redo2Icon, SearchIcon, SparklesIcon, SquareIcon, Undo2Icon } from 'lucide-react'
 import { cn } from 'cn'
 import { Badge } from '@/components/kit'
-import { Language, tint } from '@/components/locale'
+import { Language } from '@/components/locale'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -11,29 +11,23 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAi } from '@/lib/ai'
-import { counting, lex, type Contract, type Kind, type Locale } from '@/lib/content'
+import { counting, lex, typeTint, type Contract, type Kind, type Locale } from '@/lib/content'
 import { library } from '@/lib/templates'
 
-/**
- * Syntax in ink, and what a message fills in on the pastel of the language it is written in: the
- * caller sets `--hl` (see `ink`) on whatever holds a `Highlight`.
- */
+/** One colour per kind of token, so a pattern is read at a glance rather than parsed by hand. */
 const tone: Record<Exclude<Kind, 'brace'>, string> = {
   text: '',
   comma: 'text-muted-foreground/60',
-  quote: 'text-muted-foreground/60',
-  name: 'text-on-tint rounded-[4px] bg-(--hl) font-semibold',
-  type: 'text-muted-foreground',
-  style: 'text-muted-foreground',
-  arm: 'font-semibold',
-  hash: 'text-on-tint rounded-[4px] bg-(--hl) font-semibold',
+  quote: 'text-slate-400 dark:text-slate-500',
+  name: 'rounded-[3px] bg-sky-100/80 text-sky-800 dark:bg-sky-400/15 dark:text-sky-200',
+  type: 'text-violet-600 dark:text-violet-300',
+  style: 'text-rose-600 dark:text-rose-300',
+  arm: 'text-emerald-700 dark:text-emerald-300',
+  hash: 'rounded-[3px] bg-amber-100/80 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200',
 }
 
-/** Where a `Highlight` is shown: `--hl` for its arguments, the pastel of `locale`, or a light wash over one. */
-export const ink = (locale?: string) => ({ '--hl': locale ? tint(locale) : 'rgb(255 255 255 / 0.7)' }) as React.CSSProperties
-
-/** Matching braces alternate between two weights of ink, so the eye pairs them without counting. */
-const braces = ['text-foreground font-semibold', 'text-muted-foreground font-semibold']
+/** Matching braces share a colour, so the eye pairs them without counting. */
+const braces = ['text-brand-strong', 'text-violet-500', 'text-sky-500', 'text-amber-500', 'text-rose-500']
 
 /** The pattern as coloured spans; `error` marks the character the server pointed at, if it did. */
 export function Highlight({ source, error }: { source: string; error?: number }) {
@@ -93,7 +87,7 @@ function snippets(locale: Locale): { title: string; items: Snippet[] }[] {
  * checks it as it is typed, and anything with syntax to it can be inserted or started from a
  * template rather than remembered.
  */
-export function IcuEditor({ role, value, onChange, locale, variables, problem, missing, checking, error, templates, reference, suggest }: {
+export function IcuEditor({ role, value, onChange, locale, variables, problem, missing, error, templates, reference, suggest }: {
   role: 'Source' | 'Translation'
   value: string
   onChange: (value: string) => void
@@ -102,7 +96,6 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
   variables?: Contract
   problem: string | null
   missing: string[]
-  checking: boolean
   error?: number
   /** Only while a message is first written: an existing one is edited, not restarted. */
   templates?: boolean
@@ -181,22 +174,19 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
   const blank = !value.trim()
 
   return (
-    // The side column is always mounted and its width animates, so closing it never leaves it hanging
-    // under the editor for a frame the way an unmounting pane did.
     <div
       className={cn(
-        'grid gap-3 lg:gap-0 lg:transition-[grid-template-columns] lg:duration-300 lg:ease-[cubic-bezier(0.2,0,0,1)]',
-        pane && (reference ? (open ? 'lg:grid-cols-[1fr_1fr]' : 'lg:grid-cols-[0fr_1fr]') : open ? 'lg:grid-cols-[27rem_1fr]' : 'lg:grid-cols-[0rem_1fr]'),
+        'grid gap-3 lg:gap-0',
+        pane && open && (reference ? 'lg:grid-cols-2' : 'lg:grid-cols-[27rem_1fr]'),
       )}
     >
-      {pane && (
-        <div inert={!open} className={cn('flex min-w-0 overflow-hidden transition-opacity duration-200 lg:pr-3', open ? 'opacity-100' : 'opacity-0 max-lg:hidden')}>
-          {reference ? <Reference locale={reference.locale} pattern={reference.pattern} /> : <Templates locale={locale.locale} onPick={(pattern) => write(pattern, undefined, true)} />}
+      {pane && open && (
+        <div className="flex min-w-0 overflow-hidden lg:pr-3">
+          {reference ? <Reference locale={reference.locale} pattern={reference.pattern} /> : <Templates onPick={(pattern) => write(pattern, undefined, true)} />}
         </div>
       )}
 
-      {/* The language being written tops its pane in its own colour, so nobody types into the wrong one. */}
-      <section className="bg-card flex min-w-0 flex-col overflow-hidden rounded-xl">
+      <section className="card flex h-full w-full min-w-0 flex-col overflow-hidden">
         <header className="flex min-h-14 flex-wrap items-center gap-1 border-b px-4 py-2">
           {/* Beside a source, the pane being written in needs no label: it is the other one. */}
           <Pane role={reference ? undefined : role} locale={locale.locale} />
@@ -236,8 +226,10 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
                     <DropdownMenuLabel>Variables</DropdownMenuLabel>
                     {Object.entries(variables).map(([name, variable]) => (
                       <DropdownMenuItem key={name} onClick={() => (queued.current = () => write(`{${name}}`))}>
-                        <span className="font-mono text-[0.8125rem]">{name}</span>
-                        <DropdownMenuShortcut>{variable.type.toLowerCase()}</DropdownMenuShortcut>
+                        <span className="font-mono text-xs">{name}</span>
+                        <DropdownMenuShortcut>
+                          <span className={cn('rounded px-1 text-[10px]', typeTint[variable.type])}>{variable.type.toLowerCase()}</span>
+                        </DropdownMenuShortcut>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuGroup>
@@ -248,7 +240,7 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
                 <>
                   <DropdownMenuGroup>
                     <DropdownMenuItem onClick={() => (queued.current = () => write('{name}', 'name'))}>
-                      <span className="font-mono text-[0.8125rem]">{'{variable}'}</span>
+                      <span className="font-mono text-xs">{'{variable}'}</span>
                       <DropdownMenuShortcut>text</DropdownMenuShortcut>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
@@ -301,7 +293,7 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
             the height, so the two can never scroll apart. Both must wrap identically. */}
         <div
           className={cn(
-            'relative min-h-48 flex-1 font-mono text-[0.9062rem] leading-[1.8] transition-shadow duration-500',
+            'relative min-h-48 flex-1 font-mono text-sm leading-[1.8] transition-shadow duration-500',
             landed && 'ring-foreground/30 ring-2 ring-inset',
           )}
         >
@@ -329,7 +321,7 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
               </motion.div>
             )}
           </AnimatePresence>
-          <pre aria-hidden dir={locale.rtl ? 'rtl' : undefined} style={ink(locale.locale)} className="m-0 p-5 break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
+          <pre aria-hidden dir={locale.rtl ? 'rtl' : undefined} className="m-0 p-5 break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
             <Highlight source={value} error={error} />
             {'\n'}
           </pre>
@@ -345,40 +337,35 @@ export function IcuEditor({ role, value, onChange, locale, variables, problem, m
           />
         </div>
 
-        <footer className={cn('flex items-start gap-2.5 border-t px-5 py-3 text-sm', problem && !blank ? 'bg-destructive/6 text-destructive' : 'text-muted-foreground')}>
-          <span className={cn('mt-2 size-1.5 shrink-0 rounded-full', blank || (checking && !problem) ? 'bg-muted-foreground/40' : problem ? 'bg-destructive' : missing.length ? 'bg-amber-500' : 'bg-emerald-500', checking && 'motion-safe:animate-pulse')} />
-          <span className="min-w-0">
-            {problem ??
-              (checking
-                ? 'Checking…'
-                : missing.length
-                ? `Saves fine. ${locale.locale} also needs ${missing.join(', ')} before the catalog publishes.`
-                : 'Every form this locale needs is here. Ready to publish.')}
-          </span>
-        </footer>
+        {/* Only what is wrong is worth a line: a pattern that is fine says nothing. */}
+        {(problem || missing.length > 0) && !blank && (
+          <footer className={cn('border-t px-5 py-3 text-sm', problem ? 'bg-destructive/6 text-destructive' : 'text-amber-700 dark:text-amber-300')}>
+            {problem ?? `Saves fine. ${locale.locale} still needs ${missing.join(', ')} before the catalog publishes.`}
+          </footer>
+        )}
       </section>
     </div>
   )
 }
 
-/** Which language a pane holds, said with its colour and its name rather than in small grey capitals. */
+/** Which language a pane holds, said with its flag and its name rather than in small grey capitals. */
 function Pane({ role, locale }: { role?: string; locale: string }) {
   return (
-    <span className="flex min-w-0 items-center gap-2 text-[0.9375rem]">
+    <span className="flex min-w-0 items-center gap-2 text-sm">
       <Language locale={locale} tag={!!role} className="font-semibold" />
       {role && <Badge className="bg-foreground/[0.07]">{role}</Badge>}
     </span>
   )
 }
 
-/** The source beside its translation, on its own pastel: read-only, set in the same type so lines can be compared. */
+/** The source beside its translation: read-only, set in the same type so lines can be compared. */
 function Reference({ locale, pattern }: { locale: Locale; pattern: string }) {
   return (
-    <section className="text-on-tint flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl" style={{ background: tint(locale.locale) }}>
-      <header className="flex h-14 items-center border-b border-black/8 px-5">
+    <section className="card flex h-full w-full min-w-0 flex-col overflow-hidden">
+      <header className="flex h-14 items-center border-b px-5">
         <Pane role="Source" locale={locale.locale} />
       </header>
-      <pre dir={locale.rtl ? 'rtl' : undefined} style={ink()} className="m-0 flex-1 p-5 font-mono text-[0.9062rem] leading-[1.8] break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
+      <pre dir={locale.rtl ? 'rtl' : undefined} className="m-0 flex-1 p-5 font-mono text-sm leading-[1.8] break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
         <Highlight source={pattern} />
       </pre>
     </section>
@@ -386,7 +373,7 @@ function Reference({ locale, pattern }: { locale: Locale; pattern: string }) {
 }
 
 /** Categories down the side, their templates beside them; a search looks through all of them at once. */
-function Templates({ onPick, locale }: { onPick: (pattern: string) => void; locale: string }) {
+function Templates({ onPick }: { onPick: (pattern: string) => void }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(library[0].name)
   const needle = query.trim().toLowerCase()
@@ -396,7 +383,7 @@ function Templates({ onPick, locale }: { onPick: (pattern: string) => void; loca
     : all.filter((template) => template.group === category)
 
   return (
-    <aside style={ink(locale)} className="bg-card flex h-[38rem] min-w-0 flex-1 flex-col overflow-hidden rounded-xl">
+    <aside className="card flex h-[38rem] min-w-0 flex-1 flex-col overflow-hidden">
       <label className="relative border-b p-3">
         <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-6 size-4 -translate-y-1/2" />
         <input
@@ -419,8 +406,8 @@ function Templates({ onPick, locale }: { onPick: (pattern: string) => void; loca
                   setQuery('')
                 }}
                 className={cn(
-                  'link-bg-animated flex h-8 cursor-pointer items-center gap-2 rounded-md px-2.5 text-left text-[0.8438rem] font-medium',
-                  active ? 'bg-brand/8 text-brand' : 'text-muted-foreground hover:text-foreground',
+                  'link-bg-animated flex h-8 cursor-pointer items-center gap-2 rounded-md px-2.5 text-left text-sm font-medium',
+                  active ? 'bg-brand text-foreground' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 <span className="min-w-0 flex-1 truncate">{group.name}</span>
@@ -437,7 +424,7 @@ function Templates({ onPick, locale }: { onPick: (pattern: string) => void; loca
                 onClick={() => onPick(template.pattern)}
                 className="hover:border-foreground/30 grid w-full cursor-pointer gap-1 rounded-lg border p-3.5 text-left transition-[border-color,transform] duration-200 motion-safe:hover:-translate-y-px"
               >
-                <span className="truncate text-[0.9062rem] font-medium">{template.name}</span>
+                <span className="truncate text-sm font-medium">{template.name}</span>
                 <span className="text-muted-foreground text-xs">{needle ? `${template.group} · ${template.description}` : template.description}</span>
                 <code className="mt-1 line-clamp-2 font-mono text-xs leading-relaxed">
                   <Highlight source={template.pattern.replace(/\n\s*/g, ' ')} />

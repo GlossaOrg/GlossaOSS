@@ -10,7 +10,7 @@ import {
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Flag } from '@/components/locale'
 import { useLocales } from '@/lib/content'
-import { useProject } from '@/lib/projects'
+import { roles, useProject } from '@/lib/projects'
 import { useWorkspace } from '@/store/workspace'
 
 /** The project the rest of the app is scoped to (§5), wearing the flags of the languages it speaks. */
@@ -25,11 +25,14 @@ export function WorkspaceSwitcher() {
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<SidebarMenuButton size="lg" className="bg-sidebar-accent hover:bg-accent data-open:bg-accent h-auto gap-3 rounded-lg px-3 py-2.5" />}
+            render={<SidebarMenuButton size="lg" className="bg-sidebar-accent hover:bg-accent data-open:bg-accent h-auto gap-3 rounded-xl px-2.5 py-2 shadow-[0_1px_2px_rgb(16_16_24/0.05)] ring-1 ring-sidebar-border" />}
           >
+            <span className="bg-primary text-primary-foreground grid size-9 shrink-0 place-items-center rounded-lg font-heading text-sm font-extrabold uppercase">
+              {project?.name.slice(0, 1) ?? '–'}
+            </span>
             <span className="grid flex-1 gap-1 text-left leading-tight">
-              <span className="truncate text-[0.875rem] font-bold">{project?.name ?? 'No project'}</span>
-              <span className="text-muted-foreground flex min-w-0 items-center gap-2 text-[12.5px]">
+              <span className="truncate text-sm font-bold">{project?.name ?? 'No project'}</span>
+              <span className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
                 {locales.length > 0 && (
                   <span className="flex shrink-0">
                     {locales.slice(0, 4).map((l, i) => (
@@ -44,14 +47,18 @@ export function WorkspaceSwitcher() {
             </span>
             <ChevronsUpDownIcon className="text-muted-foreground ml-auto size-4" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="min-w-56" align="start" side="bottom" sideOffset={6}>
+          <DropdownMenuContent className="min-w-64 p-2" align="start" side="bottom" sideOffset={6}>
             <DropdownMenuGroup>
-              <DropdownMenuLabel>Projects</DropdownMenuLabel>
+              <DropdownMenuLabel className="px-2 pt-1 pb-2">Projects</DropdownMenuLabel>
               {projects.data?.length ? (
                 projects.data.map((p) => (
-                  <DropdownMenuItem key={p.id} onClick={() => select(p.id, null)}>
-                    <span className="flex-1 truncate">{p.name}</span>
-                    {p.id === project?.id && <CheckIcon className="size-4" />}
+                  <DropdownMenuItem key={p.id} className="h-auto py-2" onClick={() => select(p.id, null)}>
+                    <span className="bg-secondary grid size-8 shrink-0 place-items-center rounded-lg font-heading text-xs font-extrabold uppercase">{p.name.slice(0, 1)}</span>
+                    <span className="grid min-w-0 flex-1 text-left">
+                      <span className="truncate font-semibold">{p.name}</span>
+                      <span className="text-muted-foreground text-xs">{roles.find((role) => role.value === p.role)?.label}</span>
+                    </span>
+                    {p.id === project?.id && <CheckIcon className="text-brand-strong size-4" />}
                   </DropdownMenuItem>
                 ))
               ) : (
