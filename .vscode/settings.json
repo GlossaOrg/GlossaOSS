@@ -1,0 +1,8 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    // The Java language server's builder writes to backend/target/classes, the very directory
+    // dev.sh runs the app from, and wipes it before each build. A running app then loses a class
+    // it had not loaded yet — the request dies with no response, which reaches the browser as a
+    // Vite "socket hang up". Editing features do not need it.
+    "java.autobuild.enabled": false
+}

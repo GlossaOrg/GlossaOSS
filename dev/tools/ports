@@ -1,0 +1,43 @@
+# Sourced by ../../dev.sh and ./mint; nothing here runs on its own.
+#
+# A Glossa left running from an earlier session is the expensive failure: it still answers on the
+# app's port, so `mint` mistakes its 401 for its own app being ready and seeds that process — which
+# points at the database `mint` has just thrown away. Vite is louder about it (5173 is taken and the
+# app refuses to boot) but by then `mint` has already gone the wrong way. So nothing starts until
+# the ports this stack binds are free; `--force` stops whatever holds them instead of refusing.
+
+# The pid listening on a TCP port, without lsof, ss or fuser — none of them is on every dev box, and
+# this one is: /proc/net/tcp names the socket's inode, and the process holding it has it open.
+# Prints `?` for a listener that belongs to another user, whose /proc we cannot read.
+listener() {
+    local inode fd
+    inode=$(awk -v p=":$(printf '%04X' "$1")" '$4 == "0A" && $2 ~ p"$" { print $10; exit }' /proc/net/tcp /proc/net/tcp6 2>/dev/null)
+    [ -n "$inode" ] || return 0
+    for fd in /proc/[0-9]*/fd/*; do
+        [ "$(readlink "$fd" 2>/dev/null)" = "socket:[$inode]" ] && { echo "$fd" | cut -d/ -f3; return 0; }
+    done
+    echo '?'
+}
+
+# ports_free [--force] <port>...: 0 when every port is free (or was freed), 1 when one is not.
+ports_free() {
+    local force= port pid held
+    [ "${1:-}" = --force ] && { force=1; shift; }
+    for port in "$@"; do
+        pid=$(listener "$port")
+        [ -n "$pid" ] || continue
+        if [ -z "$force" ] || [ "$pid" = '?' ]; then
+            echo "Port $port is already in use${pid:+ by pid $pid: $(ps -p "$pid" -o args= 2>/dev/null | cut -c1-70)}" >&2
+            echo "Stop it first, or pass --force to have it stopped for you." >&2
+            return 1
+        fi
+        kill "$pid" 2>/dev/null || true
+        for held in 1 2 3 4 5 6 7 8 9 10; do
+            [ -z "$(listener "$port")" ] && break
+            sleep 0.5
+        done
+        [ -n "$(listener "$port")" ] && { kill -9 "$pid" 2>/dev/null || true; sleep 1; }
+        [ -n "$(listener "$port")" ] && { echo "Port $port is still in use by pid $pid." >&2; return 1; }
+        echo "Stopped pid $pid, which held port $port." >&2
+    done
+}

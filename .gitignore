@@ -5,6 +5,7 @@ dependency-reduced-pom.xml
 *.log
 .idea/
 *.iml
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .DS_Store
 web/dist/
