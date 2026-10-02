@@ -5,8 +5,8 @@ import { Spinner } from '@/components/ui/spinner'
  * The one loading and failure surface — everything that waits, waits like this, centred and
  * still. Anything that spins in a corner of its own is a bug, not a variant.
  *
- * <p>Exported rather than local to App because plugin screens (see `@/plugin`) wait too, and a
- * second spinner styled slightly differently is exactly what this replaces. Pass
+ * <p>Exported rather than local to App so every waiting screen uses this instead of growing a
+ * second spinner styled slightly differently. Pass
  * `className="min-h-svh"` when it stands alone outside the app shell.
  */
 export function Splash({

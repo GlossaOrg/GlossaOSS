@@ -6,22 +6,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Three roles, never mixed: ink, white cards on a grey canvas carry the structure, one lilac marks
-   whatever acts (buttons, the current entry, focus), and every other colour belongs to a language —
-   its flag, and the colour sampled from it (see `shade` in components/locale.tsx). */
+/* Three roles, never mixed: ink, white cards on a grey canvas carry the structure, one brand blue
+   marks whatever acts (buttons, the current entry, focus), and every other colour belongs to a
+   language — its flag, whose first chromatic SVG fill becomes its accent.
+   The brand is these two values and nothing else: change them and the whole app follows. */
 :root {
-    /* The lilac fill of whatever acts, and its stronger tone for thin marks: focus, bars, links. */
-    --brand: #DFC7F0;
-    --brand-strong: #A06CD5;
+    /* The fill of whatever acts, and its stronger tone for thin marks: focus, bars, links. */
+    --brand: #CBDEFB;
+    --brand-strong: #2563EB;
     /* The dark card: the one surface that inverts. */
     --ink: #1E2027;
     --on-tint: #0A0A0A;
 }
 
 @theme inline {
-    /* Floors for the small sizes, which the 14px root would otherwise push below legible. */
-    --text-xs: 0.8125rem;
-    --text-sm: 0.9375rem;
     --font-heading: 'Manrope Variable', sans-serif;
     --font-sans: 'Manrope Variable', sans-serif;
     --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
@@ -108,8 +106,8 @@
 }
 
 .dark {
-    --brand: #CDA8EC;
-    --brand-strong: #CDA8EC;
+    --brand: #A8C6F8;
+    --brand-strong: #A8C6F8;
     --ink: #000000;
     --background: #0E0E11;
     --foreground: #F2F2F4;
@@ -150,13 +148,13 @@
     }
   body {
     @apply bg-background text-foreground antialiased;
-    font-size: 0.9375rem;
+    font-size: 16px;
     line-height: 1.5;
     }
-  /* The one scale knob: every rem (spacing, controls, type) follows it. */
+  /* No root override: 1rem stays the browser's own 16px, so every size lands on whole pixels and
+     the type is rasterised the way the reader set it up to be. */
   html {
     @apply font-sans;
-    font-size: 14px;
     }
   h1, h2, h3, h4, h5 {
     @apply font-heading font-bold;
@@ -180,6 +178,13 @@
   @apply text-muted-foreground text-[11px] font-medium tracking-[0.07em] uppercase;
 }
 
+/* main's own: a nav icon shakes once when its entry is hovered. */
+@keyframes shake {
+  25% { transform: rotate(-12deg); }
+  50% { transform: rotate(9deg); }
+  75% { transform: rotate(-5deg); }
+}
+
 @keyframes float {
   50% { transform: translateY(-3px); }
 }
@@ -189,15 +194,15 @@
   to { background-position: -200% 0; }
 }
 
-/* What holds content: a white card on the grey canvas. */
+/* What holds content: a white card, lifted off the grey canvas rather than drawn onto it. */
 @utility card {
-  @apply bg-card text-card-foreground rounded-xl;
+  @apply bg-card text-card-foreground rounded-xl shadow-[0_1px_2px_rgb(16_16_24/0.04),0_6px_16px_-8px_rgb(16_16_24/0.10)] ring-1 ring-black/[0.04] dark:ring-white/8;
 }
 
 @utility page {
   /* The one width every screen's content shares, so edges do not jump between screens. The cap
      only bites on very wide monitors, where lines would otherwise run too long to read. */
-  @apply mx-auto w-full max-w-[84rem];
+  @apply mx-auto w-full max-w-[96rem];
 }
 
 /* A row rises a few pixels into place as it scrolls into view, so a scrolled list reads as moving.
@@ -237,4 +242,3 @@
     }
   }
 }
-

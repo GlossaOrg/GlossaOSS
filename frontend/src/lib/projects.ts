@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { plugin } from '@/plugin'
 import { useWorkspace } from '@/store/workspace'
 
 export type Role = 'READER' | 'TRANSLATOR' | 'REVIEWER' | 'MANAGER'
@@ -10,10 +9,7 @@ export type Project = { id: number; slug: string; name: string; role: Role }
 export function useProject() {
   const projects = useQuery({
     queryKey: ['projects'],
-    queryFn: async () => {
-      const all = await api<Project[]>('/api/projects')
-      return plugin.projects ? plugin.projects(all) : all
-    },
+    queryFn: () => api<Project[]>('/api/projects'),
   })
   const selected = useWorkspace((state) => state.projectId)
   return { projects, project: projects.data?.find((p) => p.id === selected) ?? projects.data?.[0] }

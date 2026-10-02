@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input'
 import { Splash } from '@/components/splash'
 import { api } from '@/lib/api'
 import { passwordProblem } from '@/lib/password'
-import { plugin } from '@/plugin'
 
 type LoginMethod = { id: string; name: string; url: string; kind: 'form' | 'redirect' }
 
@@ -50,13 +49,12 @@ export function SignIn({ refused }: { refused?: string } = {}) {
   const redirects = methods?.filter((m) => m.kind === 'redirect') ?? []
   const first = !!setup.data?.firstUser
   // Nothing to choose, and nothing to warn about: go straight to the only provider. Never when the
-  // server refused the session that provider just gave us — that is how a sign-in loop is made, and
-  // never when a plugin offers a way in of its own: then there is something to choose.
-  const straightThrough = !setup.isPending && !first && !refused && !form && redirects.length === 1 && !plugin.signIn
+  // server refused the session that provider just gave us — that is how a sign-in loop is made.
+  const straightThrough = !setup.isPending && !first && !refused && !form && redirects.length === 1 ? redirects[0].url + redirect : null
 
   useEffect(() => {
-    if (straightThrough) location.href = redirects[0].url + redirect
-  }, [straightThrough, redirects, redirect])
+    if (straightThrough) location.href = straightThrough
+  }, [straightThrough])
 
   if (!methods || setup.isPending || straightThrough) return <Splash className="min-h-svh">Redirecting to sign in…</Splash>
 
@@ -157,7 +155,7 @@ export function SignIn({ refused }: { refused?: string } = {}) {
           </form>
         )}
         {form && redirects.length > 0 && (
-          <div className="text-muted-foreground my-4 flex items-center gap-3 text-[0.8125rem]">
+          <div className="text-muted-foreground my-4 flex items-center gap-3 text-xs">
             <span className="bg-border h-px flex-1" />
             or
             <span className="bg-border h-px flex-1" />
@@ -169,7 +167,6 @@ export function SignIn({ refused }: { refused?: string } = {}) {
               Continue with {m.name}
             </Button>
           ))}
-          {plugin.signIn}
         </div>
         </>
         )}

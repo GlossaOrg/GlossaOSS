@@ -63,13 +63,13 @@ export function status(r: Resource): Status {
   return r.stale ? 'outdated' : 'approved'
 }
 
-/** Where a message stands in one locale. Colour belongs to languages, so a state is a dot. */
-export const states: { value: Status; label: string; says: string; dot: string }[] = [
-  { value: 'untranslated', label: 'To translate', says: 'Nothing written in this locale yet.', dot: 'bg-slate-400' },
-  { value: 'review', label: 'In review', says: 'A proposal is waiting for a reviewer.', dot: 'bg-amber-500' },
-  { value: 'rejected', label: 'Sent back', says: 'The last proposal was rejected.', dot: 'bg-rose-500' },
-  { value: 'outdated', label: 'Source moved', says: 'The source changed after this was approved.', dot: 'bg-violet-500' },
-  { value: 'approved', label: 'Approved', says: 'Live in the next catalog.', dot: 'bg-emerald-500' },
+/** Where a message stands in one locale, each state in its own tint: the colour is the label. */
+export const states: { value: Status; label: string; says: string; tint: string }[] = [
+  { value: 'untranslated', label: 'To translate', says: 'Nothing written in this locale yet.', tint: 'bg-slate-100 text-slate-800 dark:bg-slate-400/15 dark:text-slate-100' },
+  { value: 'review', label: 'In review', says: 'A proposal is waiting for a reviewer.', tint: 'bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-100' },
+  { value: 'rejected', label: 'Sent back', says: 'The last proposal was rejected.', tint: 'bg-rose-100 text-rose-900 dark:bg-rose-400/15 dark:text-rose-100' },
+  { value: 'outdated', label: 'Source moved', says: 'The source changed after this was approved.', tint: 'bg-violet-100 text-violet-900 dark:bg-violet-400/15 dark:text-violet-100' },
+  { value: 'approved', label: 'Approved', says: 'Live in the next catalog.', tint: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-100' },
 ]
 
 /** Whether a message waits on the caller in its locale: something to write, or for a reviewer something to decide. */
@@ -80,6 +80,15 @@ export function waiting(r: Resource, reviewer: boolean) {
 }
 
 export const state = (s: Status) => states.find((x) => x.value === s)!
+
+/** A variable's type, in the same palette the pattern is coloured with. */
+export const typeTint: Record<VariableType, string> = {
+  TEXT: 'bg-slate-100 text-slate-800 dark:bg-slate-400/20 dark:text-slate-100',
+  NUMBER: 'bg-sky-100 text-sky-900 dark:bg-sky-400/20 dark:text-sky-100',
+  TEMPORAL: 'bg-violet-100 text-violet-900 dark:bg-violet-400/20 dark:text-violet-100',
+  SELECT: 'bg-rose-100 text-rose-900 dark:bg-rose-400/20 dark:text-rose-100',
+  BOOLEAN: 'bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100',
+}
 
 export type Kind = 'text' | 'brace' | 'name' | 'type' | 'style' | 'arm' | 'hash' | 'quote' | 'comma'
 type Token = { text: string; kind: Kind; depth: number }
@@ -221,7 +230,7 @@ export function useDetail(projectId: number, id: number, locale?: string) {
   })
 }
 
-export type Progress = { locale: string; total: number; untranslated: number; review: number; rejected: number; outdated: number; approved: number; release: Release | null }
+export type Progress = { locale: string; total: number; untranslated: number; review: number; rejected: number; outdated: number; approved: number; current: boolean; release: Release | null }
 
 /**
  * Where every locale the caller may read stands, in one request. Keyed under `resources`, so every

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { BookOpenIcon, PlusIcon } from 'lucide-react'
+import { BanIcon, BookOpenIcon, PlusIcon, RotateCwIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { RoleBadge, Segmented } from '@/components/kit'
 import { OneTimeNote } from '@/components/one-time-note'
@@ -55,7 +56,7 @@ export function ApiKeys() {
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2>API keys</h2>
-          <p className="text-muted-foreground mt-1.5 text-[0.9375rem]">Services use these to reach {project.name} without signing in.</p>
+          <p className="text-muted-foreground mt-1.5 text-sm">Services use these to reach {project.name} without signing in.</p>
         </div>
         <Button onClick={() => setComposing(true)} disabled={composing}>
           <PlusIcon />
@@ -152,8 +153,21 @@ function KeyList({ keys, className, ...row }: { keys: Key[]; path: string; onIss
 function KeyRow({ k, path, onIssued, onRevoked }: { k: Key; path: string; onIssued: (key: IssuedKey) => void; onRevoked: () => void }) {
   const [confirming, setConfirming] = useState<'rotate' | 'revoke' | null>(null)
   // gcTime 0: a token must not outlive the note that shows it, not even in the mutation cache.
-  const rotate = useMutation({ mutationFn: () => api<IssuedKey>(`${path}/${k.id}/rotate`, { method: 'POST' }), onSuccess: onIssued, gcTime: 0 })
-  const revoke = useMutation({ mutationFn: () => api<void>(`${path}/${k.id}`, { method: 'DELETE' }), onSuccess: onRevoked })
+  const rotate = useMutation({
+    mutationFn: () => api<IssuedKey>(`${path}/${k.id}/rotate`, { method: 'POST' }),
+    onSuccess: (key) => {
+      setConfirming(null)
+      onIssued(key)
+    },
+    gcTime: 0,
+  })
+  const revoke = useMutation({
+    mutationFn: () => api<void>(`${path}/${k.id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      setConfirming(null)
+      onRevoked()
+    },
+  })
   const action = confirming === 'rotate' ? rotate : revoke
 
   return (
@@ -167,42 +181,30 @@ function KeyRow({ k, path, onIssued, onRevoked }: { k: Key; path: string; onIssu
           <p className="text-muted-foreground mt-0.5 text-sm">{lifetime(k)}</p>
         </div>
         {isActive(k) && (
-          <div className={cn('-mr-2 flex gap-1 transition-opacity', confirming && 'pointer-events-none opacity-0')}>
+          <div className="flex gap-1">
             <Button variant="ghost" size="sm" onClick={() => setConfirming('rotate')}>
+              <RotateCwIcon />
               Rotate
             </Button>
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => setConfirming('revoke')}>
+              <BanIcon />
               Revoke
             </Button>
           </div>
         )}
       </div>
-      <AnimatePresence initial={false}>
-        {confirming && (
-          <motion.div {...unfold} className="overflow-hidden">
-            <div className="border-destructive/30 bg-destructive/5 mt-3 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border py-3 pr-3 pl-4 text-sm">
-              <p className="min-w-60 flex-1">
-                {confirming === 'rotate'
-                  ? 'The old token stops working immediately.'
-                  : 'Anything using this key stops working. This cannot be undone.'}
-              </p>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="sm" onClick={() => setConfirming(null)}>
-                  Cancel
-                </Button>
-                <Button size="sm" variant={confirming === 'revoke' ? 'destructive' : 'default'} disabled={action.isPending} onClick={() => action.mutate()}>
-                  {confirming === 'rotate' ? 'Rotate key' : 'Revoke key'}
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {action.error && (
-        <p role="alert" className="text-destructive mt-2 text-sm">
-          {confirming === 'rotate' ? 'The key could not be rotated.' : 'The key could not be revoked.'} Reload the page and try again.
-        </p>
-      )}
+      <ConfirmDialog
+        open={confirming !== null}
+        onOpenChange={(open) => !open && setConfirming(null)}
+        title={confirming === 'rotate' ? `Rotate ${k.name}?` : `Revoke ${k.name}?`}
+        description={confirming === 'rotate' ? 'The old token stops working immediately.' : 'Anything using this key stops working. This cannot be undone.'}
+        action={confirming === 'rotate' ? 'Rotate key' : 'Revoke key'}
+        pending={action.isPending}
+        destructive={confirming === 'revoke'}
+        icon={confirming === 'rotate' ? <RotateCwIcon /> : <BanIcon />}
+        error={action.error ? `${confirming === 'rotate' ? 'The key could not be rotated.' : 'The key could not be revoked.'} Try again.` : undefined}
+        onConfirm={() => action.mutate()}
+      />
     </div>
   )
 }

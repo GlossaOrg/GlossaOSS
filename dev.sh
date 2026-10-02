@@ -3,14 +3,25 @@
 # Ctrl-C stops Glossa and leaves the backing services running for the next run.
 set -euo pipefail
 cd "$(dirname "$0")"
+# --force, anywhere in the arguments: stop whatever holds this stack's ports rather than refuse.
+force=
+kept=()
+for arg in "$@"; do
+  if [ "$arg" = --force ]; then force=--force; else kept+=("$arg"); fi
+done
+set -- ${kept[@]+"${kept[@]}"}
 # REQUIREMENTS §9 seals stored provider keys with this. A well-known value, so a fresh clone can
 # turn AI features on without generating one first; it is in git, so it protects nothing. A real
 # environment variable or a line in .env wins over it, and a deployment must set its own.
 if [ -z "${ENCRYPTION_KEY:-}" ] && ! grep -q '^ENCRYPTION_KEY=' .env 2>/dev/null; then
   export ENCRYPTION_KEY=Z2xvc3NhLWRldi1rZXktbm90LWZvci1yZWFsLXVzZSE=
 fi
+# Before anything binds: an app left over from an earlier run is what --force is for — see dev/tools/ports.
+source dev/tools/ports
+app_port=${PORT:-$(sed -n 's/^PORT=//p' .env 2>/dev/null)}
+ports_free $force "${app_port:-8080}" 5173
 if [ "${1:-}" = --mint ]; then
-  ./dev/tools/mint
+  ./dev/tools/mint $force
   shift
 fi
 # --build, not just up: a service here is built from dev/ (the realm and provider config baked

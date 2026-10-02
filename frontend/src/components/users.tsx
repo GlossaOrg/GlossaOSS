@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { PlusIcon } from 'lucide-react'
+import { KeyRoundIcon, PlusIcon, Trash2Icon, UserCheckIcon, UserXIcon, XCircleIcon } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { cn } from 'cn'
 import { Badge, RoleBadge, Segmented, Select } from '@/components/kit'
 import { OneTimeNote } from '@/components/one-time-note'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
@@ -38,10 +39,10 @@ type Call = { path: string; method: string; done: string }
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
 const states = {
-  ACTIVE: { label: 'Active', dot: 'bg-emerald-500' },
-  INVITED: { label: 'Invited', dot: 'bg-amber-400' },
-  DISABLED: { label: 'Disabled', dot: 'bg-muted-foreground/50' },
-  DELETED: { label: 'Deleted', dot: undefined },
+  ACTIVE: { label: 'Active', tint: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-100' },
+  INVITED: { label: 'Invited', tint: 'bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-100' },
+  DISABLED: { label: 'Disabled', tint: '' },
+  DELETED: { label: 'Deleted', tint: '' },
 }
 
 const expiries = [
@@ -123,7 +124,7 @@ export function Users() {
 }
 
 function AccountRow({ account, self, onLink, onChanged }: { account: Account; self: boolean; onLink: (link: { email: string; url: string }) => void; onChanged: () => void }) {
-  const [confirming, setConfirming] = useState<'delete' | 'cancel' | null>(null)
+  const [confirming, setConfirming] = useState<'delete' | 'cancel' | 'disable' | 'reset' | null>(null)
   const act = useMutation({
     mutationFn: (call: Call) => api<Invited | void>(call.path, { method: call.method }),
     onSuccess: (result, call) => {
@@ -136,6 +137,37 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
   })
   const run = (path: string, done: string, method = 'POST') => act.mutate({ path, method, done })
   const state = states[account.status]
+  const name = account.name || account.email
+  const confirmation = confirming ? {
+    cancel: {
+      title: 'Cancel this invitation?',
+      description: `The link sent to ${account.email} will stop working.`,
+      action: 'Cancel invitation',
+      icon: <XCircleIcon />,
+      call: { path: `/api/users/invites/${account.id}`, method: 'DELETE', done: `Invitation to ${account.email} cancelled.` },
+    },
+    delete: {
+      title: `Delete ${name}?`,
+      description: `${name} loses access and every project role. The account stays on record, so past changes keep their author.`,
+      action: 'Delete account',
+      icon: <Trash2Icon />,
+      call: { path: `/api/users/${account.id}`, method: 'DELETE', done: `${name} no longer has access.` },
+    },
+    disable: {
+      title: `Disable ${name}?`,
+      description: 'They will be signed out and unable to sign in until an administrator enables the account again.',
+      action: 'Disable account',
+      icon: <UserXIcon />,
+      call: { path: `/api/users/${account.id}/disable`, method: 'POST', done: `${name} is disabled and signs in nowhere.` },
+    },
+    reset: {
+      title: `Reset the password for ${name}?`,
+      description: 'The current password stops working. Send the new one-time link to this person after continuing.',
+      action: 'Reset password',
+      icon: <KeyRoundIcon />,
+      call: { path: `/api/users/${account.id}/password-reset?days=7`, method: 'POST', done: `Password reset. Send ${name} the link below.` },
+    },
+  }[confirming] : null
 
   return (
     <>
@@ -172,8 +204,8 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
         </td>
         <td className="py-4 pr-4">
           <span className="flex flex-wrap gap-1">
-            <Badge dot={state.dot} className={cn(account.status === 'DELETED' && 'line-through')}>{state.label}</Badge>
-            {account.passwordReset && <Badge dot="bg-amber-400">Choosing a password</Badge>}
+            <Badge className={cn(state.tint, account.status === 'DELETED' && 'line-through')}>{state.label}</Badge>
+            {account.passwordReset && <Badge>Choosing a password</Badge>}
           </span>
           <p className="text-muted-foreground mt-1 text-xs whitespace-nowrap">
             {account.invitation
@@ -184,16 +216,18 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
           </p>
         </td>
         <td className="py-4 text-right">
-          {!self && account.status !== 'DELETED' && !confirming && (
-            <div className="-mr-2 flex justify-end gap-1">
+          {!self && account.status !== 'DELETED' && (
+            <div className="flex justify-end gap-1">
               {account.invitation ? (
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => setConfirming('cancel')}>
+                  <XCircleIcon />
                   Cancel invite
                 </Button>
               ) : (
                 <>
                   {account.sources.includes('Password') && (
-                    <Button variant="ghost" size="sm" onClick={() => run(`/api/users/${account.id}/password-reset?days=7`, `Password reset. Send ${account.name || account.email} the link below.`)}>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirming('reset')}>
+                      <KeyRoundIcon />
                       Reset password
                     </Button>
                   )}
@@ -202,13 +236,15 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
                     size="sm"
                     onClick={() =>
                       account.status === 'DISABLED'
-                        ? run(`/api/users/${account.id}/enable`, `${account.name || account.email} can sign in again.`)
-                        : run(`/api/users/${account.id}/disable`, `${account.name || account.email} is disabled and signs in nowhere.`)
+                        ? run(`/api/users/${account.id}/enable`, `${name} can sign in again.`)
+                        : setConfirming('disable')
                     }
                   >
+                    {account.status === 'DISABLED' ? <UserCheckIcon /> : <UserXIcon />}
                     {account.status === 'DISABLED' ? 'Enable' : 'Disable'}
                   </Button>
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => setConfirming('delete')}>
+                    <Trash2Icon />
                     Delete
                   </Button>
                 </>
@@ -216,42 +252,25 @@ function AccountRow({ account, self, onLink, onChanged }: { account: Account; se
             </div>
           )}
           {self && <span className="text-muted-foreground text-xs">You</span>}
+          {act.error && !confirming && <p role="alert" className="text-destructive mt-2 text-xs">{(act.error as { detail?: string }).detail || 'Something went wrong. Try again.'}</p>}
+          <ConfirmDialog
+            open={confirmation !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setConfirming(null)
+                act.reset()
+              }
+            }}
+            title={confirmation?.title ?? ''}
+            description={confirmation?.description}
+            action={confirmation?.action ?? ''}
+            pending={act.isPending}
+            icon={confirmation?.icon}
+            error={(act.error as { detail?: string } | null)?.detail}
+            onConfirm={() => confirmation && run(confirmation.call.path, confirmation.call.done, confirmation.call.method)}
+          />
         </td>
       </tr>
-      {(confirming || act.error) && (
-        <tr>
-          <td colSpan={5} className="pb-4">
-            <div className="border-destructive/30 bg-destructive/5 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border py-3 pr-3 pl-4 text-sm">
-              <p className="min-w-60 flex-1">
-                {act.error
-                  ? (act.error as { detail?: string }).detail || 'Something went wrong. Reload and try again.'
-                  : confirming === 'cancel'
-                    ? `The link sent to ${account.email} will stop working.`
-                    : `${account.name || account.email} loses access and every project role. The account stays on record, so past changes keep their author.`}
-              </p>
-              {confirming && (
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => setConfirming(null)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={act.isPending}
-                    onClick={() =>
-                      confirming === 'cancel'
-                        ? run(`/api/users/invites/${account.id}`, `Invitation to ${account.email} cancelled.`, 'DELETE')
-                        : run(`/api/users/${account.id}`, `${account.name || account.email} no longer has access.`, 'DELETE')
-                    }
-                  >
-                    {confirming === 'cancel' ? 'Cancel invite' : 'Delete account'}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </td>
-        </tr>
-      )}
     </>
   )
 }

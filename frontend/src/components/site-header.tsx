@@ -1,53 +1,46 @@
 import { useState } from 'react'
 import { matchPath, useLocation, useNavigate } from 'react-router'
-import { CheckIcon, ChevronDownIcon, SettingsIcon, SparklesIcon, UsersIcon } from 'lucide-react'
+import { SettingsIcon, SparklesIcon, UsersIcon } from 'lucide-react'
 import { AiFeatures } from '@/components/ai'
 import { Logo } from '@/components/logo'
 import { NavUser } from '@/components/nav-user'
 import { SettingsDialog } from '@/components/settings'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Users } from '@/components/users'
 import { useMe } from '@/lib/me'
 import { useProject } from '@/lib/projects'
 import { useScreens } from '@/screens'
 
-const crumb = 'hover:bg-secondary data-popup-open:bg-secondary inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/20 [&>svg]:size-3.5 [&>svg]:opacity-50'
-
-/** The project, then the screen as a menu of the others. */
+/** Where you are: the project, the screen, and the one below it. The sidebar lists the screens. */
 function Crumbs() {
   const { project } = useProject()
   const screens = useScreens()
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const screen = screens.find((s) => matchPath(s.url, pathname))
-  // One message is still Content: the menu names the entry it sits under.
+  // One message is still Content: the crumb names the entry it sits under.
   const entry = screen?.hidden ? screens.find((s) => !s.hidden && s.url !== '/' && pathname.startsWith(s.url)) : screen
 
   return (
-    <nav aria-label="Breadcrumb" className="-ml-2 hidden min-w-0 items-center text-sm font-semibold md:flex">
-      {/* Switching project is the sidebar's job: the one a plugin may replace, and the one on phones. */}
-      <span className="text-muted-foreground truncate px-2">{project?.name ?? 'No project'}</span>
+    <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-2 text-sm font-semibold md:flex">
+      {/* Switching project is the sidebar's job, including on phones. */}
+      <span className="text-muted-foreground truncate">{project?.name ?? 'No project'}</span>
       {entry && (
         <>
-          <span className="text-muted-foreground/60 mx-0.5">/</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger className={crumb}>
-              {entry.title}
-              <ChevronDownIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="min-w-44" align="start" sideOffset={6}>
-              {screens.filter((s) => !s.hidden).map((s) => (
-                <DropdownMenuItem key={s.url} onClick={() => navigate(s.url)}>
-                  <s.icon />
-                  <span className="flex-1">{s.title}</span>
-                  {s === entry && <CheckIcon className="size-4" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {screen !== entry && <span className="text-muted-foreground/60 mx-0.5">/ <span className="text-foreground ml-1">{screen!.title}</span></span>}
+          <span className="text-muted-foreground/50">/</span>
+          {/* The screen a message sits under is the way back: no button repeats it. */}
+          {screen === entry ? (
+            <span className="truncate">{entry.title}</span>
+          ) : (
+            <>
+              <button type="button" onClick={() => navigate(entry.url)} className="hover:text-foreground text-muted-foreground cursor-pointer truncate">
+                {entry.title}
+              </button>
+              <span className="text-muted-foreground/50">/</span>
+              <span className="truncate">{screen!.title}</span>
+            </>
+          )}
         </>
       )}
     </nav>
