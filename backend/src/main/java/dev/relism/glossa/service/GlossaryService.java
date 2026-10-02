@@ -8,8 +8,6 @@ import dev.relism.glossa.persistence.entities.GlossaryTerm;
 import dev.relism.glossa.persistence.entities.ProjectLocale;
 import dev.relism.glossa.schema.Glossary.NewTerm;
 import dev.relism.glossa.schema.Glossary.TermView;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Comparator;

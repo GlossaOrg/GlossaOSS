@@ -70,10 +70,9 @@ public final class Sessions implements SessionStore {
 
     @Override
     public void delete(String id) {
-        data.write(() -> {
-            AppSession row = hibernate().find(AppSession.class, hash(id));
-            if (row != null) hibernate().remove(row);
-        });
+        // One statement keeps concurrent sign-outs idempotent.
+        data.write(() -> hibernate().createMutationQuery("delete from AppSession where id = :id")
+                .setParameter("id", hash(id)).executeUpdate());
     }
 
     private org.hibernate.Session hibernate() {

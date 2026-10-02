@@ -31,7 +31,6 @@ public final class Users implements UserResolver<AppUser>, PasswordStore {
     private final Data data;
     private final boolean selfAdministered;
     private final UserService accounts;
-    private final UserResolver<AppUser> others;
 
     /**
      * The account behind the credential, and the one place that can refuse it: a suspended or removed
@@ -53,7 +52,7 @@ public final class Users implements UserResolver<AppUser>, PasswordStore {
                 AppUser known = find(oidc.issuer(), oidc.name());
                 yield known != null ? known : arriveOnce(oidc);
             }
-            default -> others.resolve(principal);
+            default -> throw new IllegalStateException("No Glossa user for " + principal.getClass().getName());
         });
     }
 

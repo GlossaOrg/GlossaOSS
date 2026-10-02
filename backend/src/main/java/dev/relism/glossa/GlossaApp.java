@@ -11,20 +11,24 @@ import dev.relism.flash.ext.validation.avaje.AvajeValidation;
 import dev.relism.flash.ext.limiter.LimiterModule;
 import dev.relism.flash.ext.openapi.OpenApiModule;
 import dev.relism.flash.ext.openapi.Ui;
-import dev.relism.flash.ext.security.RoleResolver;
 import dev.relism.flash.ext.security.SecurityModule;
-import dev.relism.flash.ext.security.UserResolver;
 import dev.relism.flash.ext.security.form.FormLoginModule;
 import dev.relism.glossa.auth.ApiKeys;
 import dev.relism.glossa.auth.ProjectRoles;
 import dev.relism.glossa.auth.Sessions;
 import dev.relism.glossa.auth.Users;
 import dev.relism.glossa.persistence.Database;
-import dev.relism.glossa.persistence.entities.AppUser;
 import dev.relism.glossa.service.AiService;
 import dev.relism.glossa.service.ApiKeyService;
+import dev.relism.glossa.service.CatalogService;
+import dev.relism.glossa.service.CommentService;
+import dev.relism.glossa.service.ContentQueries;
 import dev.relism.glossa.service.GlossaryService;
+import dev.relism.glossa.service.ImportService;
+import dev.relism.glossa.service.LocaleService;
 import dev.relism.glossa.service.LocalizationService;
+import dev.relism.glossa.service.MessageService;
+import dev.relism.glossa.service.ProgressService;
 import dev.relism.glossa.service.ProjectService;
 import dev.relism.glossa.service.SetupService;
 import dev.relism.glossa.service.UserService;
@@ -52,12 +56,7 @@ public final class GlossaApp implements Module {
     private final Database.Bootstrap db;
     private final boolean localLogin;
     private final boolean selfAdministered;
-    private RoleResolver roles;
-    private UserResolver<AppUser> users = principal -> {
-        throw new IllegalStateException("No Glossa user for " + principal.getClass().getName());
-    };
     private String origin;
-    private AiService.Access ai;
 
     /** Signs in with passwords unless {@link Env#LOCAL_LOGIN} turns it off; whoever signs up or in first administers the install. */
     public GlossaApp(Database.Bootstrap db) {
@@ -73,30 +72,11 @@ public final class GlossaApp implements Module {
         this.db = db;
         this.localLogin = localLogin;
         this.selfAdministered = selfAdministered;
-        this.roles = new ProjectRoles(db.data());
-    }
-
-    /** What {@code @RolesAllowed} is read against. Default: {@link ProjectRoles}. */
-    public GlossaApp roles(RoleResolver roles) {
-        this.roles = roles;
-        return this;
-    }
-
-    /** The account behind a principal no mechanism of Glossa's own produced. Its account is still refused if suspended or removed. */
-    public GlossaApp users(UserResolver<AppUser> users) {
-        this.users = users;
-        return this;
     }
 
     /** Where the installation is served, e.g. {@code https://glossa.example}; {@code null} takes each request's own. */
     public GlossaApp origin(String origin) {
         this.origin = origin;
-        return this;
-    }
-
-    /** §9: where AI calls may go; {@code null} uses the provider this installation configures for itself. */
-    public GlossaApp ai(AiService.Access ai) {
-        this.ai = ai;
         return this;
     }
 
@@ -121,13 +101,19 @@ public final class GlossaApp implements Module {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .build();
         UserService accounts = new UserService(db.data());
-        Users resolvedUsers = new Users(db.data(), selfAdministered, accounts, users);
+        Users resolvedUsers = new Users(db.data(), selfAdministered, accounts);
         ApiKeys keys = new ApiKeys(db.data());
         GlossaryService glossary = new GlossaryService(db.data());
-        AiService aiService = new AiService(db.data(), mapper, ai);
+        AiService aiService = new AiService(db.data(), mapper);
         WebhookService webhooks = new WebhookService(db.data(), mapper);
+        // §5-§10 is one aggregate with satellites around it: each route family has its own service,
+        // and every query a Spec cannot express lives in the queries they share.
+        ContentQueries contentQueries = new ContentQueries(db.data());
+        LocalizationService content = new LocalizationService(db.data(), contentQueries);
+        CatalogService catalogs = new CatalogService(db.data(), mapper, contentQueries, content, webhooks);
 
-        SecurityModule security = new SecurityModule().users(resolvedUsers).roles(roles).sessions(new Sessions(db.data())).loginPage("/login");
+        SecurityModule security = new SecurityModule().users(resolvedUsers).roles(new ProjectRoles(db.data()))
+                .sessions(new Sessions(db.data())).loginPage("/login");
         if (origin != null) security.origin(origin);
         if (localLogin) app.install(new FormLoginModule(resolvedUsers));
 
@@ -145,7 +131,13 @@ public final class GlossaApp implements Module {
                 .add(GlossaryService.class, glossary)
                 .add(AiService.class, aiService)
                 .add(WebhookService.class, webhooks)
-                .add(LocalizationService.class, new LocalizationService(db.data(), mapper, aiService, glossary, webhooks))
+                .add(LocalizationService.class, content)
+                .add(LocaleService.class, new LocaleService(db.data(), contentQueries))
+                .add(CommentService.class, new CommentService(db.data(), content))
+                .add(ImportService.class, new ImportService(db.data(), content))
+                .add(MessageService.class, new MessageService(db.data(), aiService, glossary))
+                .add(CatalogService.class, catalogs)
+                .add(ProgressService.class, new ProgressService(db.data(), contentQueries, catalogs))
                 // §10: the public delivery API must be rate-limited.
                 .install(new LimiterModule())
                 .install(new OpenApiModule("/openapi", "Glossa API", VERSION).ui(apiReference()))

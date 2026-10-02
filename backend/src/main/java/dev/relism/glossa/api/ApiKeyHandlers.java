@@ -3,7 +3,6 @@ package dev.relism.glossa.api;
 import dev.relism.flash.ext.avaje.jsonb.JsonHandler;
 import dev.relism.flash.ext.openapi.APIResponse;
 import dev.relism.flash.ext.openapi.ApiOperation;
-import dev.relism.flash.ext.openapi.Content;
 import dev.relism.flash.ext.security.RolesAllowed;
 import lombok.RequiredArgsConstructor;
 import dev.relism.flash.http.Request;

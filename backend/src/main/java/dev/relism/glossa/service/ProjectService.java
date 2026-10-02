@@ -12,7 +12,6 @@ import dev.relism.glossa.persistence.entities.ProjectMember;
 import dev.relism.glossa.persistence.entities.Role;
 import dev.relism.glossa.schema.Projects.NewProject;
 import dev.relism.glossa.schema.Projects.ProjectView;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Comparator;

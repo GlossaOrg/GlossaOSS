@@ -26,31 +26,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public final class AiService {
 
-    /**
-     * Where AI calls may go, for a build sourcing the provider somewhere other than this
-     * installation's own settings — per tenant, say. Unset, {@link #settings()} is used.
-     */
-    public interface Access {
-
-        /** The provider to call, or a thrown {@link HttpException} explaining why no call may be made. */
-        Endpoint endpoint();
-
-        /**
-         * One AI action the caller asked for succeeded. A feature reports it once, whatever it took
-         * internally: a retry is the same action, not a second one.
-         */
-        default void used() {}
-    }
-
-    public record Endpoint(String baseUrl, String apiKey, String model) {}
+    private record Endpoint(String baseUrl, String apiKey, String model) {}
 
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
 
     private final Data data;
     private final ObjectMapper json;
-    /** Null in an installation that configures its own provider. */
-    private final Access access;
 
     public SettingsView settings() {
         AiSettings row = row();
@@ -72,25 +54,21 @@ public final class AiService {
 
     /**
      * Whether an AI call would be allowed right now, for a caller who may not see the provider: the
-     * frontend offers no AI where there is none. It is {@link #endpoint()}'s own answer rather than a
+     * frontend offers no AI where there is none. It is {@link #configured()}'s own answer rather than a
      * second reading of the same rules, so the two can never disagree.
      */
     public boolean available() {
         try {
-            return (access != null ? access.endpoint() : configured()) != null;
+            configured();
+            return true;
         } catch (HttpException unavailable) {
             return false;
         }
     }
 
-    /** One AI action the caller asked for succeeded. */
-    public void used() {
-        if (access != null) access.used();
-    }
-
     /** The provider's answer, or 502: a provider that is slow, down or lying is not the caller's fault. */
     public String complete(String system, String user) {
-        Endpoint endpoint = access != null ? access.endpoint() : configured();
+        Endpoint endpoint = configured();
         HttpResponse<String> response;
         try {
             String body = json.writeValueAsString(Map.of(
