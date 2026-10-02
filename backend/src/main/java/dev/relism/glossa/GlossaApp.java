@@ -17,6 +17,7 @@ import dev.relism.flash.ext.security.UserResolver;
 import dev.relism.flash.ext.security.form.FormLoginModule;
 import dev.relism.glossa.auth.ApiKeys;
 import dev.relism.glossa.auth.ProjectRoles;
+import dev.relism.glossa.auth.Sessions;
 import dev.relism.glossa.auth.Users;
 import dev.relism.glossa.persistence.Database;
 import dev.relism.glossa.persistence.entities.AppUser;
@@ -27,6 +28,7 @@ import dev.relism.glossa.service.LocalizationService;
 import dev.relism.glossa.service.ProjectService;
 import dev.relism.glossa.service.SetupService;
 import dev.relism.glossa.service.UserService;
+import dev.relism.glossa.service.WebhookService;
 import io.avaje.jsonb.Jsonb;
 
 import java.io.IOException;
@@ -123,8 +125,9 @@ public final class GlossaApp implements Module {
         ApiKeys keys = new ApiKeys(db.data());
         GlossaryService glossary = new GlossaryService(db.data());
         AiService aiService = new AiService(db.data(), mapper, ai);
+        WebhookService webhooks = new WebhookService(db.data(), mapper);
 
-        SecurityModule security = new SecurityModule().users(resolvedUsers).roles(roles).loginPage("/login");
+        SecurityModule security = new SecurityModule().users(resolvedUsers).roles(roles).sessions(new Sessions(db.data())).loginPage("/login");
         if (origin != null) security.origin(origin);
         if (localLogin) app.install(new FormLoginModule(resolvedUsers));
 
@@ -141,7 +144,8 @@ public final class GlossaApp implements Module {
                 .add(SetupService.class, new SetupService(db.data(), localLogin, selfAdministered))
                 .add(GlossaryService.class, glossary)
                 .add(AiService.class, aiService)
-                .add(LocalizationService.class, new LocalizationService(db.data(), mapper, aiService, glossary))
+                .add(WebhookService.class, webhooks)
+                .add(LocalizationService.class, new LocalizationService(db.data(), mapper, aiService, glossary, webhooks))
                 // §10: the public delivery API must be rate-limited.
                 .install(new LimiterModule())
                 .install(new OpenApiModule("/openapi", "Glossa API", VERSION).ui(apiReference()))

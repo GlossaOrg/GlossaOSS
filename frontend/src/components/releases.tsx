@@ -1,33 +1,37 @@
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query'
-import { CheckIcon, DownloadIcon, UploadIcon } from 'lucide-react'
+import { useState } from 'react'
+import { AnimatePresence } from 'motion/react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { cn } from 'cn'
-import { Language } from '@/components/locale'
+import { Badge } from '@/components/kit'
+import { Language, languageName } from '@/components/locale'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { OneTimeNote } from '@/components/one-time-note'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
 import { useProject } from '@/lib/projects'
-import { day, state, status, useLocale, type Locale, type Release, type Resource } from '@/lib/content'
+import { day, state, useLocale, useProgress, type Locale, type Progress, type Release, type Status } from '@/lib/content'
 
 type Catalog = { profile: string; icuVersion: string; cldrVersion: string }
 
 /** §10: a catalog is immutable under its hash, so publishing twice with no change keeps the release. */
 export function Releases() {
   const project = useProject().project!
-  const { rows, locales } = useLocale(project.id)
-  const ordered = [...rows].sort((a, b) => Number(b.source) - Number(a.source) || a.locale.localeCompare(b.locale))
+  const { rows, locales, source } = useLocale(project.id)
+  const progress = useProgress(project.id)
 
   return (
-    <div className="page grid gap-8">
+    <div className="page grid gap-5">
       <header>
-        <h2 className="mb-2">Releases</h2>
-        <p className="text-muted-foreground text-[17px]">Each locale publishes on its own, and only what is approved goes in.</p>
+        <h2>Releases</h2>
+        <p className="text-muted-foreground mt-1.5 max-w-[52ch] text-[0.9375rem] text-pretty">Each language publishes on its own, and only what is approved goes in.</p>
       </header>
 
-      {locales.error ? (
-        <p role="alert" className="text-destructive">Could not load the locales. Reload the page.</p>
+      {locales.error || progress.error ? (
+        <p role="alert" className="text-destructive">Could not load the releases. Reload the page.</p>
       ) : !locales.data ? (
-        <div className="divide-y border-y" aria-busy>
+        <div className="card divide-y px-5" aria-busy>
           {[0, 1, 2].map((i) => (
             <div key={i} className="py-3.5" style={{ opacity: 1 - i * 0.3 }}>
               <Skeleton className="h-5 w-72" />
@@ -35,76 +39,138 @@ export function Releases() {
           ))}
         </div>
       ) : (
-        <div className="border-y">
-          <div className={cn('text-muted-foreground hidden border-b py-2 md:grid', columns)}>
+        <div className="card px-5">
+          <div className={cn('text-muted-foreground hidden border-b py-3 md:grid', columns)}>
             <span className="eyebrow">Language</span>
             <span className="eyebrow">Current release</span>
             <span className="eyebrow">Ready to publish</span>
             <span />
           </div>
           <ul className="divide-y">
-            {ordered.map((l) => (
-              <li key={l.locale}>
-                <Row locale={l} projectId={project.id} />
+            {rows.map((l) => (
+              <li key={l.locale} className="reveal">
+                <Row locale={l} progress={progress.data?.find((p) => p.locale === l.locale)} fallback={l.fallbackLocale ?? (l.source ? undefined : source?.locale)} projectId={project.id} />
               </li>
             ))}
           </ul>
         </div>
       )}
+
+      <Webhook projectId={project.id} />
     </div>
   )
 }
 
-function Row({ locale, projectId }: { locale: Locale; projectId: number }) {
+type WebhookView = { url: string | null; secret: string | null }
+
+/** Where a new release is announced, so an app can fetch it instead of polling the manifest. */
+function Webhook({ projectId }: { projectId: number }) {
+  const client = useQueryClient()
+  const path = `/api/projects/${projectId}/webhook`
+  const current = useQuery({ queryKey: ['webhook', projectId], queryFn: () => api<WebhookView>(path) })
+  const [draft, setDraft] = useState<string | null>(null)
+  const [secret, setSecret] = useState<string | null>(null)
+  const save = useMutation({
+    mutationFn: (url: string | null) => api<WebhookView>(path, { method: 'PUT', json: { url } }),
+    onSuccess: (saved) => {
+      setDraft(null)
+      setSecret(saved.secret)
+      client.setQueryData(['webhook', projectId], { ...saved, secret: null })
+    },
+  })
+  const url = current.data?.url ?? null
+  return (
+    <section>
+      <AnimatePresence>
+        {secret && (
+          <OneTimeNote key={secret} title="Copy the webhook secret" secret={secret} onClose={() => setSecret(null)}>
+            Each call carries X-Glossa-Signature: sha256= and the HMAC of its body under this secret. It is shown once; saving the URL again makes a new one.
+          </OneTimeNote>
+        )}
+      </AnimatePresence>
+      <div className="card grid gap-3 p-5">
+        <header>
+          <h3>Webhook</h3>
+          <p className="text-muted-foreground mt-1 text-sm">Every new release is POSTed here as JSON, with its language, version and hash.</p>
+        </header>
+        {draft !== null ? (
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              save.mutate(draft.trim() || null)
+            }}
+          >
+            <Input type="url" value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus required placeholder="https://example.com/hooks/glossa" className="min-w-60 flex-1 font-mono text-[0.8125rem]" />
+            <Button type="submit" size="sm" disabled={save.isPending}>Save</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
+          </form>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={cn('min-w-0 flex-1 font-mono text-[0.8125rem] break-all', !url && 'text-muted-foreground font-sans text-sm')}>{url ?? 'Not set'}</span>
+            <Button size="sm" variant="outline" disabled={!current.data} onClick={() => setDraft(url ?? '')}>{url ? 'Change' : 'Set URL'}</Button>
+            {url && <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive" disabled={save.isPending} onClick={() => save.mutate(null)}>Remove</Button>}
+          </div>
+        )}
+        {save.error ? <p role="alert" className="text-destructive text-xs">{(save.error as { detail?: string }).detail ?? 'Could not save the webhook.'}</p> : null}
+      </div>
+    </section>
+  )
+}
+
+function Row({ locale, progress, fallback, projectId }: { locale: Locale; progress?: Progress; fallback?: string; projectId: number }) {
   const client = useQueryClient()
   const navigate = useNavigate()
+  const { select } = useLocale(projectId)
+  const [confirming, setConfirming] = useState(false)
   const base = `/api/projects/${projectId}/catalogs/${encodeURIComponent(locale.locale)}`
+  const release = progress?.release
 
-  const [manifest, resources] = useQueries({
-    queries: [
-      { queryKey: ['manifest', projectId, locale.locale], queryFn: () => api<Release>(base), retry: false },
-      { queryKey: ['resources', projectId, locale.locale], queryFn: () => api<Resource[]>(`/api/projects/${projectId}/resources?locale=${encodeURIComponent(locale.locale)}`) },
-    ],
+  const catalog = useQuery({
+    queryKey: ['catalog', projectId, locale.locale, release?.hash],
+    queryFn: () => api<Catalog>(`${base}/${release!.hash}`),
+    enabled: !!release,
+    staleTime: Infinity,
   })
-
-  const catalog = useQueries({
-    queries: [
-      {
-        queryKey: ['catalog', projectId, locale.locale, manifest.data?.hash],
-        queryFn: () => api<Catalog>(`${base}/${manifest.data!.hash}`),
-        enabled: !!manifest.data,
-      },
-    ],
-  })[0]
 
   const publish = useMutation({
     mutationFn: () => api<Release>(base, { method: 'POST' }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['manifest', projectId, locale.locale] }),
+    onSuccess: () => {
+      setConfirming(false)
+      return client.invalidateQueries({ queryKey: ['resources', projectId, 'progress'] })
+    },
   })
 
   // ponytail: a client-side pre-flight. It catches what is untranslated, pending or outdated, but
   // not an approved message missing a plural form — publish still answers with the first of those.
-  // Publication skips archived resources, so the pre-flight must not count them.
-  const rows = (resources.data ?? []).filter((r) => !r.archived)
-  const blocked = rows.filter((r) => status(r) !== 'approved')
-  const ready = rows.length > 0 && blocked.length === 0
+  const total = progress?.total ?? 0
+  const blocked: [Status, number][] = progress
+    ? ([['untranslated', progress.untranslated], ['review', progress.review], ['rejected', progress.rejected], ['outdated', progress.outdated]] as [Status, number][]).filter(([, n]) => n)
+    : []
+  const missing = blocked.reduce((sum, [, n]) => sum + n, 0)
+  const ready = total > 0 && missing === 0
+  const open = (s: Status) => {
+    select(locale.locale)
+    navigate(`/content?status=${s}`)
+  }
 
   const version = (v: string) => v.replace(/(\.0)+$/, '')
 
   return (
-    <div className="py-3">
-      <div className={cn('grid gap-y-2', columns)}>
+    <div className="py-5">
+      <div className={cn('grid gap-y-3', columns)}>
         <span className="flex min-w-0 flex-wrap items-center gap-2">
           <Language locale={locale.locale} />
-          {locale.source && <span className="bg-brand/10 text-brand rounded-full px-2 py-px text-[11px] font-medium">source</span>}
+          {locale.source && <Badge className="bg-foreground text-background">Source</Badge>}
         </span>
 
         <span className="grid min-w-0 gap-0.5 text-sm">
-          {manifest.data ? (
+          {release ? (
             <>
               <span className="flex items-center gap-2">
-                <span className="font-mono text-xs">{manifest.data.hash.slice(0, 10)}</span>
-                <span className="text-muted-foreground">{day.format(new Date(manifest.data.createdAt))}</span>
+                <span className="font-medium">v{release.version}</span>
+                <span className="font-mono text-xs">{release.hash.slice(0, 10)}</span>
+                <span className="text-muted-foreground">{day.format(new Date(release.createdAt))}</span>
               </span>
               {catalog.data && (
                 <span className="text-muted-foreground text-xs">
@@ -118,40 +184,46 @@ function Row({ locale, projectId }: { locale: Locale; projectId: number }) {
         </span>
 
         <span className="flex flex-wrap items-center gap-1.5">
-          {!rows.length ? (
+          {!progress ? (
+            <Skeleton className="h-5 w-32" />
+          ) : !total ? (
             <span className="text-muted-foreground text-sm">Nothing to publish yet</span>
           ) : ready ? (
-            <span className="inline-flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-300">
-              <CheckIcon className="size-3.5" />
-              {rows.length === 1 ? '1 message approved' : `All ${rows.length} messages approved`}
-            </span>
+            <Badge dot="bg-emerald-500">{total === 1 ? '1 message approved' : `All ${total} approved`}</Badge>
           ) : (
-            [...new Set(blocked.map(status))].map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => navigate('/content')}
-                className={cn('cursor-pointer rounded-full px-2 py-px text-xs font-medium transition-transform duration-200 motion-safe:hover:-translate-y-0.5', state(s).tint)}
-              >
-                {blocked.filter((b) => status(b) === s).length} {state(s).label.toLowerCase()}
+            blocked.map(([s, n]) => (
+              <button key={s} type="button" onClick={() => open(s)} className="cursor-pointer transition-opacity hover:opacity-70">
+                <Badge dot={state(s).dot}>
+                  {n} {state(s).label.toLowerCase()}
+                </Badge>
               </button>
             ))
           )}
         </span>
 
         <span className="flex items-center gap-1.5 md:justify-end">
-          {manifest.data && (
-            <Button variant="ghost" size="sm" nativeButton={false} render={<a href={`${base}/${manifest.data.hash}`} target="_blank" rel="noreferrer" />}>
-              <DownloadIcon />
-              Catalog
+          {release && (
+            <Button variant="ghost" size="sm" nativeButton={false} render={<a href={`${base}/${release.hash}`} target="_blank" rel="noreferrer" />}>
+              Download
             </Button>
           )}
-          <Button size="sm" variant={ready ? 'default' : 'outline'} disabled={publish.isPending || !rows.length} onClick={() => publish.mutate()}>
-            <UploadIcon className={cn('size-3.5', publish.isPending && 'motion-safe:animate-bounce')} />
-            {ready ? 'Publish' : 'Publish anyway'}
+          <Button size="sm" variant={ready ? 'default' : 'outline'} disabled={publish.isPending || !total || confirming} onClick={() => (ready ? publish.mutate() : setConfirming(true))}>
+            {publish.isPending ? 'Publishing…' : ready ? 'Publish' : 'Publish anyway'}
           </Button>
         </span>
       </div>
+      {confirming && (
+        <div className="bg-secondary mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm">
+          <span>
+            {missing === 1 ? '1 message is' : `${missing} messages are`} not approved in {languageName(locale.locale)}.{' '}
+            {fallback ? <>Readers will see {languageName(fallback)} there instead.</> : 'They are left out of the catalog.'}
+          </span>
+          <span className="flex gap-1.5">
+            <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>Cancel</Button>
+            <Button size="sm" disabled={publish.isPending} onClick={() => publish.mutate()}>{publish.isPending ? 'Publishing…' : 'Publish anyway'}</Button>
+          </span>
+        </div>
+      )}
       {publish.error ? <p role="alert" className="text-destructive mt-2 text-xs">{(publish.error as { detail?: string }).detail ?? 'Could not publish.'}</p> : null}
     </div>
   )

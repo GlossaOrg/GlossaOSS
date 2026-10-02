@@ -56,9 +56,13 @@ belong in `Main`.
   nothing, `JsonHandler<NewProject, ProjectView>` reads a body, and the codec writes the answer.
 - `content/` — §3's field types: each validates and renders its own values.
 - `service/` — `XxxService`, the domain logic: lookups, validation, authorization beyond the
-  annotation, writes. Request/view records nest on the service. It throws `HttpException`, whose
+  annotation, writes. It throws `HttpException`, whose
   status HTTP answers, and knows nothing of the transport, so anything composing the core can call
   it. Handlers only parse, call and return — no repository, no transaction.
+- `schema/` — what the API reads and answers: one final container per resource, its request and
+  view records nested, `@Json` for the codec and `@Valid` when a body carries rules.
+- `auth/` — §11: who a caller is (`Users`, `ApiKeys`), what they may do (`ProjectRoles`), and the
+  sessions kept in Postgres (`Sessions`).
 - `persistence/` — Postgres bootstrap: Flyway migrates, then Hibernate `validate`.
 - `persistence/entities/` — every `@Entity`, with the enums its columns map. Entities live nowhere else.
 
@@ -117,7 +121,10 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 ## Frontend (`frontend/`)
 
 - React SPA, Vite, Tailwind v4, shadcn/ui, TanStack Query, Zustand, Motion, Sonner for toasts.
-  shadcn components are added via the CLI into `components/ui/` and otherwise left alone.
+  shadcn components are added via the CLI into `components/ui/`, then restyled there and only
+  there: that is where Glossa's look lives (Manrope, 8px controls, white cards on a grey canvas), so a CLI update
+  has to keep it. Shared pieces that are not shadcn's (badge, segmented choice, select) are in
+  `components/kit.tsx`.
 - Sidebar entries are project screens (`screens.tsx`). What belongs to the installation is not a
   screen: it opens in the Settings dialog, which only an administrator can open.
 - Server state is TanStack Query; only genuinely client-side state (the current project/locale
@@ -125,7 +132,13 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 - Same-origin by design — `lib/api.ts` takes a path, never a base URL. There is no
   `VITE_API_URL` and no CORS config on either side; adding one means the dev proxy in
   `vite.config.ts` is wrong instead.
-- §12: pastel, approachable, Miro/Evernote-spirited — not dense enterprise UI. Each field type
+- §12: minimal, colourful, approachable — not dense enterprise UI. Colour has three roles and never
+  mixes them: ink and white cards on the grey canvas carry the structure, one lilac (`--brand`) marks
+  whatever acts (buttons, the current entry, focus), and every other colour belongs to a language — its
+  flag, and one pastel everywhere (`hue` in `components/locale.tsx`). One level of surface: a card
+  never sits inside another card. Every screen puts its title on the left and its one primary action
+  on the right. States and roles are neutral badges with
+  at most a dot, never a pastel of their own. Each field type
   from §4 gets its own editor *and* its own preview; one generic textbox for everything is a
   requirements violation, not a shortcut.
 - §4: HTML field content is untrusted. Sanitize before storage and before rendering.
@@ -133,11 +146,11 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 ## Git
 
 - Branches: `feature/<scope>/<short-description>`, `fix/<scope>/<short-description>`, from
-  `master`, lowercase, words separated by `-`.
+  `main`, lowercase, words separated by `-`.
 - Commits: Conventional Commits — `<type>(<scope>): <description>`. Types: `feat`, `fix`,
   `refactor`, `test`, `docs`, `chore`.
 - Scopes: `api`, `persistence`, `frontend`, `deploy`, `docs`, `deps`, `build`.
-- Never push directly to `master`. Always via PR.
+- Never push directly to `main`. Always via PR.
 - Never commit `target/`, `.env`, or `dependency-reduced-pom.xml`.
 
 ## What an agent must not do here
@@ -146,5 +159,5 @@ class-level Javadoc. If the explanation is longer than the code it documents, cu
 - Let a machine-generated translation become live without human review (§9), or let an API key
   reach past the grant it was issued with (§11).
 - Design or implement real-time collaboration: explicitly out of scope for v1 (§13).
-- Bump `flash.version` in the `docker` profile as a side effect of unrelated work.
+- Bump `flash.version` as a side effect of unrelated work.
 - Add a dependency for what a few lines of JDK or Flash already do.

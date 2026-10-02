@@ -12,6 +12,7 @@ import dev.relism.flash.ext.security.apikey.ApiKeyPrincipal;
 import dev.relism.glossa.content.FieldType.Variable;
 import dev.relism.glossa.content.FieldType;
 import dev.relism.glossa.content.MessageType;
+import dev.relism.glossa.persistence.entities.AppUser;
 import dev.relism.glossa.persistence.entities.CatalogRelease;
 import dev.relism.glossa.persistence.entities.ContentEvent;
 import dev.relism.glossa.persistence.entities.ContentRevision;
@@ -19,6 +20,8 @@ import dev.relism.glossa.persistence.entities.ContentVariant;
 import dev.relism.glossa.persistence.entities.LocalizedResource;
 import dev.relism.glossa.persistence.entities.Project;
 import dev.relism.glossa.persistence.entities.ProjectLocale;
+import dev.relism.glossa.persistence.entities.ResourceComment;
+import dev.relism.glossa.schema.Localization.CommentView;
 import dev.relism.glossa.schema.Localization.CreateResource;
 import dev.relism.glossa.schema.Localization.Decision;
 import dev.relism.glossa.schema.Localization.Detail;
@@ -27,6 +30,11 @@ import dev.relism.glossa.schema.Localization.EventView;
 import dev.relism.glossa.schema.Localization.LocaleRequest;
 import dev.relism.glossa.schema.Localization.LocaleView;
 import dev.relism.glossa.schema.Localization.MessageRequest;
+import dev.relism.glossa.schema.Localization.NewComment;
+import dev.relism.glossa.schema.Localization.Import;
+import dev.relism.glossa.schema.Localization.Imported;
+import dev.relism.glossa.schema.Localization.Progress;
+import dev.relism.glossa.schema.Localization.Skipped;
 import dev.relism.glossa.schema.Localization.ReleaseView;
 import dev.relism.glossa.schema.Localization.Rendered;
 import dev.relism.glossa.schema.Localization.ResourceView;
@@ -69,6 +77,7 @@ public final class LocalizationService {
     private final ObjectMapper json;
     private final AiService ai;
     private final GlossaryService glossary;
+    private final WebhookService webhooks;
     private final MessageType messages = new MessageType();
     /** §3's registry: the field types a resource may name. */
     private final Map<String, FieldType> types = Map.of(messages.name(), messages);
@@ -163,6 +172,134 @@ public final class LocalizationService {
                     })
                     .toList();
         });
+    }
+
+    /**
+     * Every locale the caller may read, counted by state in one pass over ids alone: what a
+     * dashboard needs without a list of payloads per locale.
+     */
+    public List<Progress> progress(long project) {
+        return inProject(project, false, () -> {
+            List<ProjectLocale> locales = localesOf(project).stream().filter(l -> allows(project, l.getLocale(), "READER")).toList();
+            if (locales.isEmpty()) throw HttpException.forbidden("No locale of this project is yours to read.");
+            String origin = source(localesOf(project)).getLocale();
+            Set<Long> live = new HashSet<>(session().createQuery("select id from LocalizedResource where projectId = :project and archived = false", Long.class)
+                    .setParameter("project", project).getResultList());
+            // locale -> resource -> [head, approved, pending, basedOnSource]
+            Map<String, Map<Long, Long[]>> variants = new HashMap<>();
+            session().createQuery("select v.locale, v.resourceId, v.headRevisionId, v.approvedRevisionId, v.pendingRevisionId, r.basedOnSourceRevisionId"
+                            + " from ContentVariant v left join ContentRevision r on r.id = v.approvedRevisionId where v.projectId = :project", Object[].class)
+                    .setParameter("project", project).getResultStream()
+                    .filter(row -> live.contains((Long) row[1]))
+                    .forEach(row -> variants.computeIfAbsent((String) row[0], l -> new HashMap<>())
+                            .put((Long) row[1], new Long[] {(Long) row[2], (Long) row[3], (Long) row[4], (Long) row[5]}));
+            Map<Long, Long[]> sources = variants.getOrDefault(origin, Map.of());
+            Map<String, CatalogRelease> newest = new HashMap<>();
+            Map<String, Long> published = new HashMap<>();
+            session().createQuery("from CatalogRelease where projectId = :project order by id desc", CatalogRelease.class)
+                    .setParameter("project", project).getResultStream()
+                    .forEach(release -> {
+                        newest.putIfAbsent(release.getLocale(), release);
+                        published.merge(release.getLocale(), 1L, Long::sum);
+                    });
+            Map<String, ReleaseView> releases = newest.values().stream().collect(Collectors.toMap(CatalogRelease::getLocale,
+                    r -> new ReleaseView(published.get(r.getLocale()), r.getLocale(), r.getHash(), r.getCreatedAt())));
+            return locales.stream().map(locale -> {
+                Map<Long, Long[]> here = variants.getOrDefault(locale.getLocale(), Map.of());
+                int untranslated = 0, review = 0, rejected = 0, outdated = 0, approved = 0;
+                for (Long id : live) {
+                    Long[] v = here.get(id);
+                    Long source = sources.containsKey(id) ? sources.get(id)[1] : null;
+                    if (v != null && v[2] != null) review++;
+                    else if (v == null || v[0] == null) untranslated++;
+                    else if (!v[0].equals(v[1])) rejected++;
+                    else if (v[3] != null && !v[3].equals(source)) outdated++;
+                    else approved++;
+                }
+                return new Progress(locale.getLocale(), live.size(), untranslated, review, rejected, outdated, approved, releases.get(locale.getLocale()));
+            }).toList();
+        });
+    }
+
+    /**
+     * Brings a file's messages in, one ordinary write per entry: into the source, new keys become
+     * resources; elsewhere, each becomes the caller's own change (§8), a proposal unless they review.
+     * An entry that cannot be written is reported and the rest still go in.
+     */
+    public Imported importMessages(long project, String locale, Import request) {
+        List<ProjectLocale> locales = inProject(project, false, () -> localesOf(project));
+        enabled(locales, locale);
+        boolean origin = source(locales).getLocale().equals(locale);
+        if (origin && !allows(project, null, "MANAGER")) throw HttpException.forbidden("Only a manager can import into the source.");
+        Map<String, ResourceView> known = list(project, locale, null).stream().collect(Collectors.toMap(ResourceView::key, r -> r));
+        int created = 0, updated = 0, unchanged = 0;
+        List<Skipped> skipped = new java.util.ArrayList<>();
+        for (Map.Entry<String, String> entry : new TreeMap<>(request.entries()).entrySet()) {
+            ResourceView current = known.get(entry.getKey());
+            Map<String, Object> payload = Map.of("pattern", entry.getValue() == null ? "" : entry.getValue());
+            try {
+                if (current == null) {
+                    if (!origin) {
+                        skipped.add(new Skipped(entry.getKey(), "No such key in the source."));
+                        continue;
+                    }
+                    create(project, new CreateResource(entry.getKey(), null, messages.name(), payload, null));
+                    created++;
+                } else if (current.archived()) {
+                    skipped.add(new Skipped(entry.getKey(), "Archived."));
+                } else if (payload.equals(current.payload())) {
+                    unchanged++;
+                } else if (current.pendingRevisionId() != null) {
+                    skipped.add(new Skipped(entry.getKey(), "A proposal is waiting for review."));
+                } else {
+                    edit(project, current.id(), locale, new Edit(Objects.requireNonNullElse(current.headRevisionId(), 0L), current.sourceRevisionId(), payload, null));
+                    updated++;
+                }
+            } catch (HttpException refused) {
+                skipped.add(new Skipped(entry.getKey(), refused.getMessage()));
+            }
+        }
+        return new Imported(created, updated, unchanged, skipped);
+    }
+
+    /** The thread about a resource in one locale, oldest first. */
+    public List<CommentView> comments(long project, long id, String locale) {
+        return inProject(project, false, () -> {
+            enabled(project, locale);
+            resource(project, id);
+            return session().createQuery("from ResourceComment where resourceId = :resource and locale = :locale order by id", ResourceComment.class)
+                    .setParameter("resource", id).setParameter("locale", locale).getResultStream().map(LocalizationService::commentViewOf).toList();
+        });
+    }
+
+    public CommentView comment(long project, long id, String locale, NewComment request) {
+        if (request.body().isBlank()) throw HttpException.badRequest("Write something first.");
+        return inProject(project, true, () -> {
+            enabled(project, locale);
+            resource(project, id);
+            ResourceComment comment = new ResourceComment();
+            comment.setProjectId(project);
+            comment.setResourceId(id);
+            comment.setLocale(locale);
+            // A name to show, not an audit trail: an OIDC subject means nothing to the reader. An API key signs as itself.
+            comment.setAuthor(machine() ? actor() : SecurityIdentity.current().user(AppUser.class).getName());
+            comment.setBody(request.body().strip());
+            session().persist(comment);
+            return commentViewOf(comment);
+        });
+    }
+
+    /** The translator context is guidance, not content: it changes in place and has no revisions. */
+    public ResourceView context(long project, long id, String context) {
+        return inProject(project, true, () -> {
+            LocalizedResource resource = resource(project, id);
+            resource.setContext(context == null || context.isBlank() ? null : context.strip());
+            return view(resource, source(project).getLocale());
+        });
+    }
+
+    private static CommentView commentViewOf(ResourceComment c) {
+        return new CommentView(c.getId(), c.getLocale(), c.getAuthor(), c.getBody(), c.getCreatedAt());
     }
 
     /** The resource and its first source revision, approved at once. */
@@ -327,7 +464,8 @@ public final class LocalizationService {
 
     /** Every active resource resolved for {@code locale}; publishing an unchanged catalog returns the current release. */
     public ReleaseView publish(long project, String locale) {
-        return inProject(project, true, () -> {
+        boolean[] fresh = {false};
+        ReleaseView published = inProject(project, true, () -> {
             enabled(project, locale);
             Map<String, Object> entries = new TreeMap<>();
             List<LocalizedResource> resources = session().createQuery("from LocalizedResource where projectId = :project and archived = false", LocalizedResource.class)
@@ -349,8 +487,12 @@ public final class LocalizationService {
             release.setHash(hash);
             release.setArtifact(artifact);
             session().persist(release);
+            fresh[0] = true;
             return releaseViewOf(release);
         });
+        // After the commit, so whoever the webhook tells can already fetch the release.
+        if (fresh[0]) webhooks.published(project, published);
+        return published;
     }
 
     public ReleaseView manifest(long project, String locale) {
@@ -601,7 +743,10 @@ public final class LocalizationService {
         return new EventView(e.getId(), e.getRevisionId(), e.getBeforeRevisionId(), e.getAfterRevisionId(), e.getAction(), e.getActor(), e.getCreatedAt());
     }
 
-    private static ReleaseView releaseViewOf(CatalogRelease r) {
-        return new ReleaseView(r.getId(), r.getLocale(), r.getHash(), r.getCreatedAt());
+    /** A release's version counts its own locale's releases, not every locale's. */
+    private ReleaseView releaseViewOf(CatalogRelease r) {
+        long version = session().createQuery("select count(*) from CatalogRelease where projectId = :project and locale = :locale and id <= :id", Long.class)
+                .setParameter("project", r.getProjectId()).setParameter("locale", r.getLocale()).setParameter("id", r.getId()).getSingleResult();
+        return new ReleaseView(version, r.getLocale(), r.getHash(), r.getCreatedAt());
     }
 }

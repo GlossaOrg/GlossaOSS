@@ -1,14 +1,18 @@
 import { cn } from 'cn'
-import { lex, typeTint, type VariableType } from '@/lib/content'
+import { tint } from '@/components/locale'
+import { lex } from '@/lib/content'
 
-/** A message as prose: its arguments as chips, so nobody reads braces to see what a string says. */
-export function Pattern({ text, rtl, className }: { text: string; rtl?: boolean; className?: string }) {
+/**
+ * A message as prose: its arguments as chips, so nobody reads braces to see what a string says. The
+ * chips wear the pastel of `locale`, the language the message is written in, as they do in the editor.
+ */
+export function Pattern({ text, rtl, locale, className }: { text: string; rtl?: boolean; locale?: string; className?: string }) {
   if (!text) return <span className="text-muted-foreground italic">empty</span>
   return (
     <span dir={rtl ? 'rtl' : undefined} className={cn('[overflow-wrap:anywhere]', className)}>
       {segments(text).map((segment, i) =>
         segment.argument ? (
-          <Chip key={i} name={segment.argument} kind={segment.kind} />
+          <Chip key={i} name={segment.argument} kind={segment.kind} locale={locale} />
         ) : (
           <span key={i}>{segment.text}</span>
         ),
@@ -41,15 +45,12 @@ function segments(pattern: string): Segment[] {
 }
 
 /** Inline, in the flow of the sentence: an argument is part of the text, not an annotation on it. */
-/** The same rule the server infers with, for colour only. */
-const tint: Record<string, VariableType> = { plural: 'NUMBER', selectordinal: 'NUMBER', number: 'NUMBER', date: 'TEMPORAL', time: 'TEMPORAL', select: 'SELECT' }
-
-function Chip({ name, kind }: { name: string; kind?: string }) {
+function Chip({ name, kind, locale }: { name: string; kind?: string; locale?: string }) {
   const branching = kind === 'plural' || kind === 'selectordinal' || kind === 'select'
   return (
-    <span className={cn('mx-px inline-flex items-baseline gap-1 rounded-md px-1.5 py-px align-baseline text-[0.9em] font-medium', typeTint[tint[kind ?? ''] ?? 'TEXT'])}>
+    <span className={cn('mx-px inline-flex items-baseline gap-1 rounded-[5px] px-1.5 py-px align-baseline font-mono text-[0.84em] font-medium', locale ? 'text-on-tint' : 'bg-foreground/[0.07]')} style={locale ? { background: tint(locale) } : undefined}>
       {name}
-      {branching && <span className="text-[0.75em] opacity-60">{kind === 'select' ? 'select' : 'plural'}</span>}
+      {branching && <span className="font-sans text-[0.8em] opacity-50">{kind === 'select' ? 'select' : 'plural'}</span>}
     </span>
   )
 }

@@ -15,7 +15,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/glossa
       DB_USERNAME: glossa
       DB_PASSWORD: ${DB_PASSWORD:-glossa}
-      # SSO is mandatory for a real deployment (§11) — set these, then uncomment.
+      # Optional SSO (§11); password sign-in works without it. Set these, then uncomment.
       # OIDC_ISSUER: ${OIDC_ISSUER}
       # OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
       # OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}

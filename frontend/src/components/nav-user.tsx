@@ -1,5 +1,5 @@
-import type { Me } from "@/lib/me"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import type { Me } from '@/lib/me'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,17 +8,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar"
-import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
+} from '@/components/ui/dropdown-menu'
 
+/** The signed-in user as an avatar in the header; its menu says who you are and logs you out. */
 export function NavUser({ user }: { user: Me }) {
-  const { isMobile } = useSidebar()
   const label = user.name || user.email
   const initials = label
     .split(/\s+/)
@@ -27,62 +20,29 @@ export function NavUser({ user }: { user: Me }) {
     .join('')
     .toUpperCase()
   return (
-    <SidebarMenu>
+    <>
       {/* Flash's logout route is a POST. A real form submit lets the browser follow its redirect
           to the provider's end-session endpoint; fetch() would follow it invisibly and leave the
           Keycloak session standing. */}
       <form id="logout" method="POST" action="/auth/logout" hidden />
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
-            }
-          >
-            <Avatar className="size-8 rounded-lg">
-              <AvatarFallback className="bg-brand/12 text-brand rounded-lg text-xs font-semibold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{label}</span>
-              <span className="truncate text-xs text-foreground/70">
-                {user.email}
-              </span>
-            </div>
-            <ChevronsUpDownIcon className="ml-auto size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="min-w-56"
-            side={isMobile ? "bottom" : "right"}
-            align="end"
-            sideOffset={4}
-          >
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="size-8">
-                    <AvatarFallback className="bg-brand/12 text-brand rounded-lg text-xs font-semibold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{label}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {user.email}
-                    </span>
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => (document.getElementById('logout') as HTMLFormElement).requestSubmit()}>
-              <LogOutIcon />
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger aria-label={`Signed in as ${label}`} className="focus-visible:ring-ring/20 cursor-pointer rounded-full outline-none focus-visible:ring-3">
+          <Avatar className="size-9">
+            <AvatarFallback className="text-on-tint bg-brand text-xs font-bold">{initials}</AvatarFallback>
+          </Avatar>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="min-w-60" side="bottom" align="end" sideOffset={8}>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Signed in as</DropdownMenuLabel>
+            <p className="truncate px-3 text-sm font-semibold">{label}</p>
+            <p className="text-muted-foreground truncate px-3 pb-2 text-xs">{user.email}</p>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => (document.getElementById('logout') as HTMLFormElement).requestSubmit()}>
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   )
 }

@@ -15,13 +15,21 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.sun.net.httpserver.HttpServer;
+
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -235,6 +243,99 @@ class LocalizationTest {
         // The source is a locale like any other: its value is the source.
         app.request().with(as(manager)).get("/api/projects/" + project + "/resources?locale=en&prefix=list.alpha").expectStatus(200)
                 .expectBodyContains("\"sourcePayload\":{\"pattern\":\"Alpha\"},\"payload\":{\"pattern\":\"Alpha\"}");
+    }
+
+    /** One call counts every readable locale by state; a locale-scoped role sees its own locale only. */
+    @Test
+    @Order(6)
+    void progressCountsEveryReadableLocaleByState() {
+        String all = app.request().with(as(manager)).get("/api/projects/" + project + "/progress").expectStatus(200).body();
+        assertTrue(all.contains("\"locale\":\"en\""), all);
+        assertTrue(all.contains("\"locale\":\"it\""), all);
+        // list.alpha has a pending Italian proposal, list.beta nothing yet.
+        assertTrue(all.matches("(?s).*\"locale\":\"it\",\"total\":\\d+,\"untranslated\":[1-9]\\d*,\"review\":[1-9].*"), all);
+
+        String mine = app.request().with(as(translator)).get("/api/projects/" + project + "/progress").expectStatus(200).body();
+        assertTrue(mine.contains("\"locale\":\"it\""), mine);
+        assertFalse(mine.contains("\"locale\":\"en\""), mine);
+        app.request().with(as(outsider)).get("/api/projects/" + project + "/progress").expectStatus(403);
+    }
+
+    /** An import is one ordinary write per entry: new source keys become resources, a translator's lines become proposals. */
+    @Test
+    @Order(7)
+    void anImportWritesEachEntryThroughTheWorkflow() {
+        String imports = "/api/projects/" + project + "/imports/";
+        post(manager, imports + "en", "{\"entries\":{\"import.one\":\"One\",\"import.two\":\"Two {n}\"}}")
+                .expectStatus(200).expectBodyContains("\"created\":2");
+        post(manager, imports + "en", "{\"entries\":{\"import.one\":\"One\",\"import.two\":\"Two, now {n}\"}}")
+                .expectBodyContains("\"updated\":1").expectBodyContains("\"unchanged\":1");
+
+        // A translator cannot add keys, and their lines wait for a reviewer.
+        post(translator, imports + "en", "{\"entries\":{\"import.three\":\"Three\"}}").expectStatus(403);
+        String result = post(translator, imports + "it", "{\"entries\":{\"import.one\":\"Uno\",\"import.nope\":\"No\",\"import.two\":\"Due {missing}\"}}")
+                .expectStatus(200).body();
+        assertTrue(result.contains("\"updated\":1"), result);
+        assertTrue(result.contains("\"key\":\"import.nope\",\"reason\":\"No such key in the source.\""), result);
+        assertTrue(result.contains("\"key\":\"import.two\""), result);
+        String list = app.request().with(as(translator)).get("/api/projects/" + project + "/resources?locale=it&prefix=import.one").body();
+        assertTrue(list.matches("(?s).*\"pendingRevisionId\":\\d+.*"), list);
+    }
+
+    /** A thread is per locale, so a locale-scoped role reads and writes its own; the context is the manager's. */
+    @Test
+    @Order(8)
+    void commentsAreThreadedPerLocaleAndTheContextIsTheManagers() {
+        long id = number(post(manager, "/api/projects/" + project + "/resources",
+                "{\"key\":\"thread.one\",\"fieldType\":\"message\",\"payload\":{\"pattern\":\"Open\"}}").expectStatus(201).body(), "id");
+        post(translator, path(id) + "/comments?locale=it", "{\"body\":\"  A door or a file?  \"}").expectStatus(201)
+                .expectBodyContains("\"body\":\"A door or a file?\"");
+        post(manager, path(id) + "/comments?locale=it", "{\"body\":\"A file.\"}").expectStatus(201);
+        post(translator, path(id) + "/comments?locale=en", "{\"body\":\"Not my locale\"}").expectStatus(403);
+        post(translator, path(id) + "/comments?locale=it", "{\"body\":\"   \"}").expectStatus(400);
+        String thread = app.request().with(as(reviewer)).get(path(id) + "/comments?locale=it").expectStatus(200).body();
+        assertTrue(thread.indexOf("A door") < thread.indexOf("A file."), thread);
+        assertTrue(thread.contains("\"author\":\"content-translator@example.test\""), thread);
+        app.request().with(as(manager)).get(path(id) + "/comments?locale=en").expectStatus(200).expectBody("[]");
+
+        put(translator, path(id) + "/context", "{\"context\":\"Mine now\"}").expectStatus(403);
+        put(manager, path(id) + "/context", "{\"context\":\" Opens a file \"}").expectStatus(200).expectBodyContains("\"context\":\"Opens a file\"");
+        put(manager, path(id) + "/context", "{\"context\":\"\"}").expectStatus(200).expectBodyContains("\"context\":null");
+    }
+
+    /** A new release is POSTed to the webhook, signed with the secret answered once; an unchanged one is not. */
+    @Test
+    @Order(9)
+    void aNewReleaseIsAnnouncedSignedToTheWebhook() throws Exception {
+        BlockingQueue<String[]> received = new ArrayBlockingQueue<>(4);
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/hook", exchange -> {
+            received.add(new String[] {exchange.getRequestHeaders().getFirst("X-Glossa-Signature"),
+                    new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)});
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String webhook = "/api/projects/" + project + "/webhook";
+            put(translator, webhook, "{\"url\":\"http://127.0.0.1/\"}").expectStatus(403);
+            put(manager, webhook, "{\"url\":\"ftp://nope\"}").expectStatus(400);
+            String set = put(manager, webhook, "{\"url\":\"http://127.0.0.1:" + server.getAddress().getPort() + "/hook\"}").expectStatus(200).body();
+            String secret = text(set, "secret");
+            app.request().with(as(manager)).get(webhook).expectStatus(200).expectBodyContains("\"secret\":null");
+
+            post(manager, "/api/projects/" + project + "/catalogs/en", "{}").expectStatus(201);
+            String[] call = received.poll(10, TimeUnit.SECONDS);
+            assertNotNull(call, "no webhook call");
+            assertTrue(call[1].contains("\"event\":\"release.published\"") && call[1].contains("\"locale\":\"en\"") && call[1].contains("\"version\":1"), call[1]);
+            assertEquals("sha256=" + WebhookService.sign(secret, call[1]), call[0]);
+
+            post(manager, "/api/projects/" + project + "/catalogs/en", "{}").expectStatus(201);
+            assertEquals(null, received.poll(1, TimeUnit.SECONDS));
+            put(manager, webhook, "{\"url\":null}").expectStatus(200).expectBodyContains("\"url\":null");
+        } finally {
+            server.stop(0);
+        }
     }
 
     private static String path(long resource) {

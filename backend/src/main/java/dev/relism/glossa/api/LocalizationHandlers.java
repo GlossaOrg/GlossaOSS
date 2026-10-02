@@ -7,6 +7,7 @@ import dev.relism.flash.ext.openapi.ApiOperation;
 import dev.relism.flash.ext.openapi.Content;
 import dev.relism.flash.ext.openapi.Parameter;
 import dev.relism.flash.ext.openapi.ParameterIn;
+import dev.relism.flash.ext.security.Authenticated;
 import dev.relism.flash.ext.security.RolesAllowed;
 import lombok.RequiredArgsConstructor;
 import dev.relism.flash.http.ContentType;
@@ -101,6 +102,34 @@ public final class LocalizationHandlers {
         }
     }
 
+    @GET("/api/projects/{project}/progress")
+    @Authenticated
+    @ApiOperation(summary = "Where every locale stands.",
+                  description = "Each locale the caller may read, its resources counted by state, and its newest release.",
+                  tags = "Localization")
+    @APIResponse(responseCode = "403", description = "No locale of this project is the caller's to read")
+    @RequiredArgsConstructor
+    public static final class Progress extends JsonHandler<Void, List<Localization.Progress>> {
+        private final LocalizationService content;
+        @Override public List<Localization.Progress> handle(Request req, Response res, Void ignored) {
+            return content.progress(project(req));
+        }
+    }
+
+    @POST("/api/projects/{project}/imports/{locale}")
+    @RolesAllowed(value = "TRANSLATOR", on = {"project", "locale"})
+    @ApiOperation(summary = "Imports messages into one locale.",
+                  description = "Into the source, new keys become resources (managers only). Elsewhere each entry is the caller's own write, "
+                          + "a proposal unless they review. Entries that cannot be written are listed, the rest still go in.",
+                  tags = "Localization")
+    @RequiredArgsConstructor
+    public static final class ImportMessages extends JsonHandler<Localization.Import, Localization.Imported> {
+        private final LocalizationService content;
+        @Override public Localization.Imported handle(Request req, Response res, Localization.Import body) {
+            return content.importMessages(project(req), req.param("locale"), body);
+        }
+    }
+
     @POST("/api/projects/{project}/resources")
     @RolesAllowed(value = "MANAGER", on = "project")
     @ApiOperation(summary = "Creates a resource.",
@@ -129,6 +158,43 @@ public final class LocalizationHandlers {
         private final LocalizationService content;
         @Override public Localization.Detail handle(Request req, Response res, Void ignored) {
             return content.detail(project(req), resource(req), req.query("locale"));
+        }
+    }
+
+    @GET("/api/projects/{project}/resources/{resource}/comments")
+    @RolesAllowed(value = "READER", on = {"project", "locale"})
+    @ApiOperation(summary = "The thread about a resource in one locale.", tags = "Localization")
+    @Parameter(name = "locale", in = ParameterIn.QUERY, required = true, description = "Whose thread.")
+    @RequiredArgsConstructor
+    public static final class Comments extends JsonHandler<Void, List<Localization.CommentView>> {
+        private final LocalizationService content;
+        @Override public List<Localization.CommentView> handle(Request req, Response res, Void ignored) {
+            return content.comments(project(req), resource(req), req.query("locale"));
+        }
+    }
+
+    @POST("/api/projects/{project}/resources/{resource}/comments")
+    @RolesAllowed(value = "TRANSLATOR", on = {"project", "locale"})
+    @ApiOperation(summary = "Adds to the thread about a resource in one locale.", tags = "Localization")
+    @Parameter(name = "locale", in = ParameterIn.QUERY, required = true, description = "Whose thread.")
+    @APIResponse(responseCode = "201", description = "Added")
+    @RequiredArgsConstructor
+    public static final class Comment extends JsonHandler<Localization.NewComment, Localization.CommentView> {
+        private final LocalizationService content;
+        @Override public Localization.CommentView handle(Request req, Response res, Localization.NewComment body) {
+            res.status(201);
+            return content.comment(project(req), resource(req), req.query("locale"), body);
+        }
+    }
+
+    @PUT("/api/projects/{project}/resources/{resource}/context")
+    @RolesAllowed(value = "MANAGER", on = "project")
+    @ApiOperation(summary = "Changes what translators are told about a resource.", tags = "Localization")
+    @RequiredArgsConstructor
+    public static final class Context extends JsonHandler<Localization.Context, Localization.ResourceView> {
+        private final LocalizationService content;
+        @Override public Localization.ResourceView handle(Request req, Response res, Localization.Context body) {
+            return content.context(project(req), resource(req), body.context());
         }
     }
 

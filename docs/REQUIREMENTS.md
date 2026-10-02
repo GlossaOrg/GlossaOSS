@@ -77,8 +77,8 @@ If the source-locale content of a key is edited after a given locale's translati
 ## 12. Frontend
 
 - Built as a React single-page application.
-- Visual direction: clean, modern, pastel color palette, in the spirit of tools like Miro or Evernote — approachable and friendly rather than dense/enterprise-styled.
-- The editing interface must be content-type aware: each field type from section 4 gets an editor and a preview appropriate to it (e.g. rendered HTML preview for HTML fields, rendered Markdown preview for Markdown fields, image preview for image fields), not one generic text box used for everything.
+- Visual direction: minimal, colourful and approachable rather than dense/enterprise-styled — neutral structure, one brand colour for what acts, and a pastel per language.
+- The editing interface must be content-type aware: each field type from section 4 gets an editor and a preview appropriate to it (e.g. rendered HTML preview for HTML fields, rendered Markdown preview for Markdown fields), not one generic text box used for everything.
 
 ## 13. Explicitly out of scope for v1
 

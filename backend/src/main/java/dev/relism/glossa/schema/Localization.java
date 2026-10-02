@@ -144,6 +144,58 @@ public final class Localization {
     @Json
     public record ReleaseView(long version, String locale, String hash, Instant createdAt) {}
 
+    @Schema(name = "Comment", description = "One message of the thread about a resource in one locale.")
+    @Json
+    public record CommentView(long id, String locale, String author, String body, Instant createdAt) {}
+
+    @Schema(name = "NewComment", description = "A message for the thread about a resource in one locale.")
+    @Valid
+    @Json
+    public record NewComment(
+            @SchemaProperty(required = true)
+            @NotNull(message = "is required")
+            @Size(min = 1, max = 2000, message = "is 1 to 2000 characters")
+            String body) {}
+
+    @Schema(name = "Context", description = "What a translator needs to know about a resource.")
+    @Valid
+    @Json
+    public record Context(
+            @Size(max = 255, message = "stays under 256 characters")
+            String context) {}
+
+    @Schema(name = "Import", description = "Messages to bring in, each key to its ICU pattern.")
+    @Valid
+    @Json
+    public record Import(
+            @SchemaProperty(required = true, description = "Up to 2000 entries: key to pattern.")
+            @NotNull(message = "is required")
+            @Size(max = 2000, message = "holds up to 2000 entries per call")
+            Map<String, String> entries) {}
+
+    @Schema(name = "Imported", description = "What an import did, entry by entry.")
+    @Json
+    public record Imported(int created, int updated, int unchanged, List<Skipped> skipped) {}
+
+    @Json
+    public record Skipped(String key, String reason) {}
+
+    @Schema(name = "Progress", description = "Where one locale stands: its resources counted by state, archived ones left out.")
+    @Json
+    public record Progress(
+            String locale,
+            int total,
+            int untranslated,
+            @SchemaProperty(description = "A proposal is waiting for a reviewer.")
+            int review,
+            @SchemaProperty(description = "The last proposal was rejected.")
+            int rejected,
+            @SchemaProperty(description = "Approved, but the source moved on since.")
+            int outdated,
+            int approved,
+            @SchemaProperty(description = "The newest published catalog. Null until one is.")
+            ReleaseView release) {}
+
     @Schema(name = "Message", description = "A message to check or render, with the values to render it with.")
     @Valid
     @Json

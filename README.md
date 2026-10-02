@@ -8,7 +8,8 @@ functional spec.
 Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual threads) with a React SPA frontend.
 
 > **Status: early.** Accounts, project roles and API keys; locales with fallbacks, ICU messages,
-> translation review and published catalogs. Not released yet.
+> translation review with comment threads, a glossary, file import, AI suggestions, and published
+> catalogs announced by webhook. Not released yet.
 
 ## Layout
 
@@ -20,10 +21,12 @@ Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual
 | `backend/src/main/java/dev/relism/glossa/Main.java` | Production entrypoint. Adds the two externally-dependent modules (web bundler, OIDC). |
 | `backend/src/main/java/dev/relism/glossa/persistence/` | Postgres bootstrap — Flyway migrate, then Hibernate `validate`. Entities in `entities/`. |
 | `backend/src/main/java/dev/relism/glossa/api/` | HTTP handlers, discovered by `scan(...)`. |
+| `backend/src/main/java/dev/relism/glossa/schema/` | What the API reads and answers: request and view records. |
+| `backend/src/main/java/dev/relism/glossa/auth/` | Accounts, API keys, project roles and Postgres-backed sessions (§11). |
 | `backend/src/main/java/dev/relism/glossa/content/` | Field types (§3). |
 | `backend/src/main/java/dev/relism/glossa/service/` | The domain logic handlers call. |
 | `backend/src/main/resources/db/migration/` | Flyway migrations. Add one per entity. |
-| `frontend/` | React SPA — Vite, Tailwind v4, shadcn/ui, TanStack Query, Zustand, Motion. The root route is the dashboard, behind the OIDC gate. |
+| `frontend/` | React SPA — Vite, Tailwind v4, shadcn/ui, TanStack Query, Zustand, Motion. The root route is Home, behind the sign-in gate. |
 | `dev.sh` | The dev loop: backing services up, then Glossa in the foreground. |
 | `dev/compose.yaml` | Postgres + Keycloak for local development, started by `dev.sh`. |
 | `dev/keycloak/` | The dev realm (§11) and the image that bakes it into Keycloak. |
@@ -32,9 +35,9 @@ Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual
 ### Flash modules in use
 
 `data-hibernate` (Postgres), `avaje-jsonb` (bodies parsed and documented from generated adapters),
-`validation-avaje` (bodies checked from their
-type), `openapi`, `limiter` (§10 rate
-limiting), `oidc` (§11 SSO), `vite` (§12: Vite beside the app in DEV, the built SPA from the jar
+`validation-avaje` (bodies checked from their type), `jackson-xml` (§10's XML delivery formats),
+`openapi` (the API reference, Scalar), `limiter` (§10 rate limiting), `security-form`,
+`security-oidc` and `security-apikey` (§11: passwords, SSO and API keys on one chain), `vite` (§12: Vite beside the app in DEV, the built SPA from the jar
 otherwise).
 
 ## Local development
@@ -51,9 +54,8 @@ cp .env.example .env
 
 `dev.sh` is the whole loop: it brings the backing services up (`dev/compose.yaml` — Postgres and
 Keycloak, ports published, idempotent, left running when you Ctrl-C), then
-runs `Main` off
-`target/classes` with `-Dflash.env=dev` via `mvn compile exec:exec@dev`, which skips the shade
-step `package` does. (`exec:java` is not equivalent — see the comment on the plugin in `pom.xml`.)
+compiles and runs `Main` with plain `java -Dflash.env=dev` off `backend/target/classes` and the
+classpath Maven resolves, which skips the shade step `package` does.
 
 Glossa itself is deliberately not a compose service here: an image bakes the jar in, so every
 edit would mean an image rebuild, and a bind mount can't stand in for that against a remote
@@ -70,9 +72,10 @@ run and no CORS to configure. It also turns on Flash's use-after-return detectio
 
 ### Logging in
 
-The SPA's root route is the dashboard, and it is gated: it asks `GET /api/me`, and a 401 shows the sign-in
-screen for whatever `GET /auth/methods` lists. The user in the sidebar footer is the signed-in
-one, and its "Log out" posts to `/auth/logout`.
+The SPA's root route is Home, and it is gated: it asks `GET /api/me`, and a 401 shows the sign-in
+screen for whatever `GET /auth/methods` lists. The user menu at the right of the header is the
+signed-in one, and its "Log out" posts to `/auth/logout`. Sessions are kept in Postgres, so a
+restart signs nobody out.
 
 `.env.example` points the OIDC variables at the Keycloak in `dev/compose.yaml`, so the §11 login
 flow works from a fresh clone: `GET /auth/oidc/sso/login` redirects to Keycloak, and after logging in
@@ -80,7 +83,7 @@ the callback sets the session and returns you to where you were going.
 
 | | |
 |---|---|
-| Realm user | `dev` / `dev` — holds `translator`, `reviewer` and `manager` |
+| Realm user | `dev` / `dev` (`dev@example.com`). Its realm roles are ignored: roles are Glossa's (§11) |
 | Admin console | <http://localhost:8081> — `admin` / `admin` |
 | Realm source | `dev/keycloak/glossa-realm.json`, baked into the image by its `Dockerfile` |
 
@@ -93,8 +96,7 @@ curl -s -X POST http://localhost:8081/realms/glossa/protocol/openid-connect/toke
   -d username=dev -d password=dev
 ```
 
-Comment `OIDC_ISSUER` out to boot with authentication disabled, which is what tests do and never
-what you want in a deployment.
+Comment `OIDC_ISSUER` out to boot without SSO: password sign-in stays on unless `LOCAL_LOGIN=false`.
 
 Postgres keeps its data in a named volume; `docker compose -f dev/compose.yaml
 down` keeps it, add `-v` to start clean. Keycloak keeps none: every start re-imports the realm

@@ -80,7 +80,7 @@
             <groupId>dev.relism</groupId>
             <artifactId>flash-ext-jackson-xml</artifactId>
         </dependency>
-        <!-- OpenAPI spec + Swagger UI — the delivery API is a public integration surface (§10). -->
+        <!-- OpenAPI spec + Scalar reference — the delivery API is a public integration surface (§10). -->
         <dependency>
             <groupId>dev.relism</groupId>
             <artifactId>flash-ext-openapi</artifactId>
@@ -103,7 +103,7 @@
             <groupId>dev.relism</groupId>
             <artifactId>flash-ext-security-apikey</artifactId>
         </dependency>
-        <!-- §13: serves and (in dev) orchestrates the React SPA under frontend/. -->
+        <!-- §12: serves and (in dev) orchestrates the React SPA under frontend/. -->
         <dependency>
             <groupId>dev.relism</groupId>
             <artifactId>flash-ext-vite</artifactId>
@@ -112,8 +112,8 @@
         <!--
           flyway-core pulls Jackson 3 (tools.jackson.core:jackson-databind), whose own POM
           notes annotations "remain at Jackson 2.x group id" and requires
-          com.fasterxml.jackson.core:jackson-annotations 2.21+. flash-ext-jackson's
-          jackson-databind transitively pulls a 2.17.x jackson-annotations, which Maven picks
+          com.fasterxml.jackson.core:jackson-annotations 2.21+. The
+          jackson-databind above pulls a 2.17.x jackson-annotations, which Maven picks
           by default (nearer in the tree) — too old for Jackson 3's databind, causing a
           NoClassDefFoundError at Flyway boot. jackson-annotations is additive/backward
           compatible across minor versions, so pinning it up here satisfies both. Same fix
