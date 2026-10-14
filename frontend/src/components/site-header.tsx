@@ -23,7 +23,7 @@ function Crumbs() {
   const entry = screen?.hidden ? screens.find((s) => !s.hidden && s.url !== '/' && pathname.startsWith(s.url)) : screen
 
   return (
-    <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-2 text-sm font-semibold md:flex">
+    <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-2.5 text-xs font-medium md:flex">
       {/* Switching project is the sidebar's job, including on phones. */}
       <span className="text-muted-foreground truncate">{project?.name ?? 'No project'}</span>
       {entry && (
@@ -55,14 +55,14 @@ export function SiteHeader() {
   return (
     <header className="bg-background/90 sticky top-0 z-10 shrink-0 px-4 backdrop-blur-md md:px-6">
       {/* The page's own column, so the breadcrumb and the actions line up with the content below. */}
-      <div className="page flex h-14 items-center gap-3">
+      <div className="page flex h-16 items-center gap-2.5">
       <SidebarTrigger className="-ml-1 md:hidden" />
       <Logo className="h-4.5 md:hidden" />
       <Crumbs />
       <span className="ml-auto" />
       {me?.admin && (
         <>
-          <Button variant="outline" size="icon" aria-label="Settings" onClick={() => setSettings(true)}>
+          <Button variant="ghost" size="icon" className="text-muted-foreground" aria-label="Settings" onClick={() => setSettings(true)}>
             <SettingsIcon />
           </Button>
           <SettingsDialog

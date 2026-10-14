@@ -28,7 +28,7 @@ export function Locales() {
 
   return (
     <div className="page">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-6">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
           <h2>Locales</h2>
           <p className="text-muted-foreground mt-1.5 max-w-[72ch] text-sm">
@@ -60,6 +60,13 @@ export function Locales() {
         <>
           {source && <Source locale={source} />}
           <ul className="card px-5">
+            <li aria-hidden className={cn('eyebrow hidden items-center gap-x-4 py-3 md:grid', columns)}>
+              <span />
+              <span>Language</span>
+              <span>Falls back to</span>
+              <span>Plural forms</span>
+              <span />
+            </li>
             <AnimatePresence initial={false}>
               {rows.filter((l) => !l.source).map((l) => (
                 <motion.li key={l.locale} layout="position" {...unfold} className="overflow-hidden border-t first:border-t-0">
@@ -77,12 +84,12 @@ export function Locales() {
 /** The language everything is written in first: not a row among the others. */
 function Source({ locale }: { locale: Locale }) {
   return (
-    <div className="card mb-3 flex flex-wrap items-center gap-x-5 gap-y-3 p-5">
-      <Flag locale={locale.locale} className="size-12" />
+    <div className="card mb-5 flex flex-wrap items-center gap-x-4 gap-y-3 p-5">
+      <Flag locale={locale.locale} className="size-9" />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2.5">
-          <span className="text-2xl leading-tight font-semibold tracking-[-0.025em]">{languageName(locale.locale)}</span>
-          <Badge className="bg-foreground text-background">Source</Badge>
+          <span className="text-xl leading-tight font-semibold tracking-[-0.025em]">{languageName(locale.locale)}</span>
+          <Badge>Source</Badge>
         </span>
         <span className="text-muted-foreground mt-0.5 block text-sm">
           <span className="font-mono">{locale.locale}</span> · Every message is written here first · {counting(locale.cardinal).join(', ')} · Ordinal: {counting(locale.ordinal).join(', ')}
@@ -124,15 +131,15 @@ function Row({ locale, all, projectId }: { locale: Locale; all: Locale[]; projec
   const failure = save.error as { detail?: string } | null
 
   return (
-    <div className="group/row py-5">
-      <div className={cn('grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-x-5 gap-y-3', columns)}>
-        <Flag locale={locale.locale} className="size-10" />
+    <div className="group/row py-6">
+      <div className={cn('grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-x-4 gap-y-4', columns)}>
+        <Flag locale={locale.locale} className="size-7" />
         <span className="min-w-0">
-          <span className="block truncate text-lg leading-tight font-medium tracking-[-0.015em]">{languageName(locale.locale)}</span>
+          <span className="block truncate text-base leading-tight font-semibold tracking-[-0.015em]">{languageName(locale.locale)}</span>
           <span className="text-muted-foreground block font-mono text-xs">{locale.locale}{locale.rtl && ' · right to left'}</span>
         </span>
         <span className="col-span-2 col-start-2 row-start-2 md:col-span-1 md:col-start-auto md:row-start-auto">
-          <span className="eyebrow mb-1 block">Falls back to</span>
+          <span className="eyebrow mb-1 block md:hidden">Falls back to</span>
           <LocaleSelect
             className="w-48"
             value={locale.fallbackLocale}
@@ -186,7 +193,7 @@ function Forms({ cardinal, ordinal }: { cardinal: Record<string, string[]>; ordi
     ))
   return (
     <>
-      <span className="eyebrow mb-1 block">Plural forms</span>
+      <span className="eyebrow mb-1 block md:hidden">Plural forms</span>
       <span className="block text-sm font-medium">{words(cardinal)}</span>
       <span className="text-muted-foreground block text-sm">Ordinal: {words(ordinal)}</span>
     </>

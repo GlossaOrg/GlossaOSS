@@ -63,13 +63,13 @@ export function status(r: Resource): Status {
   return r.stale ? 'outdated' : 'approved'
 }
 
-/** Where a message stands in one locale, each state in its own tint: the colour is the label. */
+/** A neutral label for each workflow state. */
 export const states: { value: Status; label: string; says: string; tint: string }[] = [
-  { value: 'untranslated', label: 'To translate', says: 'Nothing written in this locale yet.', tint: 'bg-slate-100 text-slate-800 dark:bg-slate-400/15 dark:text-slate-100' },
-  { value: 'review', label: 'In review', says: 'A proposal is waiting for a reviewer.', tint: 'bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-100' },
-  { value: 'rejected', label: 'Sent back', says: 'The last proposal was rejected.', tint: 'bg-rose-100 text-rose-900 dark:bg-rose-400/15 dark:text-rose-100' },
-  { value: 'outdated', label: 'Source moved', says: 'The source changed after this was approved.', tint: 'bg-violet-100 text-violet-900 dark:bg-violet-400/15 dark:text-violet-100' },
-  { value: 'approved', label: 'Approved', says: 'Live in the next catalog.', tint: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-100' },
+  { value: 'untranslated', label: 'To translate', says: 'Nothing written in this locale yet.', tint: 'bg-secondary text-secondary-foreground' },
+  { value: 'review', label: 'In review', says: 'A proposal is waiting for a reviewer.', tint: 'bg-secondary text-secondary-foreground' },
+  { value: 'rejected', label: 'Sent back', says: 'The last proposal was rejected.', tint: 'bg-secondary text-secondary-foreground' },
+  { value: 'outdated', label: 'Source moved', says: 'The source changed after this was approved.', tint: 'bg-secondary text-secondary-foreground' },
+  { value: 'approved', label: 'Approved', says: 'Live in the next catalog.', tint: 'bg-secondary text-secondary-foreground' },
 ]
 
 /** Whether a message waits on the caller in its locale: something to write, or for a reviewer something to decide. */

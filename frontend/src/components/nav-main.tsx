@@ -1,17 +1,18 @@
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { NavLink, useLocation } from 'react-router'
 import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 import type { Screen } from '@/screens'
 
 /**
- * A sidebar entry. The current one's lilac fill is `Pill`, which slides between entries. Every state
+ * A sidebar entry. The current one's blue fill is `Pill`, which slides between entries. Every state
  * names `data-active` explicitly, so the menu button's own hover and active fills never paint over the pill.
  */
 export const navItem =
-  'relative isolate h-9 gap-2.5 rounded-lg px-3 text-sm font-semibold text-muted-foreground transition-colors duration-200 hover:bg-secondary hover:text-foreground active:bg-secondary data-active:bg-transparent data-active:text-foreground data-active:hover:bg-transparent data-active:active:bg-transparent [&>svg]:size-[1.0625rem] motion-safe:hover:[&_svg]:animate-[shake_0.45s_ease-in-out]'
+  'relative isolate h-10 gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:bg-secondary hover:text-foreground active:bg-secondary data-active:bg-transparent data-active:text-foreground data-active:hover:bg-transparent data-active:active:bg-transparent [&>svg]:size-[1.0625rem] '
 
 function Pill() {
-  return <motion.span layoutId="nav-pill" aria-hidden className="bg-brand absolute inset-0 -z-10 rounded-lg" transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }} />
+  const still = useReducedMotion()
+  return <motion.span layoutId="nav-pill" aria-hidden className="bg-brand/50 absolute inset-0 -z-10 rounded-md" transition={{ duration: still ? 0 : 0.18, ease: [0.2, 0.7, 0.2, 1] }} />
 }
 
 /**
@@ -28,9 +29,9 @@ export function NavMain({ screens }: { screens: Screen[] }) {
 
   return (
     <SidebarGroup>
-      <SidebarMenu className="gap-px">
+      <SidebarMenu className="gap-1">
         {screens.filter((screen) => !screen.hidden).map((item) => (
-          <SidebarMenuItem key={item.url}>
+          <SidebarMenuItem key={item.url} className={item.url === '/' ? 'mb-2 border-b pb-3' : undefined}>
             <SidebarMenuButton isActive={current(item.url)} className={navItem} render={<NavLink to={item.url} />}>
               {current(item.url) && <Pill />}
               <item.icon />

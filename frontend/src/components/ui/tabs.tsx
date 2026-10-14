@@ -58,7 +58,7 @@ function TabsList({
         className={cn(
           "absolute left-(--active-tab-left) -z-10 w-(--active-tab-width) transition-[left,top,width,height] duration-300 ease-[cubic-bezier(0.2,0.7,0.2,1)] motion-reduce:transition-none",
           // A line tab is underlined, so its text stays flush with whatever is above it.
-          variant === "line" ? "-bottom-px h-0.5 rounded-full bg-foreground" : "top-(--active-tab-top) h-(--active-tab-height) rounded-md bg-card shadow-sm"
+          variant === "line" ? "-bottom-px h-0.5 bg-brand-strong" : "top-(--active-tab-top) h-(--active-tab-height) rounded-md bg-card ring-1 ring-border"
         )}
       />
     </TabsPrimitive.List>

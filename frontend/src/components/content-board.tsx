@@ -80,7 +80,7 @@ function Board({ project }: { project: Project }) {
 
   return (
     <div className="page">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-6">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
           <h2>Content</h2>
           <p className="text-muted-foreground mt-1.5 max-w-[46ch] text-sm">
@@ -98,26 +98,26 @@ function Board({ project }: { project: Project }) {
         </span>
       </header>
 
-      {/* Every tab as wide as the groups column below, so the two line up. */}
-      <div className="flex flex-wrap gap-3">
+      {/* A continuous language strip above the resource index. */}
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 xl:grid-cols-6">
         {ordered.map((l) => (
           <LocaleTab key={l.locale} locale={l} progress={progress.data?.find((p) => p.locale === l.locale)} active={locale?.locale === l.locale} onSelect={() => select(l.locale)} onIntent={() => prefetch(l.locale)} />
         ))}
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-[13rem_minmax(0,1fr)]">
-        <aside className="card flex content-start gap-px self-start overflow-x-auto p-1.5 [scrollbar-width:none] lg:grid">
+      <div className="mt-6 grid gap-5 lg:grid-cols-[11rem_minmax(0,1fr)]">
+        <aside className="flex content-start gap-1 self-start overflow-x-auto pb-2 [scrollbar-width:none] lg:grid lg:gap-0.5 lg:pb-0">
           <Group label="All messages" count={all.length} active={!group} onClick={() => setGroup(null)} />
           {groups.map(([name, { total, done }]) => (
             <Group key={name} label={name} count={total} done={done} active={group === name} onClick={() => setGroup(name)} />
           ))}
         </aside>
 
-        <div className="card min-w-0 px-2 pt-2 pb-1">
-          <div className="mb-1 flex flex-wrap items-center gap-2 p-1">
-            <label className="relative">
+        <div className="card min-w-0 overflow-hidden">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+            <label className="relative min-w-0 max-w-full">
               <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find a message" aria-label="Find a message" className="h-9 w-60 rounded-lg pl-9" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find a message" aria-label="Find a message" className="h-9 w-60 max-w-full pl-9" />
             </label>
             {states.map((s) => {
               const count = all.filter((r) => status(r) === s.value).length
@@ -130,8 +130,8 @@ function Board({ project }: { project: Project }) {
                   aria-pressed={on}
                   onClick={() => setFilter(on ? null : s.value)}
                   className={cn(
-                    'focus-visible:ring-ring/20 inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors outline-none focus-visible:ring-3',
-                    on ? 'bg-primary text-primary-foreground' : cn(s.tint, 'hover:brightness-95'),
+                    'focus-visible:ring-ring/20 inline-flex h-9 cursor-pointer items-center gap-2 border-b-2 px-0.5 text-xs font-semibold transition-colors outline-none focus-visible:ring-3',
+                    on ? 'border-brand-strong text-foreground' : 'border-transparent text-muted-foreground hover:border-input hover:text-foreground',
                   )}
                 >
                   {s.label}
@@ -169,7 +169,7 @@ function Board({ project }: { project: Project }) {
             <motion.ul key={locale!.locale} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15, ease: 'easeOut' }}>
               <AnimatePresence initial={false}>
                 {shown.map((r) => (
-                  <motion.li key={r.id} layout="position" {...unfold} className="overflow-hidden border-t">
+                  <motion.li key={r.id} layout="position" {...unfold} className="overflow-hidden border-t border-border/70">
                     <Row resource={r} locale={locale!} source={source} onOpen={() => navigate(`/content/${r.id}`)} />
                   </motion.li>
                 ))}
@@ -182,7 +182,7 @@ function Board({ project }: { project: Project }) {
   )
 }
 
-/** A locale to switch to, filled when it is the one being looked at; the fill slides between them. */
+/** A locale with its approval progress; the blue rule marks the selection. */
 function LocaleTab({ locale, progress, active, onSelect, onIntent }: { locale: Locale; progress?: Progress; active: boolean; onSelect: () => void; onIntent: () => void }) {
   const percent = progress?.total ? Math.floor((progress.approved / progress.total) * 100) : 0
   const still = useReducedMotion()
@@ -194,22 +194,22 @@ function LocaleTab({ locale, progress, active, onSelect, onIntent }: { locale: L
       onPointerEnter={onIntent}
       onFocus={onIntent}
       className={cn(
-        'focus-visible:ring-ring/20 relative isolate flex w-52 shrink-0 cursor-pointer items-center gap-2.5 rounded-lg py-2 pr-4 pl-3 text-left transition-colors outline-none focus-visible:ring-3',
-        active ? 'text-foreground' : 'bg-card text-muted-foreground hover:text-foreground',
+        'focus-visible:ring-ring/20 relative isolate flex min-w-0 cursor-pointer items-center gap-2.5 bg-card px-3 py-3.5 text-left sm:px-4 transition-colors outline-none focus-visible:z-10 focus-visible:ring-3',
+        active ? 'text-foreground' : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground',
       )}
     >
-      <Flag locale={locale.locale} className="size-6" />
+      <Flag locale={locale.locale} className="size-5" />
       <span className="grid min-w-0 flex-1 leading-tight">
-        <span className="truncate text-sm font-bold">{languageName(locale.locale)}</span>
+        <span className="truncate text-sm font-semibold">{languageName(locale.locale)}</span>
         <span className="text-muted-foreground text-xs tabular-nums">
           {locale.source ? 'Source' : progress ? `${percent}% approved` : 'Counting…'}
         </span>
         {/* The source's bar is there but unseen, so every tab is the same height. */}
-        <span className={cn('bg-secondary mt-1.5 block h-1 w-full overflow-hidden rounded-full', locale.source && 'invisible')}>
-          <motion.span className="block h-full rounded-full" style={{ background: shade(locale.locale) }} initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: still ? 0 : 0.6, ease: [0.2, 0, 0, 1] }} />
+        <span className={cn('bg-secondary mt-2 block h-0.5 w-full overflow-hidden', locale.source && 'invisible')}>
+          <motion.span className="block h-full" style={{ background: shade(locale.locale) }} initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: still ? 0 : 0.6, ease: [0.2, 0, 0, 1] }} />
         </span>
       </span>
-      {active && <motion.span layoutId="locale-tab" aria-hidden className="bg-brand absolute inset-0 -z-10 rounded-lg" transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }} />}
+      {active && <motion.span layoutId="locale-tab" aria-hidden className="bg-brand-strong absolute inset-x-0 bottom-0 h-0.5" transition={{ duration: still ? 0 : 0.18, ease: [0.2, 0.7, 0.2, 1] }} />}
     </button>
   )
 }
@@ -224,7 +224,7 @@ function Row({ resource, locale, source, onOpen }: { resource: Resource; locale:
     <button
       type="button"
       onClick={onOpen}
-      className="reveal hover:bg-secondary/70 focus-visible:bg-secondary grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-start gap-x-6 rounded-lg px-3 py-3 text-left transition-colors outline-none"
+      className="reveal hover:bg-secondary/55 focus-visible:bg-secondary grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 px-4 py-4 text-left transition-colors outline-none"
     >
       <span className="min-w-0">
         <span className="text-muted-foreground block truncate font-mono text-xs">
@@ -248,8 +248,8 @@ function Group({ label, count, done, active, onClick }: { label: string; count: 
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'link-bg-animated flex h-9 shrink-0 cursor-pointer items-center justify-between gap-3 rounded-lg px-3 text-left text-sm font-semibold',
-        active ? 'bg-brand text-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+        'link-bg-animated flex h-10 shrink-0 cursor-pointer items-center justify-between gap-3 rounded-md px-3 text-left text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/20',
+        active ? 'bg-brand/40 text-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
       )}
     >
       <span className="truncate">{label}</span>

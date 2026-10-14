@@ -12,11 +12,11 @@ export function SettingsDialog({ title, description, icon, tabs, open, onOpenCha
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(46rem,90svh)] max-w-5xl flex-col gap-6 p-8 sm:max-w-5xl">
+      <DialogContent className="flex h-[min(46rem,90svh)] max-w-[calc(100%-2rem)] flex-col gap-5 p-5 sm:max-w-5xl sm:p-8">
         <DialogHeader className="flex-row items-center gap-3 text-left">
           {icon}
           <div className="grid gap-0.5">
-            <DialogTitle className="text-3xl">{title}</DialogTitle>
+            <DialogTitle className="text-2xl">{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </div>
         </DialogHeader>

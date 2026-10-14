@@ -211,11 +211,13 @@ function Row({ locale, progress, fallback, projectId }: { locale: Locale; progre
         <span className="grid min-w-0 gap-0.5 text-sm">
           {release ? (
             <>
-              <span className="flex items-center gap-2">
-                <span className="font-medium">v{release.version}</span>
-                <span className="font-mono text-xs">{release.hash.slice(0, 10)}</span>
-                <span className="text-muted-foreground">{day.format(new Date(release.createdAt))}</span>
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="font-medium whitespace-nowrap">v{release.version}</span>
+                <span className="font-mono text-xs whitespace-nowrap">{release.hash.slice(0, 10)}</span>
               </span>
+              <time dateTime={release.createdAt} className="text-muted-foreground text-xs whitespace-nowrap">
+                {day.format(new Date(release.createdAt))}
+              </time>
               {catalog.data && (
                 <span className="text-muted-foreground text-xs">
                   ICU {version(catalog.data.icuVersion)} · CLDR {version(catalog.data.cldrVersion)}
