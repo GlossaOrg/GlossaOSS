@@ -31,7 +31,7 @@ export function Glossary() {
 
   return (
     <div className="page">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-6">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
           <h2>Glossary</h2>
           <p className="text-muted-foreground mt-1.5 max-w-[72ch] text-sm">

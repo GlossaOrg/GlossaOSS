@@ -9,7 +9,7 @@ import { roles, type Role } from '@/lib/projects'
  */
 export function Badge({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className={cn('bg-secondary inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap', className)}>
+    <span className={cn('bg-secondary inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-xs font-medium whitespace-nowrap', className)}>
       {children}
     </span>
   )
@@ -45,15 +45,15 @@ export function Segmented<T extends string | number | boolean>({ name, options, 
   loose?: boolean
 }) {
   return (
-    <div className={cn('flex w-fit flex-wrap', loose ? 'gap-2' : 'bg-secondary rounded-lg p-1')}>
+    <div className={cn('flex w-fit flex-wrap', loose ? 'gap-2' : 'bg-secondary rounded-lg border border-border/60 p-1')}>
       {options.map((o) => (
         <label
           key={String(o.value)}
           className={cn(
             'has-focus-visible:ring-ring/20 cursor-pointer rounded-md px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 has-focus-visible:ring-3',
             loose
-              ? 'border-input not-has-checked:hover:border-foreground/40 has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground rounded-lg border'
-              : 'text-muted-foreground not-has-checked:hover:text-foreground has-checked:bg-card has-checked:text-foreground has-checked:shadow-sm',
+              ? 'border-input not-has-checked:hover:border-foreground/25 has-checked:border-brand-strong/30 has-checked:bg-primary has-checked:text-primary-foreground rounded-lg border'
+              : 'text-muted-foreground not-has-checked:hover:text-foreground has-checked:bg-card has-checked:text-foreground has-checked:ring-1 has-checked:ring-border',
           )}
         >
           <input
@@ -79,7 +79,7 @@ export function Select({ lead, className, children, ...props }: React.ComponentP
       <select
         {...props}
         className={cn(
-          'border-input bg-card hover:border-foreground/40 focus-visible:ring-ring/10 h-9 w-full max-w-full cursor-pointer appearance-none truncate rounded-lg border pr-9 text-sm font-medium outline-none focus-visible:ring-3 disabled:cursor-default disabled:opacity-60',
+          'border-input bg-card hover:border-foreground/25 focus-visible:ring-ring/10 h-9 w-full max-w-full cursor-pointer appearance-none truncate rounded-lg border pr-9 text-sm font-medium outline-none focus-visible:border-ring/70 focus-visible:ring-3 disabled:cursor-default disabled:opacity-60',
           lead ? 'pl-9' : 'pl-3',
         )}
       >

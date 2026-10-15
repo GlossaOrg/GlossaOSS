@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router'
 import { ArrowRightIcon, ChevronRightIcon } from 'lucide-react'
 import { cn } from 'cn'
@@ -49,6 +49,7 @@ function Hello() {
 }
 
 function Overview({ project }: { project: Project }) {
+  const still = useReducedMotion()
   const navigate = useNavigate()
   const { rows, source, select, locales } = useLocale(project.id)
   const progress = useProgress(project.id)
@@ -87,19 +88,19 @@ function Overview({ project }: { project: Project }) {
   }
 
   return (
-    <div className="page @container/home grid gap-3">
-      <div className="grid gap-3 @5xl/home:grid-cols-[minmax(0,1fr)_18rem]">
-        {/* One surface, not a card inside a block: the lilac card is the hero itself. */}
+    <div className="page @container/home grid gap-5">
+      <div className="grid gap-5 @5xl/home:grid-cols-[minmax(0,1fr)_18rem]">
+        {/* The project summary and progress share one surface. */}
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
-          className="bg-brand @container/hero min-w-0 rounded-xl p-6 md:p-8"
+          transition={{ duration: still ? 0 : 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+          className="card @container/hero min-w-0 p-6 md:p-8"
         >
           {/* Two columns rather than rows stretched edge to edge: what the project is, then where it stands. */}
           <div className="grid gap-8 @3xl/hero:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] @3xl/hero:items-end">
             <div className="min-w-0">
-              <p className="text-sm font-semibold opacity-65"><Hello /></p>
+              <p className="eyebrow"><Hello /></p>
               <p className="font-heading mt-3 text-2xl leading-tight font-extrabold tracking-[-0.025em] text-balance @3xl/hero:text-3xl">
                 {project.name} is written in <Spoken locale={source.locale} />
                 {targets.length ? <> and speaks {list(spoken)}.</> : '.'}
@@ -108,7 +109,7 @@ function Overview({ project }: { project: Project }) {
 
             <div>
               <p className="flex items-baseline gap-2.5">
-                <span className="font-heading text-[3.5rem] leading-none font-extrabold tracking-[-0.045em] tabular-nums">
+                <span className="font-heading text-brand-strong text-[3.5rem] leading-none font-bold tracking-[-0.045em] tabular-nums">
                   {loaded ? `${total ? Math.floor((approved / total) * 100) : 0}%` : '–'}
                 </span>
                 <span className="text-base font-bold">approved</span>
@@ -117,14 +118,14 @@ function Overview({ project }: { project: Project }) {
               <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-black/10" role="img" aria-label={`${approved} of ${total} approved, ${review} waiting for review`}>
                 {[
                   [approved, 'bg-brand-strong'],
-                  [review, 'bg-amber-400'],
+                  [review, 'bg-foreground/25'],
                 ].map(([n, color], i) => (
                   <motion.span
                     key={color}
                     className={cn('h-full', color as string)}
                     initial={{ width: 0 }}
                     animate={{ width: `${loaded && total ? ((n as number) / total) * 100 : 0}%` }}
-                    transition={{ delay: 0.25 + i * 0.2, duration: 0.8, ease: [0.2, 0, 0, 1] }}
+                    transition={{ delay: still ? 0 : 0.15 + i * 0.1, duration: still ? 0 : 0.6, ease: [0.2, 0, 0, 1] }}
                   />
                 ))}
               </div>
@@ -148,7 +149,7 @@ function Overview({ project }: { project: Project }) {
                   </span>
                 ))}
               </div>
-              <Button variant="ink" className="self-start @xl/hero:ml-auto @xl/hero:self-auto" onClick={() => open(waiting[0].locale, 'review')}>
+              <Button className="self-start @xl/hero:ml-auto @xl/hero:self-auto" onClick={() => open(waiting[0].locale, 'review')}>
                 Start reviewing <ArrowRightIcon />
               </Button>
             </div>
@@ -187,7 +188,7 @@ function Latest({ locales, progress, failed, manager }: { locales: Locale[]; pro
   const latest = [...releases].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
 
   return (
-    <section className="bg-ink flex flex-col rounded-xl p-5 text-white">
+    <section className="bg-ink flex flex-col rounded-lg p-6 text-white">
       <div className="flex h-8 items-center justify-between gap-3">
         <p className="text-xs font-semibold text-white/60">Releases</p>
         {manager && (
@@ -200,18 +201,18 @@ function Latest({ locales, progress, failed, manager }: { locales: Locale[]; pro
         {failed ? 'Release status unavailable.' : !progress ? 'Checking…' : latest ? <>{languageName(latest.locale)} v{latest.version}<br />is live.</> : 'Nothing published yet.'}
       </p>
       {/* One flag per language: in colour once it has a catalog out, a quiet outline until then. */}
-      <div className="mt-5 flex flex-wrap gap-1.5">
+      <div className="mt-5 mb-5 flex flex-wrap gap-1.5">
         {locales.map((l) =>
           release(l) ? (
-            <Flag key={l.locale} locale={l.locale} className="size-6 transition-transform duration-200 hover:-translate-y-0.5 hover:scale-115" />
+            <Flag key={l.locale} locale={l.locale} className="size-6" />
           ) : (
-            <span key={l.locale} title={`${languageName(l.locale)}: not published`} className="group/flag grid size-6 place-items-center rounded-full border border-dashed border-white/30 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:scale-115 hover:border-white/60">
+            <span key={l.locale} title={`${languageName(l.locale)}: not published`} className="group/flag grid size-6 place-items-center rounded-full border border-dashed border-white/30 transition-[transform,border-color] duration-200 hover:border-white/60">
               <Flag locale={l.locale} className="size-3.5 opacity-50 grayscale transition-[opacity,filter] duration-200 group-hover/flag:opacity-100 group-hover/flag:grayscale-0" />
             </span>
           ),
         )}
       </div>
-      <div className="mt-5 border-t border-white/15 pt-3 text-xs">
+      <div className="mt-auto border-t border-white/15 pt-4 text-xs">
         <div className="flex gap-8">
           <span className="text-white/60">Published<br /><b className="text-white tabular-nums">{releases.length} of {locales.length}</b></span>
           {latest && <span className="text-white/60">Last<br /><b className="text-white">{day.format(new Date(latest.createdAt))}</b></span>}
@@ -223,6 +224,7 @@ function Latest({ locales, progress, failed, manager }: { locales: Locale[]; pro
 
 /** A language's row: where it stands, and the one thing to do next in it. */
 function Tile({ locale, progress, delay, onOpen }: { locale: Locale; progress?: Progress; delay: number; onOpen: (next?: 'review' | 'translate') => void }) {
+  const still = useReducedMotion()
   const { total = 0, approved = 0, review = 0 } = progress ?? {}
   const loaded = !!progress
   const todo = total - approved - review
@@ -234,12 +236,12 @@ function Tile({ locale, progress, delay, onOpen }: { locale: Locale; progress?: 
       onClick={() => onOpen(next)}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 + delay, duration: 0.3, ease: 'easeOut' }}
+      transition={{ delay: still ? 0 : 0.1 + delay, duration: still ? 0 : 0.3, ease: 'easeOut' }}
       style={{ '--tint': tint(locale.locale) } as React.CSSProperties}
-      className="group/tile hover:text-on-tint focus-visible:text-on-tint hover:bg-(--tint) focus-visible:bg-(--tint) grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-lg px-3 py-3 text-left transition-colors duration-300 outline-none md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_8rem]"
+      className="group/tile hover:text-on-tint focus-visible:text-on-tint hover:bg-(--tint) focus-visible:bg-(--tint) grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 px-3 py-4 text-left transition-colors duration-300 outline-none md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_8rem]"
     >
       <span className="flex min-w-0 items-center gap-3">
-        <Flag locale={locale.locale} className="size-6 transition-transform duration-300 group-hover/tile:scale-110 group-hover/tile:-rotate-6" />
+        <Flag locale={locale.locale} className="size-6" />
         <span className="min-w-0">
           <span className="block truncate text-sm leading-tight font-bold">{languageName(locale.locale)}</span>
           <span className="text-muted-foreground block font-mono text-xs">
@@ -255,7 +257,7 @@ function Tile({ locale, progress, delay, onOpen }: { locale: Locale; progress?: 
             style={{ background: shade(locale.locale) }}
             initial={{ width: 0 }}
             animate={{ width: `${total ? (approved / total) * 100 : 0}%` }}
-            transition={{ delay: delay + 0.15, duration: 0.6, ease: [0.2, 0, 0, 1] }}
+            transition={{ delay: still ? 0 : delay + 0.15, duration: still ? 0 : 0.6, ease: [0.2, 0, 0, 1] }}
           />
         </span>
         <span className="text-muted-foreground w-16 text-right text-xs tabular-nums">{loaded ? `${approved}/${total}` : '…'}</span>
@@ -268,7 +270,7 @@ function Tile({ locale, progress, delay, onOpen }: { locale: Locale; progress?: 
 function Statement({ eyebrow, text, children }: { eyebrow: React.ReactNode; text: string; children?: React.ReactNode }) {
   return (
     <div className="page">
-      <section className="bg-brand rounded-xl p-6 md:p-10">
+      <section className="card p-6 md:p-10">
         <p className="mb-2 text-[11px] font-medium tracking-[0.07em] uppercase opacity-60">{eyebrow}</p>
         <p className="font-heading mb-6 max-w-[28ch] text-3xl leading-tight font-extrabold tracking-[-0.03em] text-balance">{text}</p>
         {children}

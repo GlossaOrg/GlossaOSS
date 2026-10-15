@@ -39,8 +39,8 @@ type Call = { path: string; method: string; done: string }
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
 const states = {
-  ACTIVE: { label: 'Active', tint: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-100' },
-  INVITED: { label: 'Invited', tint: 'bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-100' },
+  ACTIVE: { label: 'Active', tint: '' },
+  INVITED: { label: 'Invited', tint: '' },
   DISABLED: { label: 'Disabled', tint: '' },
   DELETED: { label: 'Deleted', tint: '' },
 }

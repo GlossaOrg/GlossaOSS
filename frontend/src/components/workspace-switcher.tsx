@@ -25,18 +25,18 @@ export function WorkspaceSwitcher() {
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<SidebarMenuButton size="lg" className="bg-sidebar-accent hover:bg-accent data-open:bg-accent h-auto gap-3 rounded-xl px-2.5 py-2 shadow-[0_1px_2px_rgb(16_16_24/0.05)] ring-1 ring-sidebar-border" />}
+            render={<SidebarMenuButton size="lg" className="hover:bg-sidebar-accent data-open:bg-sidebar-accent h-auto gap-2 rounded-lg border border-sidebar-border px-2.5 py-2.5" />}
           >
-            <span className="bg-primary text-primary-foreground grid size-9 shrink-0 place-items-center rounded-lg font-heading text-sm font-extrabold uppercase">
+            <span className="bg-secondary text-foreground grid size-9 shrink-0 place-items-center rounded-lg font-heading text-sm font-extrabold uppercase">
               {project?.name.slice(0, 1) ?? '–'}
             </span>
-            <span className="grid flex-1 gap-1 text-left leading-tight">
-              <span className="truncate text-sm font-bold">{project?.name ?? 'No project'}</span>
-              <span className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
+            <span className="grid min-w-0 flex-1 gap-1 text-left leading-tight">
+              <span className="truncate text-sm font-semibold">{project?.name ?? 'No project'}</span>
+              <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
                 {locales.length > 0 && (
                   <span className="flex shrink-0">
-                    {locales.slice(0, 4).map((l, i) => (
-                      <span key={l.locale} className="ring-sidebar -ml-1 flex rounded-full ring-2 first:ml-0" style={{ zIndex: 4 - i }}>
+                    {locales.slice(0, 3).map((l, i) => (
+                      <span key={l.locale} className="ring-sidebar -ml-1 flex rounded-full ring-2 first:ml-0" style={{ zIndex: 3 - i }}>
                         <Flag locale={l.locale} className="size-3.5" />
                       </span>
                     ))}

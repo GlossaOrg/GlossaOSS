@@ -53,7 +53,7 @@ export function ApiKeys() {
 
   return (
     <div className="page">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
           <h2>API keys</h2>
           <p className="text-muted-foreground mt-1.5 text-sm">Services use these to reach {project.name} without signing in.</p>

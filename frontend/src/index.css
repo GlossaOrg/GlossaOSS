@@ -69,7 +69,7 @@
 
 :root {
     /* The canvas is grey; everything that holds content is a white card on it. */
-    --background: #F3F2F6;
+    --background: #F4F5F7;
     --foreground: #15161B;
     --card: #FFFFFF;
     --card-foreground: #15161B;
@@ -81,7 +81,7 @@
     --secondary: #F1F1F4;
     --secondary-foreground: #15161B;
     --muted: #F1F1F4;
-    --muted-foreground: #74747D;
+    --muted-foreground: #646772;
     --accent: #EBEAF0;
     --accent-foreground: #15161B;
     --destructive: #D92D20;
@@ -93,13 +93,13 @@
     --chart-3: #A3A3AB;
     --chart-4: #D6D6DC;
     --chart-5: #ECECF0;
-    /* Small corners: 8px controls, 11px cards, 14px dialogs. */
+    /* Small corners: 8px controls and cards, 14px dialogs. */
     --radius: 0.5rem;
     --sidebar: #FFFFFF;
     --sidebar-foreground: #15161B;
     --sidebar-primary: var(--brand);
     --sidebar-primary-foreground: #15161B;
-    --sidebar-accent: #F3F2F6;
+    --sidebar-accent: #F4F5F7;
     --sidebar-accent-foreground: #15161B;
     --sidebar-border: #ECECF0;
     --sidebar-ring: var(--brand-strong);
@@ -162,7 +162,7 @@
   /* A screen's title: bold and tight. The big numbers are what is loud, not the titles. */
   h1, h2 {
     font-size: clamp(1.5rem, 2.2vw, 1.875rem);
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: -0.03em;
     line-height: 1.1;
     }
@@ -178,13 +178,6 @@
   @apply text-muted-foreground text-[11px] font-medium tracking-[0.07em] uppercase;
 }
 
-/* main's own: a nav icon shakes once when its entry is hovered. */
-@keyframes shake {
-  25% { transform: rotate(-12deg); }
-  50% { transform: rotate(9deg); }
-  75% { transform: rotate(-5deg); }
-}
-
 @keyframes float {
   50% { transform: translateY(-3px); }
 }
@@ -194,9 +187,9 @@
   to { background-position: -200% 0; }
 }
 
-/* What holds content: a white card, lifted off the grey canvas rather than drawn onto it. */
+/* Content surfaces use a quiet outline; elevation belongs to overlays. */
 @utility card {
-  @apply bg-card text-card-foreground rounded-xl shadow-[0_1px_2px_rgb(16_16_24/0.04),0_6px_16px_-8px_rgb(16_16_24/0.10)] ring-1 ring-black/[0.04] dark:ring-white/8;
+  @apply bg-card text-card-foreground rounded-lg ring-1 ring-border;
 }
 
 @utility page {
@@ -225,20 +218,22 @@
   @apply transition-colors duration-200 ease-out;
 }
 
-/* A glyph leans toward where its control goes when hovered or focused: arrows move, the gear and
-   the plus turn. Nothing hops or wiggles. */
+/* Directional feedback belongs to navigation; other icons stay still. */
 @layer base {
   svg.lucide {
-    transition: transform 200ms ease-out;
+    stroke-width: 1.75;
+    transition: transform 160ms ease-out;
   }
   @media (prefers-reduced-motion: no-preference) {
-    :is(a, button, label, [role=menuitem], [role=tab]):is(:hover, :focus-visible) > svg {
-      &.lucide-settings { transform: rotate(45deg); }
-      &.lucide-plus { transform: rotate(90deg); }
-      &.lucide-x { transform: rotate(90deg); }
-      &.lucide-arrow-right { transform: translateX(3px); }
-      &.lucide-arrow-left { transform: translateX(-3px); }
-      &.lucide-chevron-down { transform: translateY(1px); }
+    :is(a, button):is(:hover, :focus-visible) > svg {
+      &.lucide-arrow-right { transform: translateX(2px); }
+      &.lucide-arrow-left { transform: translateX(-2px); }
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot] {
+      animation-duration: 0s !important;
+      transition-duration: 0s !important;
     }
   }
 }

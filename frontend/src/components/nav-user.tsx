@@ -28,10 +28,10 @@ export function NavUser({ user }: { user: Me }) {
       <DropdownMenu>
         <DropdownMenuTrigger aria-label={`Signed in as ${label}`} className="focus-visible:ring-ring/20 cursor-pointer rounded-full outline-none focus-visible:ring-3">
           <Avatar className="size-9">
-            <AvatarFallback className="text-on-tint bg-brand text-xs font-bold">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-secondary text-foreground text-xs font-semibold ring-1 ring-inset ring-border">{initials}</AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="min-w-60" side="bottom" align="end" sideOffset={8}>
+        <DropdownMenuContent className="min-w-60 p-1.5" side="bottom" align="end" sideOffset={8}>
           <DropdownMenuGroup>
             <DropdownMenuLabel>Signed in as</DropdownMenuLabel>
             <p className="truncate px-3 text-sm font-semibold">{label}</p>
