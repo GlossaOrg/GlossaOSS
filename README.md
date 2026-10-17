@@ -5,7 +5,7 @@ languages with a translator/reviewer workflow, and serve finished translations t
 applications over an API — see [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) for the full
 functional spec.
 
-Built on [Flash](https://git.pixel-services.com/Relism/Flash5) (Java 21, virtual threads) with a React SPA frontend.
+Built on [Flash](https://github.com/Relism/Flash) (Java 21, virtual threads) with a React SPA frontend.
 
 > **Status: early.** Accounts, project roles and API keys; locales with fallbacks, ICU messages,
 > translation review with comment threads, a glossary, file import, AI suggestions, and published
@@ -42,7 +42,7 @@ otherwise).
 
 ## Local development
 
-Flash comes from its public Maven registry (`flash.version` in `pom.xml`), so a clean clone builds
+Flash comes from JitPack (`flash.version` in `pom.xml`), so a clean clone builds
 as is:
 
 You need JDK 21, Docker, Node 22 and pnpm 11.
@@ -130,10 +130,10 @@ that fails first when a dependency, a migration or a module install order breaks
 
 ## Dependencies
 
-- **Flash** is a published build, pinned by `flash.version` in `pom.xml` and resolved anonymously
-  from its registry (the `<repositories>` entry). Moving to a newer Flash is a one-line bump; to try
-  unreleased Flash changes, `mvn install` a Flash checkout and build with
-  `-Dflash.version=2.1.0-SNAPSHOT`.
+- **Flash** is a release, pinned by `flash.version` in `pom.xml` and resolved anonymously from
+  JitPack (the `<repositories>` entry) as `dev.relism.Flash`. Moving to a newer Flash is a one-line
+  bump; to try unreleased Flash changes, `./mvnw install` a Flash checkout and build with
+  `-Dflash.groupId=dev.relism -Dflash.version=<the version in its pom.xml>`.
 - **Everything else on the JVM side** is Maven Central, pinned in `pom.xml`.
 - **The frontend** is a pnpm project in `frontend/`, locked by `frontend/pnpm-lock.yaml`. Packaging builds it,
   so Node and pnpm are needed for `./mvnw package`, not for `./mvnw test`.
