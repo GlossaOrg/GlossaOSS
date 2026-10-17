@@ -29,7 +29,7 @@
             <version>78.3</version>
         </dependency>
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash</artifactId>
         </dependency>
         <!-- Expanders are compiled here and run by the plugin below; nothing needs them at runtime. -->
@@ -54,13 +54,13 @@
           and flash-ext-data-core.
         -->
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-data-hibernate</artifactId>
         </dependency>
 
         <!-- JSON marshalling for the admin API and the public delivery API (§10). -->
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-avaje-jsonb</artifactId>
         </dependency>
         <!-- Jackson remains the internal tree/AI/catalog utility; HTTP JSON uses Avaje Jsonb. -->
@@ -72,57 +72,57 @@
         <!-- §11 and §4: request bodies are checked against the rules their own types declare,
              by adapters generated at build time rather than by reflection. -->
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-validation-avaje</artifactId>
         </dependency>
         <!-- §10: the delivery formats that are XML, Android string resources first. JSON stays the automatic one. -->
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-jackson-xml</artifactId>
         </dependency>
         <!-- OpenAPI spec + Scalar reference — the delivery API is a public integration surface (§10). -->
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-openapi</artifactId>
         </dependency>
         <!-- §10: "The public delivery API must be rate-limited". -->
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-limiter</artifactId>
         </dependency>
         <!-- §11: SSO, password sign-in and API keys, each optional, all on one security chain. -->
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-security-oidc</artifactId>
         </dependency>
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-security-form</artifactId>
         </dependency>
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-security-apikey</artifactId>
         </dependency>
         <!-- §12: serves and (in dev) orchestrates the React SPA under frontend/. -->
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-vite</artifactId>
         </dependency>
 
         <!--
           flyway-core pulls Jackson 3 (tools.jackson.core:jackson-databind), whose own POM
           notes annotations "remain at Jackson 2.x group id" and requires
-          com.fasterxml.jackson.core:jackson-annotations 2.21+. The
-          jackson-databind above pulls a 2.17.x jackson-annotations, which Maven picks
-          by default (nearer in the tree) — too old for Jackson 3's databind, causing a
-          NoClassDefFoundError at Flyway boot. jackson-annotations is additive/backward
-          compatible across minor versions, so pinning it up here satisfies both. Same fix
-          ../Pathway carries for the same flyway+flash-ext-jackson pairing.
+          com.fasterxml.jackson.core:jackson-annotations 2.21+, while Flash's Jackson 2
+          (jackson-bom 2.22.3 in its flash-extensions) needs 2.22. Maven would otherwise pick
+          whichever is nearer in the tree, and either Flyway or Flash's databind fails with a
+          NoClassDefFoundError. jackson-annotations is backward compatible across minor
+          versions, so the newer one Flash manages satisfies both: keep it at the version of
+          Flash's jackson-bom.
         -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>2.21</version>
+            <version>2.22</version>
         </dependency>
 
         <dependency>
@@ -170,12 +170,12 @@
 
         <!-- Boots the real app on an ephemeral port and asserts against real responses. -->
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-testing</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>dev.relism</groupId>
+            <groupId>${flash.groupId}</groupId>
             <artifactId>flash-ext-security-test</artifactId>
             <scope>test</scope>
         </dependency>
@@ -202,7 +202,7 @@
                 <artifactId>jdae-maven-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>dev.relism</groupId>
+                <groupId>${flash.groupId}</groupId>
                 <artifactId>flash-ext-vite-maven-plugin</artifactId>
             </plugin>
             <plugin>
